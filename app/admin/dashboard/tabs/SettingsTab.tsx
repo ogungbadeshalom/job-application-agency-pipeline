@@ -6,12 +6,15 @@ import Modal from '@/components/Modal';
 import { Spinner } from '@/components/Icon';
 import type { ScrapeRun, User } from '@/lib/types';
 import { LabeledInput } from './shared';
+import AIConfigPanel from './AIConfigPanel';
 
 export default function SettingsTab({ users, scrapeRuns }: { users: User[]; scrapeRuns: ScrapeRun[] }) {
   const [resetTarget, setResetTarget] = useState<User | null>(null);
 
   return (
     <div className="space-y-6">
+      <AIConfigPanel />
+
       <section className="panel overflow-hidden">
         <div className="p-3 border-b border-navy-700">
           <h3 className="text-sm font-semibold text-navy-200">Team</h3>

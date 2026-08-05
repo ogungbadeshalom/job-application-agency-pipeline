@@ -34,7 +34,7 @@ npm run db:seed
 npm run dev
 ```
 
-Open http://localhost:3000 → `/login`. Default admin: `admin@jobbidder.com` / `changeme` (set `ADMIN_PASSWORD` before seeding for real use). Admin can add workers/clients and reset passwords in the dashboard.
+Open http://localhost:3000 → `/login`. Default admin: `admin@jobbidder.com` / `changeme` (set `ADMIN_PASSWORD` before seeding for real use). Admin can add/edit workers and clients, soft-disable accounts, reset passwords, upload resumes, run scrapes, and configure the AI provider in-app.
 
 > If Docker Hub is unreachable, use a local Postgres and set `DATABASE_URL` in `.env.local` accordingly (port 5432 with a local install worked when Docker couldn't pull).
 
@@ -48,16 +48,22 @@ ADMIN_EMAIL=admin@jobbidder.com    # for npm run db:seed
 ADMIN_PASSWORD=changeme
 STORAGE_DIR=./data/uploads         # local disk, gitignored
 
-# AI — pick ONE provider (stub on by default)
-AI_PROVIDER=anthropic              # | openrouter | custom
-AI_MODEL=claude-sonnet-5
-ANTHROPIC_API_KEY=sk-ant-...
-AI_STUB=true                       # false + real key to call the model
+# AI — provider/model/key are configured in-app at Admin → Settings → AI
+# Configuration (encrypted-at-rest in app_config). The env vars below are an
+# OPTIONAL fallback when no row exists (e.g. first boot).
+#
+# AI_STUB=true (default) = deterministic demo output, no key needed.
+# AI_STUB=false + a real key (env OR app_config) = real model calls.
+#
+# ANTHROPIC_API_KEY=sk-ant-...
+# AI_PROVIDER=anthropic
+# AI_MODEL=claude-sonnet-5
+AI_STUB=true
 ```
 
-Other providers:
+Other providers (env fallback only — preferred path is the in-app config):
 - OpenRouter: `AI_PROVIDER=openrouter`, `OPENROUTER_API_KEY=...`
-- Custom (Ollama/LM Studio/OpenCode): `AI_PROVIDER=custom`, `AI_BASE_URL=http://localhost:11434/v1`, `AI_API_KEY=ollama`
+- Custom (Ollama/LM Studio/OpenCode/freeinference.org): `AI_PROVIDER=custom`, `AI_BASE_URL=...`, `AI_MODEL=...`, `AI_API_KEY=...`
 
 ## Architecture
 
@@ -65,25 +71,30 @@ Other providers:
 app/
   (auth)/login/          Real email+password login (Auth.js credentials)
   api/auth/[...nextauth] Auth.js route handler
-  admin/dashboard/       4 tabs: Applications, Profiles, Resumes, Settings + Refill Jobs
+  admin/dashboard/       4 tabs: Applications, People & Clients, Resumes, Settings + Refill Jobs
+    hooks/useJobs.ts     controlled jobs state (in-place refresh after scrape)
+    tabs/                ProfilesTab, ResumesTab, SettingsTab, AIConfigPanel, EditUserModal
   worker/queue/          Job queue for the worker's client
   worker/job/[id]/       2-column detail: job info + (Tailor | Answer | Submission)
   client/jobs/           Read-only applied-jobs view
   api/
     scrape/              spawns scripts/run_jobspy.py, dedupes, inserts jobs
-    tailor/  answer/     AI endpoints (stub by default)
+    tailor/  answer/     AI endpoints (stub by default; DB-backed config)
     jobs/  jobs/[id]     list + update with role checks
     profiles/  users/    admin CRUD (users also handles worker/client + passwords)
+    users/[id]/          soft-disable/enable endpoint
+    config/              AI provider settings GET/PUT (encrypted-at-rest)
     snippets/            per-client Q&A library
     pdf/  upload/  files/  PDF gen + upload + auth-gated file serving
 db/
-  pool.ts                pg pool + helpers (aws .env.local for tsx)
+  pool.ts                pg pool + helpers (loads .env.local for tsx)
   schema.sql             Postgres DDL (enums, tables, triggers)
+  migrations/            idempotent ALTER/CREATE scripts (run after schema.sql)
   migrate.ts  seed.ts    scripts
   repo.ts                the `db` object used by pages/routes
 lib/
   auth.ts  auth-config.ts   Auth.js singleton + requireRole/getSession
-  db.ts   types.ts   storage.ts   ai.ts   pdf.ts   resume-text.ts
+  db.ts   types.ts   storage.ts   ai.ts   pdf.ts   resume-text.ts   crypto.ts
 components/                DashboardLayout, JobTable, Modal, StatusBadge, panels, RefillJobsModal, Icon
 scripts/
   run_jobspy.py           JobSpy runner (JSON-safe output)

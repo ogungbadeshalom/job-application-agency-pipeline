@@ -98,8 +98,8 @@ export default function EditUserModal({ user, onClose }: { user: User; onClose: 
     <Modal
       open
       onClose={onClose}
-      title="Edit user"
-      subtitle={user.role}
+      title={`Edit ${user.full_name || user.email}`}
+      subtitle={`${user.role[0].toUpperCase()}${user.role.slice(1)} account`}
       wide
       footer={
         <>

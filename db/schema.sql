@@ -29,6 +29,7 @@ create table if not exists users (
   role          user_role not null default 'client',
   full_name     text not null default '',
   profile_id    uuid,                       -- for clients: their profiles.id
+  disabled_at   timestamptz,                -- soft-disable: account can't log in
   created_at    timestamptz not null default now()
 );
 

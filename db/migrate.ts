@@ -1,25 +1,35 @@
-// Apply db/schema.sql idempotently.
-// Usage: npm run db:migrate
+// Apply db/schema.sql (idempotent DDL) then every db/migrations/*.sql in sorted
+// order. Usage: npm run db:migrate
 //
-// Runs the whole schema as a single multi-statement script (Postgres supports
-// multiple statements in one query). `if not exists` / `create or replace`
-// make it safe to run repeatedly.
+// Each file runs as a single multi-statement script (Postgres supports that).
+// `if not exists` / `create or replace` make it safe to run repeatedly.
 
-import { readFileSync } from 'fs';
+import { readFileSync, readdirSync, existsSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { pool } from './pool';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const migrationsDir = join(__dirname, 'migrations');
+
 const schemaPath = join(__dirname, 'schema.sql');
-const schema = readFileSync(schemaPath, 'utf-8');
+const files = [schemaPath];
+
+if (existsSync(migrationsDir)) {
+  readdirSync(migrationsDir)
+    .filter((f) => f.endsWith('.sql'))
+    .sort()
+    .forEach((f) => files.push(join(migrationsDir, f)));
+}
 
 async function main() {
   const client = await pool().connect();
   try {
-    console.log(`Applying ${schemaPath} ...`);
-    await client.query(schema);
-    console.log('✅ Schema applied.');
+    for (const p of files) {
+      console.log(`Applying ${p} ...`);
+      await client.query(readFileSync(p, 'utf-8'));
+    }
+    console.log('✅ Schema + migrations applied.');
   } catch (err) {
     console.error('Migration failed:', err instanceof Error ? err.message : err);
     process.exitCode = 1;

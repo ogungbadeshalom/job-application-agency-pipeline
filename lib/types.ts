@@ -21,6 +21,7 @@ export interface User {
   role: Role;
   full_name: string;
   profile_id: string | null;
+  disabled_at: string | null;
   created_at: string;
 }
 

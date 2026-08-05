@@ -28,6 +28,7 @@ function mapUser(r: Record<string, unknown>): User {
     role: r.role as User['role'],
     full_name: r.full_name as string,
     profile_id: (r.profile_id as string) ?? null,
+    disabled_at: r.disabled_at ? (r.disabled_at as Date).toISOString() : null,
     created_at: (r.created_at as Date).toISOString(),
   };
 }
@@ -163,7 +164,8 @@ export const db = {
   },
 
   // Auth helper: fetch a user's raw row INCLUDING password_hash (never expose
-  // via the public getUser). Used only by the Credentials authorize().
+  // via the public getUser). Used only by the Credentials authorize(). Returns
+  // null for disabled users so they can't log in.
   async getAuthUserByEmail(email: string): Promise<{
     id: string;
     email: string;
@@ -171,7 +173,10 @@ export const db = {
     role: User['role'];
     full_name: string;
   } | null> {
-    const row = await one('select * from users where lower(email) = lower($1)', [email]);
+    const row = await one(
+      `select * from users where lower(email) = lower($1) and disabled_at is null`,
+      [email]
+    );
     if (!row) return null;
     return {
       id: row.id as string,

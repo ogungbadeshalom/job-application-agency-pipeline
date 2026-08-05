@@ -144,7 +144,7 @@ export const db = {
   },
   async updateUser(
     id: string,
-    patch: { password_hash?: string; full_name?: string }
+    patch: { password_hash?: string; full_name?: string; email?: string }
   ): Promise<User | null> {
     const sets: string[] = [];
     const params: unknown[] = [];
@@ -162,8 +162,22 @@ export const db = {
     );
     return row ? mapUser(row) : null;
   },
+  async disableUser(id: string): Promise<User | null> {
+    const row = await one(
+      `update users set disabled_at = now() where id = $1 returning *`,
+      [id]
+    );
+    return row ? mapUser(row) : null;
+  },
+  async enableUser(id: string): Promise<User | null> {
+    const row = await one(
+      `update users set disabled_at = null where id = $1 returning *`,
+      [id]
+    );
+    return row ? mapUser(row) : null;
+  },
 
-  // Auth helper: fetch a user's raw row INCLUDING password_hash (never expose
+  // Auth helper: fetch a user's raw row INCLUDING disabled_at (never expose
   // via the public getUser). Used only by the Credentials authorize(). Returns
   // null for disabled users so they can't log in.
   async getAuthUserByEmail(email: string): Promise<{

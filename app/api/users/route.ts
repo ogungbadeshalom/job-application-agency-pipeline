@@ -81,15 +81,29 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const body = (await req.json().catch(() => ({}))) as { id?: string; password?: string; full_name?: string };
+  const body = (await req.json().catch(() => ({}))) as {
+    id?: string;
+    password?: string;
+    full_name?: string;
+    email?: string;
+  };
   if (!body.id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
   const existing = await db.getUser(body.id);
   if (!existing) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-  const patch: { password_hash?: string; full_name?: string } = {};
+  // If the email is changing, ensure it isn't taken by another account.
+  if (body.email && body.email.toLowerCase() !== existing.email.toLowerCase()) {
+    const clash = await db.getUserByEmail(body.email);
+    if (clash && clash.id !== body.id) {
+      return NextResponse.json({ error: 'A user with that email already exists' }, { status: 409 });
+    }
+  }
+
+  const patch: { password_hash?: string; full_name?: string; email?: string } = {};
   if (body.password) patch.password_hash = await hash(body.password, 10);
   if (body.full_name) patch.full_name = body.full_name;
+  if (body.email) patch.email = body.email;
 
   const updated = await db.updateUser(body.id, patch);
   return NextResponse.json({ user: updated });

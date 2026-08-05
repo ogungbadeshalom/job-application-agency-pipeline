@@ -1,0 +1,33 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "dev",
+      "type": "npm",
+      "script": "dev",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always" }
+    },
+    {
+      "label": "build",
+      "type": "npm",
+      "script": "build",
+      "problemMatcher": ["nextjs"],
+      "presentation": { "reveal": "always" }
+    },
+    {
+      "label": "lint",
+      "type": "npm",
+      "script": "lint",
+      "problemMatcher": ["eslint"],
+      "presentation": { "reveal": "always" }
+    },
+    {
+      "label": "test-rls",
+      "type": "shell",
+      "command": "node scripts/test-rls.mjs",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always" }
+    }
+  ]
+}

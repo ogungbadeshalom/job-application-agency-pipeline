@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background-color: #0d1117;
+  color: #e6edf3;
+  min-height: 100%;
+}
+
+/* Thin, dark scrollbars to match the palette */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #30363d transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: #30363d;
+  border-radius: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Uppercase table headers (JobOps style) */
+.th-uppercase {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #8b949e;
+}
+
+/* Subtle panel border + card background */
+.panel {
+  background-color: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 0.5rem;
+}
+
+/* Clickable rows */
+.row-hover:hover {
+  background-color: #1c2128;
+}

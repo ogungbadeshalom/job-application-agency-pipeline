@@ -1,0 +1,55 @@
+import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { getSession } from '@/lib/auth';
+import { callAI, RESUME_TAILOR_SYSTEM } from '@/lib/ai';
+
+// POST /api/tailor  { jobId }
+// Worker/admin: tailor the client's base resume to the job's JD.
+export async function POST(req: Request) {
+  const session = await getSession();
+  if (!session || !['admin', 'worker'].includes(session.user.role)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { jobId } = await req.json().catch(() => ({} as { jobId?: string }));
+  if (!jobId) return NextResponse.json({ error: 'jobId required' }, { status: 400 });
+
+  const job = await db.getJob(jobId);
+  if (!job) return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+
+  // Worker may only tailor jobs for their assigned client.
+  if (session.user.role === 'worker') {
+    const profile = await db.getProfileByWorker(session.user.id);
+    if (!profile || profile.id !== job.profile_id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+  }
+
+  const profile = await db.getProfile(job.profile_id);
+  if (!profile?.base_resume_text) {
+    return NextResponse.json(
+      { error: 'No base resume uploaded for this client.' },
+      { status: 400 }
+    );
+  }
+
+  const user = [
+    'JOB DESCRIPTION:',
+    job.description || '(no description available)',
+    '',
+    'TITLE:',
+    job.title,
+    '',
+    'BASE RESUME:',
+    profile.base_resume_text,
+  ].join('\n');
+
+  const tailored = await callAI(RESUME_TAILOR_SYSTEM, user, {
+    maxTokens: 2000,
+    temperature: 0.4,
+  });
+
+  await db.updateJob(jobId, { tailored_resume: tailored, status: 'tailored' });
+
+  return NextResponse.json({ tailored_resume: tailored });
+}

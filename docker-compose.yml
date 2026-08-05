@@ -1,0 +1,34 @@
+# Local development Postgres — NOT for production services (your VPS runs
+# Postgres via apt directly; same DATABASE_URL works for both).
+#
+# Usage:
+#   docker compose up -d db        # start postgres
+#   npm run db:migrate             # apply schema
+#   npm run db:seed                # create admin + demo accounts
+#
+# Connection string (matches .env.local):
+#   postgres://jobbids:jobbids@localhost:5434/job_bidder
+#
+# Host port 5434 (not 5432) so it won't collide with any local/other Postgres.
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: job_bidder_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: jobbids
+      POSTGRES_PASSWORD: jobbids
+      POSTGRES_DB: job_bidder
+    ports:
+      - "5434:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobbids -d job_bidder"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  db_data:

@@ -6,6 +6,7 @@ import Modal from '@/components/Modal';
 import { Plus, Spinner } from '@/components/Icon';
 import type { Job, Profile, User } from '@/lib/types';
 import { LabeledInput } from './shared';
+import EditUserModal from './EditUserModal';
 
 export default function ProfilesTab({
   profiles,
@@ -18,16 +19,23 @@ export default function ProfilesTab({
 }) {
   const [addClientOpen, setAddClientOpen] = useState(false);
   const [addWorkerOpen, setAddWorkerOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<User | null>(null);
 
-  const workerName = (id: string | null) =>
-    id ? users.find((u) => u.id === id)?.full_name ?? '—' : '—';
+  const profileFor = (uid: string | null) =>
+    profiles.find((p) => p.id === uid || p.assigned_worker_id === uid) ?? null;
   const appliedCount = (pid: string) =>
     jobs.filter((j) => j.profile_id === pid && ['applied','interview','offer'].includes(j.status)).length;
+  const assignedClientOf = (workerId: string) =>
+    profiles.find((p) => p.assigned_worker_id === workerId);
+
+  const workers = users.filter((u) => u.role === 'worker');
+  const clientUsers = users.filter((u) => u.role === 'client');
+  const unlinkedWorkers = workers.filter((w) => !assignedClientOf(w.id));
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-navy-100">Clients &amp; Workers</h2>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-navy-100">People &amp; Clients</h2>
         <div className="flex gap-2">
           <button
             onClick={() => setAddWorkerOpen(true)}
@@ -43,32 +51,116 @@ export default function ProfilesTab({
           </button>
         </div>
       </div>
-      <div className="panel overflow-hidden">
+
+      {/* Workers */}
+      <section className="panel overflow-hidden">
+        <div className="p-3 border-b border-navy-700 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-navy-200">Workers</h3>
+          <span className="text-xs text-navy-500">{workers.length} total</span>
+        </div>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-navy-700">
-              <th className="th-uppercase text-left px-3 py-2">Client</th>
+              <th className="th-uppercase text-left px-3 py-2">Name</th>
               <th className="th-uppercase text-left px-3 py-2">Email</th>
-              <th className="th-uppercase text-left px-3 py-2">Assigned Worker</th>
-              <th className="th-uppercase text-left px-3 py-2">Jobs Applied</th>
-              <th className="th-uppercase text-left px-3 py-2">Search Terms</th>
+              <th className="th-uppercase text-left px-3 py-2">Assigned Client</th>
+              <th className="th-uppercase text-left px-3 py-2">Status</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
-            {profiles.map((p) => (
-              <tr key={p.id} className="border-b border-navy-800 row-hover">
-                <td className="px-3 py-2.5 text-navy-100">{p.name}</td>
-                <td className="px-3 py-2.5 text-navy-400">{p.email}</td>
-                <td className="px-3 py-2.5 text-navy-300">{workerName(p.assigned_worker_id)}</td>
-                <td className="px-3 py-2.5 text-navy-300">{appliedCount(p.id)}</td>
-                <td className="px-3 py-2.5 text-navy-500 text-xs">
-                  {(p.scrape_search_terms || []).join(', ') || '—'}
-                </td>
-              </tr>
-            ))}
+            {workers.length === 0 && (
+              <tr><td colSpan={5} className="px-3 py-6 text-center text-navy-500">No workers yet.</td></tr>
+            )}
+            {workers.map((w) => {
+              const client = assignedClientOf(w.id);
+              return (
+                <tr key={w.id} className="border-b border-navy-800">
+                  <td className="px-3 py-2.5 text-navy-100">{w.full_name || '—'}</td>
+                  <td className="px-3 py-2.5 text-navy-400">{w.email}</td>
+                  <td className="px-3 py-2.5 text-navy-300">{client?.name ?? <span className="text-navy-500">unassigned</span>}</td>
+                  <td className="px-3 py-2.5">
+                    {w.disabled_at ? (
+                      <span className="inline-flex rounded-full px-2 py-0.5 text-xs bg-red-500/15 text-brand-red">Disabled</span>
+                    ) : (
+                      <span className="inline-flex rounded-full px-2 py-0.5 text-xs bg-emerald-500/15 text-brand-green">Active</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2.5 text-right">
+                    <button
+                      onClick={() => setEditTarget(w)}
+                      className="px-2.5 py-1 text-xs rounded-md bg-navy-800 text-navy-200 hover:bg-navy-750"
+                    >
+                      Edit
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
-      </div>
+        {unlinkedWorkers.length > 0 && (
+          <p className="p-3 text-xs text-navy-500 border-t border-navy-800">
+            {unlinkedWorkers.length} worker(s) unassigned. Use &quot;Add Client&quot; to assign them.
+          </p>
+        )}
+      </section>
+
+      {/* Clients */}
+      <section className="panel overflow-hidden">
+        <div className="p-3 border-b border-navy-700 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-navy-200">Clients</h3>
+          <span className="text-xs text-navy-500">{profiles.length} total</span>
+        </div>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-navy-700">
+              <th className="th-uppercase text-left px-3 py-2">Name</th>
+              <th className="th-uppercase text-left px-3 py-2">Contact Email</th>
+              <th className="th-uppercase text-left px-3 py-2">Assigned Worker</th>
+              <th className="th-uppercase text-left px-3 py-2">Jobs Applied</th>
+              <th className="th-uppercase text-left px-3 py-2">Search Terms</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {profiles.length === 0 && (
+              <tr><td colSpan={6} className="px-3 py-6 text-center text-navy-500">No clients yet.</td></tr>
+            )}
+            {profiles.map((p) => {
+              const clientUser = clientUsers.find((u) => u.profile_id === p.id);
+              return (
+                <tr key={p.id} className="border-b border-navy-800">
+                  <td className="px-3 py-2.5 text-navy-100">{p.name}</td>
+                  <td className="px-3 py-2.5 text-navy-400">{p.email}</td>
+                  <td className="px-3 py-2.5 text-navy-300">
+                    {(() => {
+                      const worker = workers.find((w) => w.id === p.assigned_worker_id);
+                      return worker?.full_name ?? <span className="text-navy-500">unassigned</span>;
+                    })()}
+                  </td>
+                  <td className="px-3 py-2.5 text-navy-300">{appliedCount(p.id)}</td>
+                  <td className="px-3 py-2.5 text-navy-500 text-xs">
+                    {(p.scrape_search_terms || []).join(', ') || '—'}
+                  </td>
+                  <td className="px-3 py-2.5 text-right">
+                    {clientUser ? (
+                      <button
+                        onClick={() => setEditTarget(clientUser)}
+                        className="px-2.5 py-1 text-xs rounded-md bg-navy-800 text-navy-200 hover:bg-navy-750"
+                      >
+                        Edit
+                      </button>
+                    ) : (
+                      <span className="text-xs text-navy-500">no login</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </section>
 
       <AddWorkerModal
         open={addWorkerOpen}
@@ -78,8 +170,11 @@ export default function ProfilesTab({
       <AddClientModal
         open={addClientOpen}
         onClose={() => setAddClientOpen(false)}
-        workers={users.filter((u) => u.role === 'worker')}
+        workers={workers}
       />
+      {editTarget && (
+        <EditUserModal user={editTarget} onClose={() => setEditTarget(null)} />
+      )}
     </div>
   );
 }

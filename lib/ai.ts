@@ -1,54 +1,83 @@
 // Single AI entrypoint: callAI(system, user, opts) -> string.
 //
-// Provider selection via env:
-//   AI_PROVIDER  'anthropic' (default) | 'openrouter' | 'custom'
-//   AI_MODEL     model id (defaults below)
+// Config (provider, model, base URL, API key) is read from app_config in
+// Postgres first; falls back to env vars when no row exists (smooth migration
+// during early bootstrap).
 //
-// Auth (pick what matches the provider):
-//   ANTHROPIC_API_KEY   for provider=anthropic
-//   OPENROUTER_API_KEY  for provider=openrouter
-//   AI_BASE_URL + AI_API_KEY  for provider=custom (OpenAI-compatible: OpenCode/Ollama/LM Studio)
-//
-// If no key is configured we fall back to a deterministic stub so the app
-// remains demonstrable without a key. Set AI_STUB=false to disable the stub
-// and surface a real error instead.
+// Stub mode is still default; set AI_STUB=false + a real key to hit the model.
 
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
+import { db } from './db';
+import type { AppConfig } from './types';
 
 export interface CallAIOptions {
   maxTokens?: number;
   temperature?: number;
 }
 
-export function aiProvider(): string {
-  return process.env.AI_PROVIDER || 'anthropic';
+// Per-process cache so we don't hit Postgres on every callAI.
+// globalThis guard survives Next dev's module-graph splitting.
+type CachedConfig = {
+  provider: string;
+  model: string;
+  baseUrl: string | null;
+  apiKey: string | null;
+} | null;
+const globalForAi = globalThis as unknown as { __jbAIConfig?: CachedConfig };
+
+export function clearAIConfigCache(): void {
+  globalForAi.__jbAIConfig = undefined;
 }
 
-export function aiModel(): string {
-  return process.env.AI_MODEL || 'claude-sonnet-5';
+// Read DB config (or null) and cache. Used internally.
+async function loadConfig(): Promise<CachedConfig> {
+  if (globalForAi.__jbAIConfig !== undefined) return globalForAi.__jbAIConfig;
+  const cfg = await db.getAppConfig();
+  globalForAi.__jbAIConfig = cfg
+    ? {
+        provider: cfg.ai_provider,
+        model: cfg.ai_model,
+        baseUrl: cfg.ai_base_url,
+        apiKey: cfg.ai_api_key,
+      }
+    : null;
+  return globalForAi.__jbAIConfig;
 }
 
-// A key only counts as "configured" if it's present AND not a placeholder.
-const PLACEHOLDER = /^placeholder|your-|-key$|^sk-ant-test/i;
-function isRealKey(v: string | undefined): boolean {
-  return Boolean(v) && !PLACEHOLDER.test(v!.trim());
+// Env fallback for any individual field missing from app_config.
+function envValue(field: keyof AppConfig): string | null {
+  const map: Record<string, string | undefined> = {
+    ai_provider: process.env.AI_PROVIDER,
+    ai_model: process.env.AI_MODEL,
+    ai_base_url: process.env.AI_BASE_URL,
+  };
+  return map[field] ?? null;
 }
 
-// Default to stubbing unless the app EXPLICITLY opts into live calls with
-// AI_STUB=false AND a real key for the active provider is set. This keeps a
-// freshly built app from making real (paid) model calls by accident.
-function stubEnabled(): boolean {
-  if (process.env.AI_STUB === 'false') return false; // explicit opt-in to live
-  return true;
+export async function aiProvider(): Promise<string> {
+  const c = await loadConfig();
+  return c?.provider || envValue('ai_provider') || 'anthropic';
 }
 
-export function hasAnyKey(): boolean {
-  const provider = aiProvider();
-  if (provider === 'anthropic') return isRealKey(process.env.ANTHROPIC_API_KEY);
-  if (provider === 'openrouter') return isRealKey(process.env.OPENROUTER_API_KEY);
-  if (provider === 'custom') return Boolean(process.env.AI_BASE_URL);
-  return false;
+export async function aiModel(): Promise<string> {
+  const c = await loadConfig();
+  return c?.model || envValue('ai_model') || 'claude-sonnet-5';
+}
+
+export async function hasAnyKey(): Promise<boolean> {
+  const c = await loadConfig();
+  if (c?.apiKey && c.apiKey.length > 10) return true;
+  // env fallback: anthropic / openrouter / custom
+  const provider = c?.provider || envValue('ai_provider') || 'anthropic';
+  if (provider === 'anthropic') return Boolean(process.env.ANTHROPIC_API_KEY);
+  if (provider === 'openrouter') return Boolean(process.env.OPENROUTER_API_KEY);
+  return Boolean(process.env.AI_BASE_URL);
+}
+
+function stubEnabled(hasKey: boolean): boolean {
+  if (process.env.AI_STUB === 'false') return hasKey; // explicit live opt-in only if a key is real
+  return true; // default: stub
 }
 
 export async function callAI(
@@ -57,22 +86,24 @@ export async function callAI(
   opts: CallAIOptions = {}
 ): Promise<string> {
   const { maxTokens = 1500, temperature = 0.4 } = opts;
-  const provider = aiProvider();
-  const model = aiModel();
+  const cfg = await loadConfig();
+  const provider = cfg?.provider || envValue('ai_provider') || 'anthropic';
+  const model = cfg?.model || envValue('ai_model') || 'claude-sonnet-5';
+  const apiKey = cfg?.apiKey || process.env.ANTHROPIC_API_KEY || '';
 
-  // Deterministic offline fallback so the UI is usable without a key.
-  if (stubEnabled()) {
+  const keyPresent = await hasAnyKey();
+  if (stubEnabled(keyPresent)) {
     return stubResponse(system, user);
   }
 
   try {
     if (provider === 'anthropic') {
-      return await callAnthropic(system, user, model, maxTokens, temperature);
+      return await callAnthropic(system, user, model, maxTokens, temperature, apiKey);
     }
     if (provider === 'openrouter') {
       return await callOpenAICompat({
         baseURL: 'https://openrouter.ai/api/v1',
-        apiKey: process.env.OPENROUTER_API_KEY!,
+        apiKey: cfg?.apiKey || process.env.OPENROUTER_API_KEY || '',
         model,
         system,
         user,
@@ -82,8 +113,8 @@ export async function callAI(
     }
     if (provider === 'custom') {
       return await callOpenAICompat({
-        baseURL: process.env.AI_BASE_URL!,
-        apiKey: process.env.AI_API_KEY || 'ollama',
+        baseURL: cfg?.baseUrl || envValue('ai_base_url') || process.env.AI_BASE_URL || '',
+        apiKey: cfg?.apiKey || process.env.AI_API_KEY || 'ollama',
         model,
         system,
         user,
@@ -103,9 +134,10 @@ async function callAnthropic(
   user: string,
   model: string,
   maxTokens: number,
-  temperature: number
+  temperature: number,
+  apiKey: string
 ): Promise<string> {
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const client = new Anthropic({ apiKey });
   const msg = await client.messages.create({
     model,
     max_tokens: maxTokens,
@@ -113,7 +145,6 @@ async function callAnthropic(
     system,
     messages: [{ role: 'user', content: user }],
   });
-  // Flatten content blocks to text.
   return msg.content
     .map((b) => ('text' in b ? b.text : ''))
     .join('')
@@ -155,13 +186,11 @@ Write in first person. Be specific and under 150 words. Use concrete examples dr
 Do not fabricate achievements. If the resume lacks relevant detail, say so briefly and answer generically.`;
 
 // --- offline stub ----------------------------------------------------------
-// When no provider key is set, produce a clearly-labeled but realistic output
-// so the tailor/answer flows are demoable. Deterministic (no randomness).
 function stubResponse(system: string, user: string): string {
   const isTailor = system.includes('resume');
   if (isTailor) {
     return [
-      '[STUB OUTPUT — no AI key configured. Set ANTHROPIC_API_KEY to get real results.]',
+      '[STUB OUTPUT — no AI key configured. Save your AI provider settings in Settings → AI Configuration to get real results.]',
       '',
       extractResumeHeadline(user) || 'CANDIDATE NAME',
       '───────────────────────────',
@@ -178,7 +207,7 @@ function stubResponse(system: string, user: string): string {
     ].join('\n');
   }
   return [
-    '[STUB OUTPUT — no AI key configured. Set ANTHROPIC_API_KEY to get real results.]',
+    '[STUB OUTPUT — no AI key configured. Save your AI provider settings in Settings → AI Configuration to get real results.]',
     '',
     'Here is a draft answer using first person and concrete examples from your resume:',
     'In my previous role I tackled a similar challenge by focusing on the outcome, the approach, and the measurable result. (Replace with specifics once a real AI key is set.)',
@@ -186,7 +215,6 @@ function stubResponse(system: string, user: string): string {
 }
 
 function extractResumeHeadline(user: string): string {
-  // First non-empty line is usually the candidate name / headline.
   const line = user
     .split('\n')
     .map((l) => l.trim())

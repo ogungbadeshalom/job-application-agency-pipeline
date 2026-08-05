@@ -120,6 +120,17 @@ export interface ScrapeRunResult {
   jobs: ScrapeResultJob[];
 }
 
+// App-level config (single row in app_config). ai_api_key, when set, is the
+// DECRYPTED key — never persisted; only the encrypted form is stored.
+export interface AppConfig {
+  id: number;
+  ai_provider: 'anthropic' | 'openrouter' | 'custom';
+  ai_model: string;
+  ai_base_url: string | null;
+  ai_api_key: string | null;
+  updated_at: string;
+}
+
 // Filter shape used by listJobs.
 export interface ListJobsFilter {
   profile_id?: string | string[];

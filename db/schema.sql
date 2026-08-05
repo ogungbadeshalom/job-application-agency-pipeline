@@ -118,6 +118,22 @@ create table if not exists question_snippets (
 create index if not exists snippets_profile_id_idx on question_snippets(profile_id);
 
 -- ============================================================================
+-- app_config  (single-row table for in-app AI provider settings)
+-- ============================================================================
+create table if not exists app_config (
+  id                   int primary key default 1,
+  ai_provider          text not null default 'custom',
+  ai_model             text not null default 'claude-sonnet-5',
+  ai_base_url          text,
+  ai_api_key_encrypted text,
+  ai_api_key_nonce     text,
+  updated_at           timestamptz not null default now(),
+  check (id = 1)
+);
+
+insert into app_config (id) values (1) on conflict (id) do nothing;
+
+-- ============================================================================
 -- updated_at triggers
 -- ============================================================================
 create or replace function touch_updated_at() returns trigger language plpgsql as $$

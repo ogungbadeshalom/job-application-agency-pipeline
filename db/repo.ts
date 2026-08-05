@@ -10,7 +10,9 @@
 // sites stay unchanged.
 
 import { all, one, query } from './pool';
+import { encryptSecret, decryptSecret } from '../lib/crypto';
 import type {
+  AppConfig,
   Job,
   JobStatus,
   ListJobsFilter,
@@ -433,6 +435,55 @@ export const db = {
   },
   async incrementSnippet(id: string): Promise<void> {
     await query('update question_snippets set use_count = use_count + 1 where id = $1', [id]);
+  },
+
+  // app_config — single-row AI provider settings (idempotent id=1).
+  async getAppConfig(): Promise<AppConfig | null> {
+    const row = await one('select * from app_config where id = 1');
+    if (!row) return null;
+    let apiKey: string | null = null;
+    if (row.ai_api_key_encrypted && row.ai_api_key_nonce) {
+      try {
+        apiKey = decryptSecret({
+          ciphertext: row.ai_api_key_encrypted as string,
+          nonce: row.ai_api_key_nonce as string,
+        });
+      } catch (e) {
+        // AUTH_SECRET changed since encryption — fall back to no key.
+        apiKey = null;
+      }
+    }
+    return {
+      id: row.id as number,
+      ai_provider: (row.ai_provider as AppConfig['ai_provider']) ?? 'custom',
+      ai_model: (row.ai_model as string) ?? 'claude-sonnet-5',
+      ai_base_url: (row.ai_base_url as string) ?? null,
+      ai_api_key: apiKey,
+      updated_at: (row.updated_at as Date).toISOString(),
+    };
+  },
+  async setAppConfig(input: {
+    provider: AppConfig['ai_provider'];
+    model: string;
+    baseUrl: string | null;
+    apiKey: string | null;
+  }): Promise<AppConfig> {
+    const enc = input.apiKey ? encryptSecret(input.apiKey) : null;
+    const row = await one(
+      `insert into app_config (id, ai_provider, ai_model, ai_base_url, ai_api_key_encrypted, ai_api_key_nonce, updated_at)
+       values (1, $1, $2, $3, $4, $5, now())
+       on conflict (id) do update set
+         ai_provider = excluded.ai_provider,
+         ai_model = excluded.ai_model,
+         ai_base_url = excluded.ai_base_url,
+         ai_api_key_encrypted = excluded.ai_api_key_encrypted,
+         ai_api_key_nonce = excluded.ai_api_key_nonce,
+         updated_at = now()
+       returning *`,
+      [input.provider, input.model, input.baseUrl, enc?.ciphertext ?? null, enc?.nonce ?? null]
+    );
+    // Return via getAppConfig to give callers the decrypted key for in-memory use.
+    return (await this.getAppConfig())!;
   },
 };
 

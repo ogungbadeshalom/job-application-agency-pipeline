@@ -21,6 +21,7 @@ export default function RefillJobsModal({
   const [sites, setSites] = useState<string[]>(['indeed', 'linkedin']);
   const [searchTerms, setSearchTerms] = useState('');
   const [location, setLocation] = useState('United States');
+  const [remoteOnly, setRemoteOnly] = useState(true); // most clients want remote
   const [resultsWanted, setResultsWanted] = useState(100);
   const [hoursOld, setHoursOld] = useState(72);
   const [profileIds, setProfileIds] = useState<string[]>(profiles.map((p) => p.id));
@@ -46,7 +47,8 @@ export default function RefillJobsModal({
             .split(',')
             .map((s) => s.trim())
             .filter(Boolean),
-          location,
+          location: remoteOnly ? 'Remote' : location,
+          remote_only: remoteOnly,
           results_wanted: Number(resultsWanted) || 100,
           hours_old: Number(hoursOld) || 72,
           profile_ids: profileIds,
@@ -55,7 +57,10 @@ export default function RefillJobsModal({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Scrape failed');
       setResult({ jobs_found: data.jobs_found, jobs_added: data.jobs_added });
+      // Fire the soft-update so the Applications table updates in place.
       onDone?.({ jobs_added: data.jobs_added });
+      // Auto-close after a beat so the user sees the result.
+      setTimeout(() => onClose(), 1200);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error');
     } finally {
@@ -126,12 +131,26 @@ export default function RefillJobsModal({
             </p>
           </Field>
 
+          <div className="flex items-center gap-2 -mt-1">
+            <input
+              id="remote-only"
+              type="checkbox"
+              checked={remoteOnly}
+              onChange={(e) => setRemoteOnly(e.target.checked)}
+              className="h-4 w-4 rounded border-navy-700 bg-navy-950 text-brand-green focus:ring-brand-green"
+            />
+            <label htmlFor="remote-only" className="text-sm text-navy-200 cursor-pointer">
+              Remote only — overrides the location field for all target profiles
+            </label>
+          </div>
+
           <div className="grid grid-cols-3 gap-3">
             <Field label="Location">
               <input
-                value={location}
+                value={remoteOnly ? 'Remote' : location}
                 onChange={(e) => setLocation(e.target.value)}
-                className="w-full bg-navy-950 border border-navy-700 rounded-md px-3 py-2 text-sm text-navy-100 focus:outline-none focus:border-brand-blue"
+                disabled={remoteOnly}
+                className="w-full bg-navy-950 border border-navy-700 rounded-md px-3 py-2 text-sm text-navy-100 focus:outline-none focus:border-brand-blue disabled:opacity-60"
               />
             </Field>
             <Field label="Results / term">

@@ -91,6 +91,26 @@ export async function POST(req: Request) {
         hours_old: config.hours_old,
       });
       allRaw.push(...raw);
+
+      // RemoteOK (and BuiltIn) in the project fork only match single-token tags,
+      // so multi-word searches like "software engineer" return 0. If we asked
+      // for a remote-only board and got nothing but the user gave a multi-word
+      // term, retry with the first token so RemoteOK actually returns jobs.
+      const hasSingleTokenBoard = g.sites.some((s) => ['remoteok', 'builtin'].includes(s));
+      if (hasSingleTokenBoard && raw.length === 0) {
+        const tokens = terms.flatMap((t) => t.split(/\s+/)).filter(Boolean);
+        if (tokens.length > 1) {
+          allRaw.push(
+            ...(await runJobSpy({
+              sites: g.sites,
+              search_terms: tokens, // each single token as its own search
+              location: g.location,
+              results_wanted: config.results_wanted,
+              hours_old: config.hours_old,
+            }))
+          );
+        }
+      }
     }
 
     // Dedupe + insert per profile.

@@ -142,7 +142,15 @@ export default function RefillJobsModal({
       ) : (
         <div className="space-y-4">
           <Field label="Sites">
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 items-center">
+              <button
+                type="button"
+                onClick={() => setSites(SITE_OPTIONS.filter((o) => !o.disabled).map((o) => o.site))}
+                className="px-3 py-1.5 text-sm rounded-full border border-navy-600 text-navy-300 hover:border-brand-blue hover:text-navy-100"
+              >
+                All
+              </button>
+              <span className="text-navy-600">·</span>
               {SITE_OPTIONS.map((opt) => {
                 const grayed = opt.disabled;
                 return (

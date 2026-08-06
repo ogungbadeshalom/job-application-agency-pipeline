@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { Logout } from './Icon';
 import type { Role } from '@/lib/types';
+import { APP_VERSION } from '@/lib/version';
 
 interface NavItem {
   href: string;
@@ -48,7 +49,10 @@ export default function DashboardLayout({
             <Link href={active} className="flex items-center gap-2">
               <span className="text-brand-green text-lg">●</span>
               <span className="font-semibold tracking-tight">Job Bidder</span>
-              <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-navy-800 text-navy-400 uppercase">
+              <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-brand-blue/15 text-brand-blue font-mono">
+                v{APP_VERSION}
+              </span>
+              <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-navy-800 text-navy-400 uppercase">
                 {roleLabel[user.role]}
               </span>
             </Link>

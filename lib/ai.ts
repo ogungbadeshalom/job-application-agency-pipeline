@@ -76,8 +76,12 @@ export async function hasAnyKey(): Promise<boolean> {
 }
 
 function stubEnabled(hasKey: boolean): boolean {
-  if (process.env.AI_STUB === 'false') return hasKey; // explicit live opt-in only if a key is real
-  return true; // default: stub
+  // AI_STUB=false → live (call the model if a key is configured)
+  // AI_STUB=true  → always stub (explicit escape hatch for dev)
+  // unset         → stub only if no real key is configured
+  if (process.env.AI_STUB === 'true') return true;
+  if (process.env.AI_STUB === 'false') return false;
+  return !hasKey;
 }
 
 export async function callAI(

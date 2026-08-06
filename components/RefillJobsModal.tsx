@@ -5,14 +5,14 @@ import Modal from './Modal';
 import { Spinner } from './Icon';
 import type { Profile } from '@/lib/types';
 
-// JobSpy-supported sites (UI label -> jobspy site_name). Unsupported boards
-// (Dice/Greenhouse/Simplify) are intentionally excluded — JobSpy has no
-// scraper for them; faking results would be misleading.
-export const SITE_OPTIONS: { name: string; site: string }[] = [
+// Scrape source options. `disabled: true` sites are shown grayed out — they're
+// known-flaky on the deployment right now (work only when DNS/anti-bot allow)
+// and we don't want them silently failing a refill run.
+export const SITE_OPTIONS: { name: string; site: string; disabled?: boolean; note?: string }[] = [
   { name: 'Indeed', site: 'indeed' },
   { name: 'LinkedIn', site: 'linkedin' },
-  { name: 'Glassdoor', site: 'glassdoor' },
-  { name: 'ZipRecruiter', site: 'zip_recruiter' },
+  { name: 'Glassdoor', site: 'glassdoor', disabled: true, note: 'currently unavailable' },
+  { name: 'ZipRecruiter', site: 'zip_recruiter', disabled: true, note: 'currently unavailable' },
 ];
 
 export default function RefillJobsModal({
@@ -54,7 +54,8 @@ export default function RefillJobsModal({
     }
   }, [open, profiles]);
 
-  function toggle(list: string[], set: (v: string[]) => void, value: string) {
+  function toggle(list: string[], set: (v: string[]) => void, value: string, enabled = true) {
+    if (!enabled) return; // grayed-out sources can't be toggled
     set(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
   }
 
@@ -63,11 +64,16 @@ export default function RefillJobsModal({
     setError(null);
     setResult(null);
     try {
+      // Only send enabled sites (never a grayed-out/disabled source).
+      const enabledSites = sites.filter((s) => {
+        const opt = SITE_OPTIONS.find((o) => o.site === s);
+        return !opt?.disabled;
+      });
       const res = await fetch('/api/scrape', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sites,
+          sites: enabledSites,
           search_terms: searchTerms
             .split(',')
             .map((s) => s.trim())
@@ -136,15 +142,27 @@ export default function RefillJobsModal({
         <div className="space-y-4">
           <Field label="Sites">
             <div className="flex flex-wrap gap-2">
-              {SITE_OPTIONS.map((opt) => (
-                <Chip
-                  key={opt.site}
-                  active={sites.includes(opt.site)}
-                  onClick={() => toggle(sites, setSites, opt.site)}
-                >
-                  {opt.name}
-                </Chip>
-              ))}
+              {SITE_OPTIONS.map((opt) => {
+                const grayed = opt.disabled;
+                return (
+                  <button
+                    key={opt.site}
+                    type="button"
+                    onClick={() => toggle(sites, setSites, opt.site, !grayed)}
+                    title={grayed ? opt.note : undefined}
+                    className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
+                      grayed
+                        ? 'bg-navy-900 text-navy-600 border-navy-800 cursor-not-allowed line-through'
+                        : sites.includes(opt.site)
+                        ? 'bg-brand-green/20 text-brand-green border-brand-green/40'
+                        : 'bg-navy-800 text-navy-400 border-navy-700 hover:border-navy-600'
+                    }`}
+                  >
+                    {opt.name}
+                    {grayed ? ' · off' : ''}
+                  </button>
+                );
+              })}
             </div>
           </Field>
 

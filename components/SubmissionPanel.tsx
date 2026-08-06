@@ -52,6 +52,9 @@ export default function SubmissionPanel({
     setStatus(s);
     const body: Partial<Job> = { status: s };
     if (s === 'applied' && !job.submitted_at) body.submitted_at = new Date().toISOString();
+    // Optimistic local update so the top-left status badge + queue reflect
+    // immediately, BEFORE the server round-trip resolves.
+    onUpdated?.(body);
     await patch(body);
   }
 

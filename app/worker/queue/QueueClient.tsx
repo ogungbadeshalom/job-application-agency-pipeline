@@ -24,7 +24,7 @@ export default function QueueClient({
 }) {
   const router = useRouter();
 
-  async function quickAction(job: Job, action: 'applied' | 'skipped') {
+  async function quickAction(job: Job, action: 'applied' | 'skipped' | 'saved') {
     await fetch(`/api/jobs/${job.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

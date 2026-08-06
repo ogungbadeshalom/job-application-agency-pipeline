@@ -80,7 +80,7 @@ export default function JobTable({
   jobs: Job[];
   profiles: Profile[];
   mode: JobTableMode;
-  onQuickAction?: (job: Job, action: 'applied' | 'skipped') => void;
+  onQuickAction?: (job: Job, action: 'applied' | 'skipped' | 'saved') => void;
   onRowClick?: (job: Job) => void;
 }) {
   const [search, setSearch] = useState('');
@@ -284,12 +284,21 @@ export default function JobTable({
                             Mark Applied
                           </button>
                         )}
-                        <button
-                          onClick={() => onQuickAction?.(job, 'skipped')}
-                          className="px-2 py-1 text-xs rounded-md text-navy-400 hover:bg-navy-800"
-                        >
-                          Skip
-                        </button>
+                        {job.status === 'skipped' ? (
+                          <button
+                            onClick={() => onQuickAction?.(job, 'saved')}
+                            className="px-2 py-1 text-xs rounded-md bg-emerald-600/20 text-brand-green hover:bg-emerald-600/30"
+                          >
+                            Unskip
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => onQuickAction?.(job, 'skipped')}
+                            className="px-2 py-1 text-xs rounded-md text-navy-400 hover:bg-navy-800"
+                          >
+                            Skip
+                          </button>
+                        )}
                       </div>
                     </Cell>
                   )}

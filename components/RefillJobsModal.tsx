@@ -34,6 +34,8 @@ export default function RefillJobsModal({
   const [location, setLocation] = useState('United States');
   const [remoteOnly, setRemoteOnly] = useState(true); // most clients want remote
   const [jobType, setJobType] = useState('full time'); // default full-time
+  const [includeKw, setIncludeKw] = useState('');
+  const [excludeKw, setExcludeKw] = useState('');
   const [resultsWanted, setResultsWanted] = useState('100');
   const [hoursOld, setHoursOld] = useState('72');
   const [profileIds, setProfileIds] = useState<string[]>(profiles.map((p) => p.id));
@@ -50,6 +52,8 @@ export default function RefillJobsModal({
       setLocation('United States');
       setRemoteOnly(true);
       setJobType('full time');
+      setIncludeKw('');
+      setExcludeKw('');
       setResultsWanted('100');
       setHoursOld('72');
       setProfileIds(profiles.map((p) => p.id));
@@ -86,6 +90,14 @@ export default function RefillJobsModal({
           location: remoteOnly ? 'Remote' : location,
           remote_only: remoteOnly,
           job_type: jobType,
+          include_kw: includeKw
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean),
+          exclude_kw: excludeKw
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean),
           results_wanted: Number(resultsWanted) || 100,
           hours_old: Number(hoursOld) || 72,
           profile_ids: profileIds,
@@ -191,6 +203,27 @@ export default function RefillJobsModal({
               Leave blank to use each client&apos;s saved search terms from their profile.
             </p>
           </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Must include (comma-separated)">
+              <input
+                value={includeKw}
+                onChange={(e) => setIncludeKw(e.target.value)}
+                placeholder="react, typescript, node"
+                className="w-full bg-navy-950 border border-navy-700 rounded-md px-3 py-2 text-sm text-navy-100 focus:outline-none focus:border-brand-green"
+              />
+              <p className="text-xs text-navy-500 mt-1">Keep jobs matching any of these.</p>
+            </Field>
+            <Field label="Exclude (comma-separated)">
+              <input
+                value={excludeKw}
+                onChange={(e) => setExcludeKw(e.target.value)}
+                placeholder="senior, lead, staff"
+                className="w-full bg-navy-950 border border-navy-700 rounded-md px-3 py-2 text-sm text-navy-100 focus:outline-none focus:border-red-500"
+              />
+              <p className="text-xs text-navy-500 mt-1">Drop jobs matching any of these.</p>
+            </Field>
+          </div>
 
           <div className="flex items-center gap-2 -mt-1">
             <input

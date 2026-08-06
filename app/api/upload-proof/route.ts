@@ -2,25 +2,34 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { newStoragePath, writeStorage } from '@/lib/storage';
+import { parseMultipart } from '@/lib/multipart';
 
 // POST /api/upload-proof  multipart: file + job_id
 // Admin or the job's assigned worker. Stores the proof image on local disk and
 // returns its relative path; the caller PATCHes it onto the job.
 export async function POST(req: Request) {
-  const session = await getSession();
-  if (!session || !['admin', 'worker'].includes(session.user.role)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const ctype = req.headers.get('content-type') || '';
+  const boundary = ctype.match(/boundary="?([^";]+)"?/)?.[1];
+  if (!boundary) {
+    return NextResponse.json({ error: 'Bad multipart body' }, { status: 400 });
   }
 
-  const form = await req.formData();
-  const file = form.get('file') as File | null;
-  const jobId = form.get('job_id') as string | null;
+  const raw = Buffer.from(await req.arrayBuffer());
+  const parsed = parseMultipart(raw, boundary);
+  const file = parsed.file;
+  const jobId = parsed.fields.job_id;
+
   if (!file || !jobId) {
     return NextResponse.json({ error: 'file and job_id required' }, { status: 400 });
   }
   // Images only.
   if (!file.type.startsWith('image/')) {
     return NextResponse.json({ error: 'Proof must be an image' }, { status: 400 });
+  }
+
+  const session = await getSession();
+  if (!session || !['admin', 'worker'].includes(session.user.role)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const job = await db.getJob(jobId);
@@ -34,12 +43,11 @@ export async function POST(req: Request) {
     }
   }
 
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+  const ext = (file.filename.split('.').pop() || 'png').toLowerCase();
   const relPath = newStoragePath(`proof/${job.profile_id}`, `.${ext}`);
 
   try {
-    await writeStorage(relPath, buffer);
+    await writeStorage(relPath, file.buffer);
   } catch (e) {
     return NextResponse.json(
       { error: `Could not store proof: ${e instanceof Error ? e.message : e}` },

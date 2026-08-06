@@ -3,24 +3,36 @@ import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { extractResumeText } from '@/lib/resume-text';
 import { newStoragePath, writeStorage } from '@/lib/storage';
+import { parseMultipart } from '@/lib/multipart';
 
 // POST /api/upload  multipart: file + profile_id
-// Admin (or worker on their own client). Writes the raw file to local disk and
-// stores its text for AI tailoring + the relative path on the profile.
+// Admin. Writes the raw file to local disk and stores its text for AI tailoring
+// + the resume path on the profile.
+//
+// Uses a manual multipart parser (lib/multipart.ts) instead of req.formData(),
+// which can hang on some Node/undici + Next.js `next start` combinations.
 export async function POST(req: Request) {
+  const ctype = req.headers.get('content-type') || '';
+  const boundary = ctype.match(/boundary="?([^";]+)"?/)?.[1];
+  if (!boundary) {
+    return NextResponse.json({ error: 'Bad multipart body' }, { status: 400 });
+  }
+
+  const raw = Buffer.from(await req.arrayBuffer());
+  const parsed = parseMultipart(raw, boundary);
+  const file = parsed.file;
+  const profileId = parsed.fields.profile_id;
+
+  if (!file || !profileId) {
+    return NextResponse.json({ error: 'file and profile_id required' }, { status: 400 });
+  }
+
   const session = await getSession();
   if (!session || session.user.role !== 'admin') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const form = await req.formData();
-  const file = form.get('file') as File | null;
-  const profileId = form.get('profile_id') as string | null;
-  if (!file || !profileId) {
-    return NextResponse.json({ error: 'file and profile_id required' }, { status: 400 });
-  }
-
-  const buffer = Buffer.from(await file.arrayBuffer());
+  const buffer = file.buffer;
 
   let text: string;
   try {
@@ -36,7 +48,7 @@ export async function POST(req: Request) {
   }
 
   // Persist the original file to local disk (relative to STORAGE_DIR).
-  const ext = file.name.split('.').pop() || 'pdf';
+  const ext = (file.filename.split('.').pop() || 'pdf').toLowerCase();
   const relPath = newStoragePath(`resumes/${profileId}`, `.${ext}`);
   await writeStorage(relPath, buffer);
 

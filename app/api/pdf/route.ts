@@ -21,8 +21,14 @@ export async function POST(req: Request) {
       },
     });
   } catch (e) {
+    // Always surface a useful message — sometimes pdf-lib throws a non-Error.
+    const message =
+      e instanceof Error
+        ? `${e.message}`
+        : (typeof e === 'string' ? e : JSON.stringify(e));
+    console.error('PDF generation failed:', e);
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : 'PDF generation failed' },
+      { error: `PDF generation failed: ${message}` },
       { status: 500 }
     );
   }

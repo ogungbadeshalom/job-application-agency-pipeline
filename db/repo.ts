@@ -77,7 +77,17 @@ function mapJob(r: Record<string, unknown>): Job {
     scrape_run_id: (r.scrape_run_id as string) ?? null,
     created_at: (r.created_at as Date).toISOString(),
     updated_at: (r.updated_at as Date).toISOString(),
+    is_new: isNewJob(r.created_at),
   };
+}
+
+// A job is flagged "NEW" if created within the last 2 days (fresh scrape).
+const NEW_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
+function isNewJob(createdAt: unknown): boolean {
+  if (!createdAt) return false;
+  const t = typeof createdAt === 'string' ? new Date(createdAt) : (createdAt as Date);
+  if (Number.isNaN(t.getTime())) return false;
+  return Date.now() - t.getTime() < NEW_WINDOW_MS;
 }
 
 function mapScrapeRun(r: Record<string, unknown>): ScrapeRun {

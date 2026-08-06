@@ -57,6 +57,7 @@ export interface Job {
   scrape_run_id: string | null;
   created_at: string;
   updated_at: string;
+  is_new?: boolean;
 }
 
 export interface ScrapeRun {
@@ -97,6 +98,8 @@ export interface ScrapeConfig {
   hours_old: number;
   remote_only?: boolean;
   job_type?: string;
+  include_kw?: string[];
+  exclude_kw?: string[];
 }
 
 export interface ScrapeResultJob {

@@ -51,6 +51,8 @@ results_wanted = int(config.get("results_wanted", 100))
 hours_old = int(config.get("hours_old", 72))
 is_remote = bool(config.get("is_remote", False))
 job_type = (config.get("job_type") or "").strip()
+include_kw = [k.strip().lower() for k in (config.get("include_kw") or []) if k and k.strip()]
+exclude_kw = [k.strip().lower() for k in (config.get("exclude_kw") or []) if k and k.strip()]
 
 # Map friendly labels -> JobSpy JobType VALUES (get_enum_from_value matches
 # against JobType.value, e.g. "fulltime", "parttime", "contract", "perdiem").
@@ -139,14 +141,11 @@ def _sanitize(value):
     return str(value)
 
 # --- write output -----------------------------------------------------------
-# Normalize keys: jobspy columns -> our ScrapeResultJob shape.
+# Normalize keys: jobspy columns -> our ScrapeResultJob shape. Dedup across
+# boards by URL so the same posting (e.g. LinkedIn + Greenhouse) counts once.
 records = []
+seen_urls = set()
 for r in all_jobs:
-    # When a remote-only scrape was requested, hard-filter here so no on-site
-    # posting leaks through — JobSpy's per-site is_remote flag is a soft signal
-    # and some scrapers (LinkedIn) still return geo jobs despite it. A job is
-    # kept only if its row-level is_remote flag is true OR its location text
-    # clearly says remote.
     # When a remote-only scrape was requested, hard-filter here so no on-site
     # posting leaks through. JobSpy's per-site is_remote flag is unreliable —
     # Indeed marks some office jobs as remote and truncates others to bare
@@ -172,6 +171,22 @@ for r in all_jobs:
             keep = row_remote
         if not keep:
             continue
+
+    # Keyword include / exclude filters (title + description match).
+    if include_kw or exclude_kw:
+        hay = f"{r.get('title') or ''} {r.get('description') or ''}".lower()
+        if include_kw and not any(k in hay for k in include_kw):
+            continue  # job must contain at least one included keyword
+        if exclude_kw and any(k in hay for k in exclude_kw):
+            continue  # job must NOT contain any excluded keyword
+
+    # Cross-board dedup by job URL.
+    jurl = (r.get("job_url") or "").strip()
+    if jurl:
+        if jurl in seen_urls:
+            continue
+        seen_urls.add(jurl)
+
     rec = {
         "title": _sanitize(r.get("title")),
         "company": _sanitize(r.get("company")),

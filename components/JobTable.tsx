@@ -191,26 +191,32 @@ export default function JobTable({
                   <Cell>{i + 1}</Cell>
                   {mode === 'admin' && (
                     <Cell>
-                      <span className="text-navy-100">{job.title || 'Untitled'}</span>
+                      <span className="text-navy-100 flex items-center gap-1.5">
+                        {job.title || 'Untitled'}
+                        {job.is_new && <NewBadge />}
+                      </span>
                     </Cell>
                   )}
                   {mode === 'admin' && <Cell>{profileName(job.profile_id)}</Cell>}
                   {(mode === 'worker' || mode === 'client') && (
                     <Cell>
-                      {mode === 'client' && onRowClick ? (
-                        <button
-                          onClick={() => onRowClick(job)}
-                          className="text-left text-brand-blue hover:underline"
-                        >
-                          {job.title || 'Untitled'}
-                        </button>
-                      ) : jobHref ? (
-                        <Link href={jobHref} className="text-brand-blue hover:underline">
-                          {job.title || 'Untitled'}
-                        </Link>
-                      ) : (
-                        <span>{job.title || 'Untitled'}</span>
-                      )}
+                      <span className="flex items-center gap-1.5">
+                        {mode === 'client' && onRowClick ? (
+                          <button
+                            onClick={() => onRowClick(job)}
+                            className="text-left text-brand-blue hover:underline"
+                          >
+                            {job.title || 'Untitled'}
+                          </button>
+                        ) : jobHref ? (
+                          <Link href={jobHref} className="text-brand-blue hover:underline">
+                            {job.title || 'Untitled'}
+                          </Link>
+                        ) : (
+                          <span>{job.title || 'Untitled'}</span>
+                        )}
+                        {job.is_new && <NewBadge />}
+                      </span>
                     </Cell>
                   )}
                   <Cell>{job.company}</Cell>
@@ -322,4 +328,13 @@ export default function JobTable({
 
 function Cell({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return <td className={`px-3 py-2.5 align-middle ${className}`}>{children}</td>;
+}
+
+// Small green "NEW" pill next to freshly-scraped job titles.
+function NewBadge() {
+  return (
+    <span className="inline-flex items-center rounded bg-brand-green/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-green">
+      New
+    </span>
+  );
 }

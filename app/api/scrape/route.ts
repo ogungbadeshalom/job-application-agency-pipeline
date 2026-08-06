@@ -25,6 +25,8 @@ export async function POST(req: Request) {
     hours_old: Number(body.hours_old) || 72,
     remote_only: Boolean(body.remote_only),
     job_type: body.job_type || '',
+    include_kw: body.include_kw || [],
+    exclude_kw: body.exclude_kw || [],
   };
 
   if (config.profile_ids.length === 0) {
@@ -99,6 +101,8 @@ export async function POST(req: Request) {
         hours_old: config.hours_old,
         is_remote: g.is_remote,
         job_type: config.job_type || undefined,
+        include_kw: config.include_kw?.length ? config.include_kw : undefined,
+        exclude_kw: config.exclude_kw?.length ? config.exclude_kw : undefined,
       });
       allRaw.push(...raw);
 
@@ -119,6 +123,8 @@ export async function POST(req: Request) {
               hours_old: config.hours_old,
               is_remote: g.is_remote,
               job_type: config.job_type || undefined,
+              include_kw: config.include_kw?.length ? config.include_kw : undefined,
+              exclude_kw: config.exclude_kw?.length ? config.exclude_kw : undefined,
             }))
           );
         }
@@ -199,6 +205,8 @@ interface JobSpyArgs {
   hours_old: number;
   is_remote?: boolean;
   job_type?: string;
+  include_kw?: string[];
+  exclude_kw?: string[];
 }
 
 // Spawn the Python JobSpy script and parse its JSON output.

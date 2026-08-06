@@ -7,12 +7,23 @@ import { Spinner } from '@/components/Icon';
 import type { User } from '@/lib/types';
 import { LabeledInput } from './shared';
 
-// Edit any user: change email + full name, reset password, disable/re-enable.
-// Disabled users keep their FK'd history but cannot log in.
-export default function EditUserModal({ user, onClose }: { user: User; onClose: () => void }) {
+// Edit any user account: email/full name, password, disable, delete; for
+// clients also the worker's weekly job quota for them.
+export default function EditUserModal({
+  user,
+  onClose,
+  jobsPerWeek,
+  onQuotaChange,
+}: {
+  user: User;
+  onClose: () => void;
+  jobsPerWeek?: number;
+  onQuotaChange?: (n: number) => void;
+}) {
   const router = useRouter();
   const [email, setEmail] = useState(user.email);
   const [fullName, setFullName] = useState(user.full_name);
+  const [quota, setQuota] = useState(jobsPerWeek ?? 20);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
@@ -22,8 +33,34 @@ export default function EditUserModal({ user, onClose }: { user: User; onClose: 
   const [pwSaving, setPwSaving] = useState(false);
   const [pwError, setPwError] = useState<string | null>(null);
   const [pwSaved, setPwSaved] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const isDisabled = !!user.disabled_at;
+  const isClient = user.role === 'client';
+
+  async function toggleDelete() {
+    const ok = typeof window === 'undefined' ? true : window.confirm(
+      user.role === 'worker'
+        ? `Permanently delete worker ${user.full_name || user.email}? This cannot be undone.`
+        : `Delete client profile ${user.full_name || user.email}? Their jobs stay intact but the profile is hidden.`
+    );
+    if (!ok) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/users/${user.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || 'Delete failed');
+      }
+      router.refresh();
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unknown error');
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   async function save() {
     setSaving(true);
@@ -37,6 +74,19 @@ export default function EditUserModal({ user, onClose }: { user: User; onClose: 
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Save failed');
+      // Save the weekly quota to the client's profile (clients only).
+      if (isClient && user.profile_id && quota !== jobsPerWeek) {
+        const q = await fetch('/api/profiles', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: user.profile_id, jobs_per_week: Number(quota) }),
+        });
+        if (!q.ok) {
+          const qj = await q.json().catch(() => ({}));
+          throw new Error(qj.error || 'Could not save weekly quota');
+        }
+        onQuotaChange?.(Number(quota));
+      }
       setSavedAt(Date.now());
       router.refresh();
     } catch (e) {
@@ -130,6 +180,22 @@ export default function EditUserModal({ user, onClose }: { user: User; onClose: 
           <LabeledInput label="Full name" value={fullName} onChange={setFullName} />
         </div>
 
+        {isClient && (
+          <div>
+            <label className="block th-uppercase mb-1">Weekly job quota</label>
+            <input
+              type="number"
+              min={1}
+              value={quota}
+              onChange={(e) => setQuota(Number(e.target.value))}
+              className="w-full bg-navy-950 border border-navy-700 rounded-md px-3 py-2 text-sm text-navy-100 focus:outline-none focus:border-brand-blue"
+            />
+            <p className="text-xs text-navy-500 mt-1">
+              Max jobs the assigned worker should apply for this client per week (Mon–Sun).
+            </p>
+          </div>
+        )}
+
         {error && (
           <div className="text-sm text-brand-red bg-red-500/10 border border-red-500/30 rounded-md px-3 py-2">
             {error}
@@ -187,6 +253,23 @@ export default function EditUserModal({ user, onClose }: { user: User; onClose: 
           >
             {isDisabled ? 'Re-enable account' : 'Disable account'}
           </button>
+        </div>
+
+        {/* Delete */}
+        <div className="border-t border-navy-700 pt-4">
+          <button
+            onClick={toggleDelete}
+            disabled={deleting}
+            className="inline-flex items-center gap-2 text-sm rounded-md px-3 py-1.5 bg-red-500/15 text-brand-red hover:bg-red-500/25 disabled:opacity-50"
+          >
+            {deleting ? <Spinner /> : null}
+            {user.role === 'worker' ? 'Delete worker' : 'Delete profile'}
+          </button>
+          <p className="text-xs text-navy-500 mt-1.5">
+            {user.role === 'worker'
+              ? 'Permanently removes the account.'
+              : 'Soft-deletes the client profile. Their jobs stay intact but are hidden.'}
+          </p>
         </div>
       </div>
     </Modal>

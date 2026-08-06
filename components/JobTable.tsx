@@ -9,6 +9,14 @@ import { External, Search } from './Icon';
 
 export type JobTableMode = 'admin' | 'worker' | 'client';
 
+// Pretty display labels for scraped-source (board) names.
+const BOARD_LABELS: Record<string, string> = {
+  indeed: 'Indeed',
+  linkedin: 'LinkedIn',
+  glassdoor: 'Glassdoor',
+  zip_recruiter: 'ZipRecruiter',
+};
+
 interface Column {
   key: string;
   label: string;
@@ -27,7 +35,7 @@ const COLUMNS: Record<JobTableMode, Column[]> = {
     { key: 'resume', label: 'Resume' },
     { key: 'jd', label: 'JD' },
     { key: 'proof', label: 'Proof' },
-    { key: 'dates', label: 'Dates' },
+    { key: 'dates', label: 'Added' },
   ],
   worker: [
     { key: 'num', label: '#' },
@@ -72,7 +80,7 @@ export default function JobTable({
   jobs: Job[];
   profiles: Profile[];
   mode: JobTableMode;
-  onQuickAction?: (job: Job, action: 'applied' | 'withdrawn') => void;
+  onQuickAction?: (job: Job, action: 'applied' | 'skipped') => void;
   onRowClick?: (job: Job) => void;
 }) {
   const [search, setSearch] = useState('');
@@ -205,7 +213,7 @@ export default function JobTable({
                   )}
                   <Cell>{job.company}</Cell>
                   <Cell>
-                    <span className="capitalize text-navy-300">{job.board}</span>
+                    <span className="capitalize text-navy-300">{BOARD_LABELS[job.board] ?? job.board}</span>
                   </Cell>
                   {(mode === 'admin' || mode === 'client') && (
                     <Cell>
@@ -254,7 +262,7 @@ export default function JobTable({
                         )}
                       </Cell>
                       <Cell className="text-navy-500 text-xs whitespace-nowrap">
-                        {fmtDate(job.submitted_at)}
+                        {fmtDate(job.created_at)}
                       </Cell>
                     </>
                   )}
@@ -277,7 +285,7 @@ export default function JobTable({
                           </button>
                         )}
                         <button
-                          onClick={() => onQuickAction?.(job, 'withdrawn')}
+                          onClick={() => onQuickAction?.(job, 'skipped')}
                           className="px-2 py-1 text-xs rounded-md text-navy-400 hover:bg-navy-800"
                         >
                           Skip

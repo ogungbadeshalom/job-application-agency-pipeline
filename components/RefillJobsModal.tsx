@@ -1,11 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Modal from './Modal';
 import { Spinner } from './Icon';
 import type { Profile } from '@/lib/types';
 
-const SITE_OPTIONS = ['indeed', 'linkedin', 'glassdoor'];
+// JobSpy-supported sites (UI label -> jobspy site_name). Unsupported boards
+// (Dice/Greenhouse/Simplify) are intentionally excluded — JobSpy has no
+// scraper for them; faking results would be misleading.
+export const SITE_OPTIONS: { name: string; site: string }[] = [
+  { name: 'Indeed', site: 'indeed' },
+  { name: 'LinkedIn', site: 'linkedin' },
+  { name: 'Glassdoor', site: 'glassdoor' },
+  { name: 'ZipRecruiter', site: 'zip_recruiter' },
+];
 
 export default function RefillJobsModal({
   open,
@@ -28,6 +36,23 @@ export default function RefillJobsModal({
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ jobs_found: number; jobs_added: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Reset the form to defaults every time the modal is opened, so a fresh
+  // Refill pops up clean (no stale sites/terms/result from the last run).
+  useEffect(() => {
+    if (open) {
+      setSites(['indeed', 'linkedin']);
+      setSearchTerms('');
+      setLocation('United States');
+      setRemoteOnly(true);
+      setResultsWanted(100);
+      setHoursOld(72);
+      setProfileIds(profiles.map((p) => p.id));
+      setLoading(false);
+      setResult(null);
+      setError(null);
+    }
+  }, [open, profiles]);
 
   function toggle(list: string[], set: (v: string[]) => void, value: string) {
     set(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
@@ -110,10 +135,14 @@ export default function RefillJobsModal({
       ) : (
         <div className="space-y-4">
           <Field label="Sites">
-            <div className="flex gap-2">
-              {SITE_OPTIONS.map((s) => (
-                <Chip key={s} active={sites.includes(s)} onClick={() => toggle(sites, setSites, s)}>
-                  {s}
+            <div className="flex flex-wrap gap-2">
+              {SITE_OPTIONS.map((opt) => (
+                <Chip
+                  key={opt.site}
+                  active={sites.includes(opt.site)}
+                  onClick={() => toggle(sites, setSites, opt.site)}
+                >
+                  {opt.name}
                 </Chip>
               ))}
             </div>

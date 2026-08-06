@@ -3,38 +3,39 @@ import { getSession } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { readStorage, statStorage } from '@/lib/storage';
 
-// GET /api/files/...  — serve a stored file (resume, tailored PDF) with auth.
-// Authorization:
+// GET /api/files/...  — serve a stored file (resume, tailored PDF, proof image)
+// with auth. Authorization:
 //   - admin: any file
 //   - worker: only files under their assigned client's profile
 //   - client: only their own profile's files
 //
-// The file path is matched against a profile's base_resume_url or a job's
-// tailored_resume_pdf_path to decide access.
+// Ownership is resolved by matching the path against a profile's resume, a
+// job's tailored pdf, or a job's proof_of_submission.
 export async function GET(_req: Request, { params }: { params: { path: string[] } }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const rel = params.path.join('/');
   // sanity: only known prefixes
-  if (!/^(resumes|tailored)\//.test(rel)) {
+  if (!/^(resumes|tailored|proof)\//.test(rel)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  // Resolve which profile this file belongs to, then check permission.
+  // Resolve which profile this file belongs to.
   const profiles = await db.listProfiles();
-  const owner = profiles.find(
-    (p) => p.base_resume_url === rel
-  );
+  const owner = profiles.find((p) => p.base_resume_url === rel);
 
-  let jobOwner: string | null = null;
-  if (!owner) {
+  let ownerProfileId: string | null = owner?.id ?? null;
+
+  if (!ownerProfileId) {
+    // Search jobs for a tailored-resume or proof match.
     const jobs = await db.listJobs({ limit: 5000 });
-    const job = jobs.find((j) => j.tailored_resume_pdf_url === rel);
-    if (job) jobOwner = job.profile_id;
+    const job =
+      jobs.find((j) => j.tailored_resume_pdf_url === rel) ||
+      jobs.find((j) => j.proof_of_submission === rel);
+    ownerProfileId = job?.profile_id ?? null;
   }
 
-  const ownerProfileId = owner?.id ?? jobOwner;
   if (!ownerProfileId) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
@@ -48,7 +49,7 @@ export async function GET(_req: Request, { params }: { params: { path: string[] 
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
     } else {
-      // client: only own profile's resume
+      // client: only their own profile's files
       if (u.profile_id !== ownerProfileId) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
@@ -59,14 +60,25 @@ export async function GET(_req: Request, { params }: { params: { path: string[] 
   if (!meta) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const data = await readStorage(rel);
-  const contentType = rel.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream';
+  const contentType = rel.toLowerCase().endsWith('.pdf')
+    ? 'application/pdf'
+    : rel.toLowerCase().endsWith('.png')
+    ? 'image/png'
+    : rel.toLowerCase().endsWith('.jpg') || rel.toLowerCase().endsWith('.jpeg')
+    ? 'image/jpeg'
+    : rel.toLowerCase().endsWith('.gif')
+    ? 'image/gif'
+    : rel.toLowerCase().endsWith('.webp')
+    ? 'image/webp'
+    : 'application/octet-stream';
 
+  const isImage = contentType.startsWith('image/');
   return new NextResponse(data, {
     status: 200,
     headers: {
       'Content-Type': contentType,
       'Content-Length': String(meta.size),
-      'Content-Disposition': `attachment; filename="${rel.split('/').pop()}"`,
+      'Content-Disposition': `${isImage ? 'inline' : 'attachment'}; filename="${rel.split('/').pop()}"`,
     },
   });
 }

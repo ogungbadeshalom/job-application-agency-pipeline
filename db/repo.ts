@@ -48,6 +48,8 @@ function mapProfile(r: Record<string, unknown>): Profile {
     scrape_sites: r.scrape_sites as unknown as string[],
     scrape_results_wanted: r.scrape_results_wanted as number,
     scrape_hours_old: r.scrape_hours_old as number,
+    jobs_per_week: r.jobs_per_week as number ?? 20,
+    deleted_at: r.deleted_at ? (r.deleted_at as Date).toISOString() : null,
     created_at: (r.created_at as Date).toISOString(),
     updated_at: (r.updated_at as Date).toISOString(),
   };
@@ -205,7 +207,10 @@ export const db = {
 
   // profiles
   async listProfiles(): Promise<Profile[]> {
-    const rows = await all('select * from profiles order by created_at asc');
+    // Exclude soft-deleted profiles from normal lists.
+    const rows = await all(
+      'select * from profiles where deleted_at is null order by created_at asc'
+    );
     return rows.map(mapProfile);
   },
   async getProfile(id: string): Promise<Profile | null> {
@@ -213,8 +218,44 @@ export const db = {
     return row ? mapProfile(row) : null;
   },
   async getProfileByWorker(workerId: string): Promise<Profile | null> {
-    const row = await one('select * from profiles where assigned_worker_id = $1', [workerId]);
+    const row = await one(
+      'select * from profiles where assigned_worker_id = $1 and deleted_at is null',
+      [workerId]
+    );
     return row ? mapProfile(row) : null;
+  },
+  // Soft-delete a client profile: hide from lists but keep jobs/history.
+  async deleteProfile(id: string): Promise<Profile | null> {
+    // Detach the worker link too (they may be reassigned).
+    const row = await one(
+      `update profiles set deleted_at = now(), assigned_worker_id = null where id = $1 returning *`,
+      [id]
+    );
+    return row ? mapProfile(row) : null;
+  },
+  // Hard-delete a user account (workers; also used by admin "delete people").
+  async deleteUser(id: string): Promise<boolean> {
+    await query('delete from users where id = $1', [id]);
+    return true;
+  },
+  // Weekly stats for a worker's assigned client (current ISO week Mon-Sun).
+  // applied = jobs marked applied this week; skipped = jobs skipped this week.
+  async getWorkerWeeklyStats(profileId: string, weekStart: Date): Promise<{
+    applied: number;
+    skipped: number;
+  }> {
+    const row = await one(
+      `select
+         count(*) filter (where status = 'applied') ::int as applied,
+         count(*) filter (where status = 'skipped') ::int as skipped
+       from jobs
+       where profile_id = $1 and updated_at >= $2`,
+      [profileId, weekStart.toISOString()]
+    );
+    return {
+      applied: (row?.applied as number) ?? 0,
+      skipped: (row?.skipped as number) ?? 0,
+    };
   },
   async createProfile(input: Partial<Profile>): Promise<Profile> {
     const row = await one(
@@ -251,6 +292,7 @@ export const db = {
       scrape_sites: 'scrape_sites',
       scrape_results_wanted: 'scrape_results_wanted',
       scrape_hours_old: 'scrape_hours_old',
+      jobs_per_week: 'jobs_per_week',
     } as const;
     for (const [k, col] of Object.entries(allowed)) {
       if (k in patch) {

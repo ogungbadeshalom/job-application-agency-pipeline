@@ -2,14 +2,7 @@
 
 export type Role = 'admin' | 'worker' | 'client';
 
-export type JobStatus =
-  | 'saved'
-  | 'tailored'
-  | 'applied'
-  | 'rejected'
-  | 'interview'
-  | 'offer'
-  | 'withdrawn';
+export type JobStatus = 'saved' | 'tailored' | 'applied' | 'skipped';
 
 export type ScrapeRunStatus = 'pending' | 'running' | 'completed' | 'failed';
 
@@ -37,6 +30,8 @@ export interface Profile {
   scrape_sites: string[];
   scrape_results_wanted: number;
   scrape_hours_old: number;
+  jobs_per_week: number;
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -140,21 +135,13 @@ export interface ListJobsFilter {
   limit?: number;
 }
 
-// Status ordering — "status >= applied" for the client view.
+// Status ordering — "status >= applied" shows in the client view.
 export const STATUS_ORDER: Record<JobStatus, number> = {
   saved: 0,
   tailored: 1,
   applied: 2,
-  rejected: 3,
-  interview: 4,
-  offer: 5,
-  withdrawn: 6,
+  skipped: 3,
 };
 
-export const CLIENT_VISIBLE_STATUSES: JobStatus[] = [
-  'applied',
-  'rejected',
-  'interview',
-  'offer',
-  'withdrawn',
-];
+// Client view shows applied jobs (not skipped/saved/tailored).
+export const CLIENT_VISIBLE_STATUSES: JobStatus[] = ['applied'];

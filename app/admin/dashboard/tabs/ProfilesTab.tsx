@@ -17,14 +17,15 @@ export default function ProfilesTab({
   users: User[];
   jobs: Job[];
 }) {
+  const router = useRouter();
   const [addClientOpen, setAddClientOpen] = useState(false);
   const [addWorkerOpen, setAddWorkerOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<User | null>(null);
+  const [editTarget, setEditTarget] = useState<{ user: User; jobsPerWeek?: number } | null>(null);
 
   const profileFor = (uid: string | null) =>
     profiles.find((p) => p.id === uid || p.assigned_worker_id === uid) ?? null;
   const appliedCount = (pid: string) =>
-    jobs.filter((j) => j.profile_id === pid && ['applied','interview','offer'].includes(j.status)).length;
+    jobs.filter((j) => j.profile_id === pid && j.status === 'applied').length;
   const assignedClientOf = (workerId: string) =>
     profiles.find((p) => p.assigned_worker_id === workerId);
 
@@ -88,7 +89,7 @@ export default function ProfilesTab({
                   </td>
                   <td className="px-3 py-2.5 text-right">
                     <button
-                      onClick={() => setEditTarget(w)}
+                      onClick={() => setEditTarget({ user: w })}
                       className="px-2.5 py-1 text-xs rounded-md bg-navy-800 text-navy-200 hover:bg-navy-750"
                     >
                       Edit
@@ -146,7 +147,7 @@ export default function ProfilesTab({
                   <td className="px-3 py-2.5 text-right">
                     {clientUser ? (
                       <button
-                        onClick={() => setEditTarget(clientUser)}
+                        onClick={() => setEditTarget({ user: clientUser, jobsPerWeek: p.jobs_per_week })}
                         className="px-2.5 py-1 text-xs rounded-md bg-navy-800 text-navy-200 hover:bg-navy-750"
                       >
                         Edit
@@ -173,7 +174,12 @@ export default function ProfilesTab({
         workers={workers}
       />
       {editTarget && (
-        <EditUserModal user={editTarget} onClose={() => setEditTarget(null)} />
+        <EditUserModal
+          user={editTarget.user}
+          onClose={() => setEditTarget(null)}
+          jobsPerWeek={editTarget.jobsPerWeek}
+          onQuotaChange={() => router.refresh()}
+        />
       )}
     </div>
   );

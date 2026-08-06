@@ -4,10 +4,7 @@ const STYLES: Record<JobStatus, { bg: string; text: string; label: string }> = {
   saved: { bg: 'bg-navy-700', text: 'text-navy-300', label: 'Saved' },
   tailored: { bg: 'bg-blue-500/15', text: 'text-brand-blue', label: 'Tailored' },
   applied: { bg: 'bg-emerald-500/15', text: 'text-brand-green', label: 'Applied' },
-  rejected: { bg: 'bg-red-500/15', text: 'text-brand-red', label: 'Rejected' },
-  interview: { bg: 'bg-purple-500/15', text: 'text-brand-purple', label: 'Interview' },
-  offer: { bg: 'bg-yellow-500/15', text: 'text-brand-yellow', label: 'Offer' },
-  withdrawn: { bg: 'bg-navy-700', text: 'text-navy-400', label: 'Withdrawn' },
+  skipped: { bg: 'bg-navy-700', text: 'text-navy-400', label: 'Skipped' },
 };
 
 export default function StatusBadge({ status }: { status: JobStatus }) {
@@ -21,12 +18,4 @@ export default function StatusBadge({ status }: { status: JobStatus }) {
   );
 }
 
-export const STATUS_OPTIONS: JobStatus[] = [
-  'saved',
-  'tailored',
-  'applied',
-  'rejected',
-  'interview',
-  'offer',
-  'withdrawn',
-];
+export const STATUS_OPTIONS: JobStatus[] = ['saved', 'tailored', 'applied', 'skipped'];

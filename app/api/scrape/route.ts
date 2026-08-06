@@ -66,18 +66,34 @@ export async function POST(req: Request) {
   }
 
   try {
-    const rawJobs = await runJobSpy({
-      sites: config.sites,
-      search_terms: terms,
-      location: config.location,
-      results_wanted: config.results_wanted,
-      hours_old: config.hours_old,
-    });
+    // Glassdoor + ZipRecruiter can't parse a bare "Remote" location (JobSpy
+    // returns 400 "location not parsed"). So when "Remote only" is on, we
+    // still give those two the user's geo location and let the rest use "Remote".
+    const remoteCapable = config.sites.filter((s) => ['indeed', 'linkedin'].includes(s));
+    const geoRequired = config.sites.filter((s) => ['glassdoor', 'zip_recruiter'].includes(s));
+    const geoLocation = config.location === 'Remote' ? 'United States' : config.location;
+
+    // Group sites by their preferred location so JobSpy gets a valid arg each call.
+    const groups: { sites: string[]; location: string }[] = [];
+    if (remoteCapable.length) groups.push({ sites: remoteCapable, location: 'Remote' });
+    if (geoRequired.length) groups.push({ sites: geoRequired, location: geoLocation });
+
+    const allRaw: ScrapeResultJob[] = [];
+    for (const g of groups) {
+      const raw = await runJobSpy({
+        sites: g.sites,
+        search_terms: terms,
+        location: g.location,
+        results_wanted: config.results_wanted,
+        hours_old: config.hours_old,
+      });
+      allRaw.push(...raw);
+    }
 
     // Dedupe + insert per profile.
     let totalAdded = 0;
     for (const profile of targetProfiles) {
-      const fresh = await dedupeAndMap(rawJobs, profile.id);
+      const fresh = await dedupeAndMap(allRaw, profile.id);
       if (fresh.length) {
         await db.createJobs(fresh as Job[]);
         totalAdded += fresh.length;
@@ -86,14 +102,14 @@ export async function POST(req: Request) {
 
     await db.updateScrapeRun(run.id, {
       status: 'completed',
-      jobs_found: rawJobs.length,
+      jobs_found: allRaw.length,
       jobs_added: totalAdded,
       completed_at: new Date().toISOString(),
     });
 
     return NextResponse.json({
       scrape_run_id: run.id,
-      jobs_found: rawJobs.length,
+      jobs_found: allRaw.length,
       jobs_added: totalAdded,
     });
   } catch (e) {

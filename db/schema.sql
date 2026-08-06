@@ -9,7 +9,7 @@ exception when duplicate_object then null; end $$;
 
 do $$ begin
   create type job_status as enum (
-    'saved','tailored','applied','rejected','interview','offer','withdrawn'
+    'saved','tailored','applied','skipped'
   );
 exception when duplicate_object then null; end $$;
 
@@ -48,6 +48,8 @@ create table if not exists profiles (
   scrape_sites          text[] not null default '{}',
   scrape_results_wanted int  not null default 100,
   scrape_hours_old      int  not null default 72,
+  jobs_per_week        int  not null default 20,   -- worker's weekly quota for this client
+  deleted_at            timestamptz,              -- soft-delete: hidden from lists, data kept
   created_at            timestamptz not null default now(),
   updated_at            timestamptz not null default now()
 );

@@ -39,8 +39,8 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     if (!profile || profile.id !== job.profile_id)
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   } else {
-    // client: own profile + client-visible status only
-    if (job.profile_id !== session.user.profile_id || !['applied','rejected','interview','offer','withdrawn'].includes(job.status)) {
+    // client: own profile + applied only
+    if (job.profile_id !== session.user.profile_id || job.status !== 'applied') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
   }

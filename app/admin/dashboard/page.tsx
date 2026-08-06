@@ -14,9 +14,7 @@ export default async function AdminDashboardPage() {
     db.listScrapeRuns(),
   ]);
 
-  const appliedCount = jobs.filter((j) =>
-    ['applied', 'interview', 'offer'].includes(j.status)
-  ).length;
+  const appliedCount = jobs.filter((j) => j.status === 'applied').length;
 
   const nav = [
     { href: '/admin/dashboard', label: 'Dashboard', badge: appliedCount },

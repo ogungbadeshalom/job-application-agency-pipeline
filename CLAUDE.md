@@ -63,7 +63,7 @@ profiles:
 jobs:
   id uuid PK, profile_id uuid FK, title, company, board, url (dedup key),
   description, compensation_min/max int, compensation_currency, location,
-  status job_status ('saved'|'tailored'|'applied'|'rejected'|'interview'|'offer'|'withdrawn'),
+  status job_status ('saved'|'tailored'|'applied'|'skipped'),
   tailored_resume text, tailored_resume_pdf_path text,
   submitted_at, proof_of_submission, notes, scrape_run_id, created_at, updated_at
 
@@ -148,7 +148,7 @@ export async function callAI(system: string, user: string, opts?: {maxTokens?, t
 ## Job Status Lifecycle
 
 ```
-saved → tailored → applied → (rejected | interview | offer | withdrawn)
+saved → tailored → (applied | skipped)   ·   skipped ⇌ unskipped
 ```
 
 Status ≥ applied shows in the client view.

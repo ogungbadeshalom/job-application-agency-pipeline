@@ -47,6 +47,14 @@ export default function ClientJobsClient({
         </p>
       </div>
 
+      <div className="panel p-4 mb-4 flex items-center gap-4">
+        <div className="text-4xl font-bold text-brand-green">{jobs.length}</div>
+        <div>
+          <div className="font-semibold text-navy-100">jobs applied for you</div>
+          <div className="text-sm text-navy-400">Landed {jobs.length > 0 ? 'so far' : 'yet — we are working on it'}.</div>
+        </div>
+      </div>
+
       <JobTable
         jobs={jobs}
         profiles={profiles}

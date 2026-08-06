@@ -1,11 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Job, JobStatus } from '@/lib/types';
 import { STATUS_OPTIONS } from './StatusBadge';
+import { Spinner } from './Icon';
 
-const SECONDARY: JobStatus[] = ['rejected', 'interview', 'offer', 'withdrawn'];
-
+// SubmissionTracking panel:
+//   - status saved/tailored/applied/skipped (+ Mark Applied + Skip/Unskip)
+//   - proof of submission as an IMAGE upload (stored on disk, shown to clients)
+//   - internal notes
 export default function SubmissionPanel({
   job,
   onUpdated,
@@ -15,9 +18,12 @@ export default function SubmissionPanel({
 }) {
   const [status, setStatus] = useState<JobStatus>(job.status);
   const [notes, setNotes] = useState(job.notes ?? '');
-  const [proof, setProof] = useState(job.proof_of_submission ?? '');
+  const [proofUrl, setProofUrl] = useState(job.proof_of_submission ?? '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   async function patch(body: Partial<Job>) {
     setSaving(true);
@@ -49,16 +55,40 @@ export default function SubmissionPanel({
     await patch(body);
   }
 
-  async function saveDetails() {
-    await patch({ notes, proof_of_submission: proof });
+  // Upload a proof-of-submission image to local disk, then store its path on the job.
+  async function uploadProof(file: File) {
+    if (!file) return;
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('job_id', job.id);
+      const res = await fetch('/api/upload-proof', { method: 'POST', body: form });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      const path = data.path as string;
+      setProofUrl(path);
+      await patch({ proof_of_submission: path });
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
   }
+
+  async function saveDetails() {
+    await patch({ notes, proof_of_submission: proofUrl });
+  }
+
+  const isSkipped = status === 'skipped';
 
   return (
     <div className="space-y-4">
       <div className="panel p-4 space-y-3">
         <div>
           <label className="block th-uppercase mb-1">Status</label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 items-center">
             <select
               value={status}
               onChange={(e) => changeStatus(e.target.value as JobStatus)}
@@ -72,19 +102,26 @@ export default function SubmissionPanel({
             </select>
             <button
               onClick={() => changeStatus('applied')}
-              className="px-3 py-1.5 text-sm rounded-md bg-emerald-600/20 text-brand-green hover:bg-emerald-600/30"
+              disabled={status === 'applied'}
+              className="px-3 py-1.5 text-sm rounded-md bg-emerald-600/20 text-brand-green hover:bg-emerald-600/30 disabled:opacity-40"
             >
               Mark Applied
             </button>
-            {SECONDARY.map((s) => (
+            {isSkipped ? (
               <button
-                key={s}
-                onClick={() => changeStatus(s)}
-                className="px-3 py-1.5 text-sm rounded-md bg-navy-800 text-navy-300 hover:bg-navy-750 capitalize"
+                onClick={() => changeStatus('tailored')}
+                className="px-3 py-1.5 text-sm rounded-md bg-emerald-600/20 text-brand-green hover:bg-emerald-600/30"
               >
-                {s}
+                Unskip
               </button>
-            ))}
+            ) : (
+              <button
+                onClick={() => changeStatus('skipped')}
+                className="px-3 py-1.5 text-sm rounded-md bg-navy-800 text-navy-300 hover:bg-navy-750"
+              >
+                Skip
+              </button>
+            )}
           </div>
           <p className="text-xs text-navy-500 mt-1.5">
             Applied date: {job.submitted_at ? new Date(job.submitted_at).toLocaleString() : '—'}
@@ -94,14 +131,51 @@ export default function SubmissionPanel({
 
       <div className="panel p-4 space-y-3">
         <div>
-          <label className="block th-uppercase mb-1">Proof of submission</label>
-          <textarea
-            value={proof}
-            onChange={(e) => setProof(e.target.value)}
-            placeholder="Paste confirmation email snippet…"
-            className="w-full h-24 bg-navy-950 border border-navy-700 rounded-md p-2.5 text-sm text-navy-100 focus:outline-none focus:border-brand-blue"
+          <label className="block th-uppercase mb-1.5">Proof of submission</label>
+          {proofUrl ? (
+            <div className="flex flex-col gap-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`/api/files/${proofUrl.split('/').filter(Boolean).join('/')}`}
+                alt="Proof of submission"
+                className="max-w-xs rounded-md border border-navy-700"
+              />
+              <button
+                onClick={() => fileRef.current?.click()}
+                className="self-start px-2.5 py-1 text-xs rounded-md bg-navy-800 text-navy-200 hover:bg-navy-750"
+              >
+                Replace image
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md border border-dashed border-navy-600 text-navy-300 hover:border-brand-blue hover:text-navy-100 disabled:opacity-50"
+            >
+              {uploading ? <Spinner /> : null}
+              {uploading ? 'Uploading…' : 'Upload proof (image)'}
+            </button>
+          )}
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) uploadProof(f);
+              e.target.value = '';
+            }}
           />
+          {uploadError && (
+            <div className="mt-2 text-sm text-brand-red bg-red-500/10 border border-red-500/30 rounded-md px-3 py-2">
+              {uploadError}
+            </div>
+          )}
         </div>
+
         <div>
           <label className="block th-uppercase mb-1">Notes</label>
           <textarea

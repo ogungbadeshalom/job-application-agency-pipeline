@@ -49,6 +49,7 @@ search_terms = config.get("search_terms", [])
 location = config.get("location", "United States")
 results_wanted = int(config.get("results_wanted", 100))
 hours_old = int(config.get("hours_old", 72))
+is_remote = bool(config.get("is_remote", False))
 
 if not search_terms:
     print("No search_terms provided in config.", file=sys.stderr)
@@ -69,6 +70,7 @@ for term in search_terms:
             location=location,
             results_wanted=results_wanted,
             hours_old=hours_old,
+            is_remote=is_remote,
             linkedin_fetch_description=True,
         )
         if df is not None and not df.empty:
@@ -121,6 +123,36 @@ def _sanitize(value):
 # Normalize keys: jobspy columns -> our ScrapeResultJob shape.
 records = []
 for r in all_jobs:
+    # When a remote-only scrape was requested, hard-filter here so no on-site
+    # posting leaks through — JobSpy's per-site is_remote flag is a soft signal
+    # and some scrapers (LinkedIn) still return geo jobs despite it. A job is
+    # kept only if its row-level is_remote flag is true OR its location text
+    # clearly says remote.
+    # When a remote-only scrape was requested, hard-filter here so no on-site
+    # posting leaks through. JobSpy's per-site is_remote flag is unreliable —
+    # Indeed marks some office jobs as remote and truncates others to bare
+    # state codes. Heuristic: a job is remote if its location text explicitly
+    # says remote, OR the row flag is true AND the location names no specific
+    # city (vague state-only like "MO, US" / "US" => remote-capable).
+    if is_remote:
+        loc_txt = (r.get("location") or "").lower()
+        row_remote = bool(r.get("is_remote"))
+        loc_remote = any(
+            marker in loc_txt
+            for marker in ("remote", "anywhere", "work from home", "wfh")
+        )
+        if loc_remote:
+            keep = True
+        elif loc_txt.strip() in {"", "us", "usa", "united states", "anywhere"}:
+            keep = True  # bare country/empty => treat as remote-capable
+        elif loc_txt.count(",") >= 2:
+            keep = False  # "City, State, Country" => on-site office posting
+        else:
+            # One comma = "MO, US" state-only, or a single name => no city, so
+            # trust the remote flag (remote jobs show as state/country only).
+            keep = row_remote
+        if not keep:
+            continue
     rec = {
         "title": _sanitize(r.get("title")),
         "company": _sanitize(r.get("company")),

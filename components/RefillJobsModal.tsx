@@ -12,6 +12,8 @@ export const SITE_OPTIONS: { name: string; site: string; disabled?: boolean; not
   { name: 'LinkedIn', site: 'linkedin' },
   { name: 'RemoteOK', site: 'remoteok' },
   { name: 'BuiltIn', site: 'builtin' },
+  { name: 'Greenhouse', site: 'greenhouse' },
+  { name: 'SmartRecruiters', site: 'smart_recruiters' },
   { name: 'Glassdoor', site: 'glassdoor', disabled: true, note: 'currently unavailable' },
   { name: 'ZipRecruiter', site: 'zip_recruiter', disabled: true, note: 'currently unavailable' },
 ];
@@ -27,7 +29,7 @@ export default function RefillJobsModal({
   profiles: Profile[];
   onDone?: (result: { jobs_added: number }) => void;
 }) {
-  const [sites, setSites] = useState<string[]>(['indeed', 'linkedin', 'remoteok']);
+  const [sites, setSites] = useState<string[]>(['indeed', 'linkedin', 'remoteok', 'greenhouse', 'smart_recruiters']);
   const [searchTerms, setSearchTerms] = useState('');
   const [location, setLocation] = useState('United States');
   const [remoteOnly, setRemoteOnly] = useState(true); // most clients want remote
@@ -43,7 +45,7 @@ export default function RefillJobsModal({
   // Refill pops up clean (no stale sites/terms/result from the last run).
   useEffect(() => {
     if (open) {
-      setSites(['indeed', 'linkedin', 'remoteok']);
+      setSites(['indeed', 'linkedin', 'remoteok', 'greenhouse', 'smart_recruiters']);
       setSearchTerms('');
       setLocation('United States');
       setRemoteOnly(true);

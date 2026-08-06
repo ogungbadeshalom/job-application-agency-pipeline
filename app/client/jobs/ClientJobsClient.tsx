@@ -21,6 +21,13 @@ export default function ClientJobsClient({
 
   const nav = [{ href: '/client/jobs', label: 'My Applications', badge: jobs.length }];
 
+  // Proof of submission can be a stored image path (proof/<profileId>/x.png) —
+  // render that as an image served via /api/files. Fall back to plain text for
+  // any legacy text-only values.
+  function isImagePath(v: string): boolean {
+    return /^proof\//.test(v);
+  }
+
   async function downloadPdf(job: Job) {
     if (!job.tailored_resume) return;
     const res = await fetch('/api/pdf', {
@@ -115,7 +122,16 @@ export default function ClientJobsClient({
             {selected.proof_of_submission && (
               <div>
                 <h3 className="th-uppercase mb-1">Proof of Submission</h3>
-                <p className="text-sm text-navy-400 whitespace-pre-wrap">{selected.proof_of_submission}</p>
+                {isImagePath(selected.proof_of_submission) ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={`/api/files/${selected.proof_of_submission.split('/').filter(Boolean).join('/')}`}
+                    alt="Proof of submission"
+                    className="max-w-md rounded-md border border-navy-700"
+                  />
+                ) : (
+                  <p className="text-sm text-navy-400 whitespace-pre-wrap">{selected.proof_of_submission}</p>
+                )}
               </div>
             )}
           </div>

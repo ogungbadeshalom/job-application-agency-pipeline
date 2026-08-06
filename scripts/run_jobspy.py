@@ -50,6 +50,24 @@ location = config.get("location", "United States")
 results_wanted = int(config.get("results_wanted", 100))
 hours_old = int(config.get("hours_old", 72))
 is_remote = bool(config.get("is_remote", False))
+job_type = (config.get("job_type") or "").strip()
+
+# Map friendly labels -> JobSpy JobType VALUES (get_enum_from_value matches
+# against JobType.value, e.g. "fulltime", "parttime", "contract", "perdiem").
+_JOBTYPE_MAP = {
+    "": None,
+    "any": None,
+    "full time": "fulltime",
+    "fulltime": "fulltime",
+    "part time": "parttime",
+    "parttime": "parttime",
+    "contract": "contract",
+    "temporary": "temporary",
+    "internship": "internship",
+    "per diem": "perdiem",
+    "volunteer": "volunteer",
+}
+job_type_value = _JOBTYPE_MAP.get(job_type.lower(), job_type or None)
 
 if not search_terms:
     print("No search_terms provided in config.", file=sys.stderr)
@@ -71,6 +89,7 @@ for term in search_terms:
             results_wanted=results_wanted,
             hours_old=hours_old,
             is_remote=is_remote,
+            job_type=job_type_value,
             linkedin_fetch_description=True,
         )
         if df is not None and not df.empty:

@@ -96,6 +96,7 @@ export interface ScrapeConfig {
   results_wanted: number;
   hours_old: number;
   remote_only?: boolean;
+  job_type?: string;
 }
 
 export interface ScrapeResultJob {

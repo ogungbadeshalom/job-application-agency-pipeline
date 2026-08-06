@@ -24,6 +24,7 @@ export async function POST(req: Request) {
     results_wanted: Number(body.results_wanted) || 100,
     hours_old: Number(body.hours_old) || 72,
     remote_only: Boolean(body.remote_only),
+    job_type: body.job_type || '',
   };
 
   if (config.profile_ids.length === 0) {
@@ -97,6 +98,7 @@ export async function POST(req: Request) {
         results_wanted: config.results_wanted,
         hours_old: config.hours_old,
         is_remote: g.is_remote,
+        job_type: config.job_type || undefined,
       });
       allRaw.push(...raw);
 
@@ -116,6 +118,7 @@ export async function POST(req: Request) {
               results_wanted: config.results_wanted,
               hours_old: config.hours_old,
               is_remote: g.is_remote,
+              job_type: config.job_type || undefined,
             }))
           );
         }
@@ -195,6 +198,7 @@ interface JobSpyArgs {
   results_wanted: number;
   hours_old: number;
   is_remote?: boolean;
+  job_type?: string;
 }
 
 // Spawn the Python JobSpy script and parse its JSON output.

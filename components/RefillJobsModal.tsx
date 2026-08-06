@@ -31,6 +31,7 @@ export default function RefillJobsModal({
   const [searchTerms, setSearchTerms] = useState('');
   const [location, setLocation] = useState('United States');
   const [remoteOnly, setRemoteOnly] = useState(true); // most clients want remote
+  const [jobType, setJobType] = useState('full time'); // default full-time
   const [resultsWanted, setResultsWanted] = useState('100');
   const [hoursOld, setHoursOld] = useState('72');
   const [profileIds, setProfileIds] = useState<string[]>(profiles.map((p) => p.id));
@@ -46,6 +47,7 @@ export default function RefillJobsModal({
       setSearchTerms('');
       setLocation('United States');
       setRemoteOnly(true);
+      setJobType('full time');
       setResultsWanted('100');
       setHoursOld('72');
       setProfileIds(profiles.map((p) => p.id));
@@ -81,6 +83,7 @@ export default function RefillJobsModal({
             .filter(Boolean),
           location: remoteOnly ? 'Remote' : location,
           remote_only: remoteOnly,
+          job_type: jobType,
           results_wanted: Number(resultsWanted) || 100,
           hours_old: Number(hoursOld) || 72,
           profile_ids: profileIds,
@@ -201,6 +204,21 @@ export default function RefillJobsModal({
           </div>
 
           <div className="grid grid-cols-3 gap-3">
+            <Field label="Job type">
+              <select
+                value={jobType}
+                onChange={(e) => setJobType(e.target.value)}
+                className="w-full bg-navy-950 border border-navy-700 rounded-md px-3 py-2 text-sm text-navy-100 focus:outline-none focus:border-brand-blue"
+              >
+                <option value="">Any</option>
+                <option value="full time">Full-time</option>
+                <option value="part time">Part-time</option>
+                <option value="contract">Contract</option>
+                <option value="temporary">Temporary</option>
+                <option value="internship">Internship</option>
+                <option value="per diem">Per diem</option>
+              </select>
+            </Field>
             <Field label="Location">
               <input
                 value={remoteOnly ? 'Remote' : location}

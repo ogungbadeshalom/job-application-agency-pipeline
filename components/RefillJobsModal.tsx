@@ -5,12 +5,13 @@ import Modal from './Modal';
 import { Spinner } from './Icon';
 import type { Profile } from '@/lib/types';
 
-// Scrape source options. `disabled: true` sites are shown grayed out — they're
-// known-flaky on the deployment right now (work only when DNS/anti-bot allow)
-// and we don't want them silently failing a refill run.
+// Scrape source options (map to jobspy Site names from the project fork).
+// `disabled: true` sites are grayed out — known-flaky on this deployment.
 export const SITE_OPTIONS: { name: string; site: string; disabled?: boolean; note?: string }[] = [
   { name: 'Indeed', site: 'indeed' },
   { name: 'LinkedIn', site: 'linkedin' },
+  { name: 'RemoteOK', site: 'remoteok' },
+  { name: 'BuiltIn', site: 'builtin' },
   { name: 'Glassdoor', site: 'glassdoor', disabled: true, note: 'currently unavailable' },
   { name: 'ZipRecruiter', site: 'zip_recruiter', disabled: true, note: 'currently unavailable' },
 ];
@@ -26,7 +27,7 @@ export default function RefillJobsModal({
   profiles: Profile[];
   onDone?: (result: { jobs_added: number }) => void;
 }) {
-  const [sites, setSites] = useState<string[]>(['indeed', 'linkedin']);
+  const [sites, setSites] = useState<string[]>(['indeed', 'linkedin', 'remoteok']);
   const [searchTerms, setSearchTerms] = useState('');
   const [location, setLocation] = useState('United States');
   const [remoteOnly, setRemoteOnly] = useState(true); // most clients want remote
@@ -41,7 +42,7 @@ export default function RefillJobsModal({
   // Refill pops up clean (no stale sites/terms/result from the last run).
   useEffect(() => {
     if (open) {
-      setSites(['indeed', 'linkedin']);
+      setSites(['indeed', 'linkedin', 'remoteok']);
       setSearchTerms('');
       setLocation('United States');
       setRemoteOnly(true);

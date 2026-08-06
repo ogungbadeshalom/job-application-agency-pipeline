@@ -15,6 +15,8 @@ const BOARD_LABELS: Record<string, string> = {
   linkedin: 'LinkedIn',
   glassdoor: 'Glassdoor',
   zip_recruiter: 'ZipRecruiter',
+  remoteok: 'RemoteOK',
+  builtin: 'BuiltIn',
 };
 
 interface Column {

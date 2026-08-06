@@ -67,15 +67,18 @@ export async function POST(req: Request) {
 
   try {
     // Glassdoor + ZipRecruiter can't parse a bare "Remote" location (JobSpy
-    // returns 400 "location not parsed"). So when "Remote only" is on, we
-    // still give those two the user's geo location and let the rest use "Remote".
-    const remoteCapable = config.sites.filter((s) => ['indeed', 'linkedin'].includes(s));
+    // returns 400 "location not parsed"). RemoteOK/BuiltIn/Indeed/LinkedIn are
+    // remote-friendly, so give them the configured location ("Remote" when the
+    // Remote-only toggle is on). The geo pair gets a real fallback location.
+    const remoteFriendly = config.sites.filter(
+      (s) => !['glassdoor', 'zip_recruiter'].includes(s)
+    );
     const geoRequired = config.sites.filter((s) => ['glassdoor', 'zip_recruiter'].includes(s));
     const geoLocation = config.location === 'Remote' ? 'United States' : config.location;
 
     // Group sites by their preferred location so JobSpy gets a valid arg each call.
     const groups: { sites: string[]; location: string }[] = [];
-    if (remoteCapable.length) groups.push({ sites: remoteCapable, location: 'Remote' });
+    if (remoteFriendly.length) groups.push({ sites: remoteFriendly, location: config.location });
     if (geoRequired.length) groups.push({ sites: geoRequired, location: geoLocation });
 
     const allRaw: ScrapeResultJob[] = [];

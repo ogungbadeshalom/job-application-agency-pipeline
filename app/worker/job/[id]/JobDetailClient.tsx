@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import StatusBadge from '@/components/StatusBadge';
 import TailorPanel from '@/components/TailorPanel';
@@ -23,8 +24,16 @@ export default function JobDetailClient({
   job: Job;
   profile: Profile;
 }) {
+  const router = useRouter();
   const [job, setJob] = useState(initialJob);
   const [tab, setTab] = useState<Tab>('tailor');
+
+  // Update local state AND refresh the server tree so the queue (and any other
+  // server-rendered views) reflect changes immediately — without a hard reload.
+  function updateJob(patch: Partial<Job>) {
+    setJob((prev) => ({ ...prev, ...patch }));
+    router.refresh();
+  }
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'tailor', label: 'Tailor Resume' },
@@ -115,11 +124,11 @@ export default function JobDetailClient({
           </div>
 
           {tab === 'tailor' && (
-            <TailorPanel job={job} profile={profile} onSaved={() => setJob({ ...job, tailored_resume: 'saved' })} />
+            <TailorPanel job={job} profile={profile} onSaved={() => updateJob({ tailored_resume: 'saved' })} />
           )}
           {tab === 'question' && <QuestionPanel profileId={profile.id} jobId={job.id} />}
           {tab === 'submission' && (
-            <SubmissionPanel job={job} onUpdated={(patch) => setJob({ ...job, ...patch })} />
+            <SubmissionPanel job={job} onUpdated={updateJob} />
           )}
         </div>
       </div>

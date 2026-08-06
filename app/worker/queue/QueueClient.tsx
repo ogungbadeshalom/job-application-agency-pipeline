@@ -1,9 +1,12 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import JobTable from '@/components/JobTable';
 import type { Job, Profile, User } from '@/lib/types';
+
+const SCROLL_KEY = 'jobbidder_queue_scroll';
 
 export default function QueueClient({
   user,
@@ -23,6 +26,38 @@ export default function QueueClient({
   weeklySkipped: number;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+
+  // When leaving the queue to open a job, save the current scroll offset so a
+  // return-to-queue can restore it.
+  const saveScroll = () => {
+    try {
+      sessionStorage.setItem(SCROLL_KEY, String(window.scrollY));
+    } catch { /* storage may be unavailable */ }
+  };
+  useEffect(() => {
+    // Fire on route change / tab-switch / navigation-away.
+    window.addEventListener('pagehide', saveScroll);
+    return () => {
+      window.removeEventListener('pagehide', saveScroll);
+      saveScroll();
+    };
+  }, []);
+
+  // Preserve scroll position when the worker jumps to a job and comes back,
+  // so they don't lose their place in a long queue.
+  // When the path becomes the queue (e.g. returning from a job page), restore
+  // the previously saved scroll offset once the table is painted.
+  useEffect(() => {
+    if (pathname === '/worker/queue') {
+      const y = Number(sessionStorage.getItem(SCROLL_KEY) || 0);
+      requestAnimationFrame(() => {
+        // free up so the app doesn't keep re-saving a stale value
+        sessionStorage.removeItem(SCROLL_KEY);
+        window.scrollTo({ top: y, behavior: 'instant' as ScrollBehavior });
+      });
+    }
+  }, [pathname]);
 
   async function quickAction(job: Job, action: 'applied' | 'skipped' | 'saved') {
     await fetch(`/api/jobs/${job.id}`, {

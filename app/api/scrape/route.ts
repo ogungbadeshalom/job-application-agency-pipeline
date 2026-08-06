@@ -23,6 +23,7 @@ export async function POST(req: Request) {
     location: body.location ?? 'United States',
     results_wanted: Number(body.results_wanted) || 100,
     hours_old: Number(body.hours_old) || 72,
+    remote_only: Boolean(body.remote_only),
   };
 
   if (config.profile_ids.length === 0) {
@@ -77,9 +78,15 @@ export async function POST(req: Request) {
     const geoLocation = config.location === 'Remote' ? 'United States' : config.location;
 
     // Group sites by their preferred location so JobSpy gets a valid arg each call.
-    const groups: { sites: string[]; location: string }[] = [];
+    const groups: { sites: string[]; location: string; is_remote?: boolean }[] = [];
     if (remoteFriendly.length) groups.push({ sites: remoteFriendly, location: config.location });
     if (geoRequired.length) groups.push({ sites: geoRequired, location: geoLocation });
+    // When the Remote-only toggle is on, force JobSpy's is_remote=true so ALL
+    // sites (incl. the geo pair) return genuinely remote postings, not jobs
+    // near a city/region matching the "Remote" location string.
+    if (config.remote_only) {
+      for (const g of groups) g.is_remote = true;
+    }
 
     const allRaw: ScrapeResultJob[] = [];
     for (const g of groups) {
@@ -89,6 +96,7 @@ export async function POST(req: Request) {
         location: g.location,
         results_wanted: config.results_wanted,
         hours_old: config.hours_old,
+        is_remote: g.is_remote,
       });
       allRaw.push(...raw);
 
@@ -107,6 +115,7 @@ export async function POST(req: Request) {
               location: g.location,
               results_wanted: config.results_wanted,
               hours_old: config.hours_old,
+              is_remote: g.is_remote,
             }))
           );
         }
@@ -185,6 +194,7 @@ interface JobSpyArgs {
   location: string;
   results_wanted: number;
   hours_old: number;
+  is_remote?: boolean;
 }
 
 // Spawn the Python JobSpy script and parse its JSON output.

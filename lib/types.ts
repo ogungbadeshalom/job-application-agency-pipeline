@@ -95,6 +95,7 @@ export interface ScrapeConfig {
   location: string;
   results_wanted: number;
   hours_old: number;
+  remote_only?: boolean;
 }
 
 export interface ScrapeResultJob {

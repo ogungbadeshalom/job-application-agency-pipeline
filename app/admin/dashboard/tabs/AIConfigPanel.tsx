@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Spinner } from '@/components/Icon';
 import { LabeledInput } from './shared';
 
-type Provider = 'anthropic' | 'openrouter' | 'custom';
+type Provider = 'anthropic' | 'openrouter' | 'custom' | 'deepseek';
 
 interface ConfigResponse {
   ai_provider: Provider;
@@ -133,6 +133,7 @@ export default function AIConfigPanel() {
               >
                 <option value="anthropic">Anthropic</option>
                 <option value="openrouter">OpenRouter</option>
+                <option value="deepseek">DeepSeek</option>
                 <option value="custom">Custom (OpenAI-compatible)</option>
               </select>
             </div>
@@ -144,7 +145,12 @@ export default function AIConfigPanel() {
             <input
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
-              placeholder={provider === 'openrouter' ? 'https://openrouter.ai/api/v1' : provider === 'custom' ? 'https://freeinference.org/v1' : ''}
+              placeholder={
+                provider === 'openrouter' ? 'https://openrouter.ai/api/v1'
+                : provider === 'deepseek' ? 'https://api.deepseek.com/v1'
+                : provider === 'custom' ? 'https://freeinference.org/v1'
+                : ''
+              }
               disabled={provider === 'anthropic'}
               className="w-full bg-navy-950 border border-navy-700 rounded-md px-3 py-2 text-sm text-navy-100 focus:outline-none focus:border-brand-blue disabled:opacity-60"
             />

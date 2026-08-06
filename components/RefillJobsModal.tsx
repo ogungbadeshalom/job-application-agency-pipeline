@@ -30,8 +30,8 @@ export default function RefillJobsModal({
   const [searchTerms, setSearchTerms] = useState('');
   const [location, setLocation] = useState('United States');
   const [remoteOnly, setRemoteOnly] = useState(true); // most clients want remote
-  const [resultsWanted, setResultsWanted] = useState(100);
-  const [hoursOld, setHoursOld] = useState(72);
+  const [resultsWanted, setResultsWanted] = useState('100');
+  const [hoursOld, setHoursOld] = useState('72');
   const [profileIds, setProfileIds] = useState<string[]>(profiles.map((p) => p.id));
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ jobs_found: number; jobs_added: number } | null>(null);
@@ -45,8 +45,8 @@ export default function RefillJobsModal({
       setSearchTerms('');
       setLocation('United States');
       setRemoteOnly(true);
-      setResultsWanted(100);
-      setHoursOld(72);
+      setResultsWanted('100');
+      setHoursOld('72');
       setProfileIds(profiles.map((p) => p.id));
       setLoading(false);
       setResult(null);
@@ -186,7 +186,8 @@ export default function RefillJobsModal({
               <input
                 type="number"
                 value={resultsWanted}
-                onChange={(e) => setResultsWanted(Number(e.target.value))}
+                onChange={(e) => setResultsWanted(e.target.value)}
+                placeholder="100"
                 className="w-full bg-navy-950 border border-navy-700 rounded-md px-3 py-2 text-sm text-navy-100 focus:outline-none focus:border-brand-blue"
               />
             </Field>
@@ -194,7 +195,8 @@ export default function RefillJobsModal({
               <input
                 type="number"
                 value={hoursOld}
-                onChange={(e) => setHoursOld(Number(e.target.value))}
+                onChange={(e) => setHoursOld(e.target.value)}
+                placeholder="72"
                 className="w-full bg-navy-950 border border-navy-700 rounded-md px-3 py-2 text-sm text-navy-100 focus:outline-none focus:border-brand-blue"
               />
             </Field>

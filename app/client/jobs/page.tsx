@@ -8,13 +8,12 @@ export default async function ClientJobsPage() {
   const user = await requireRole('client').catch(() => null);
   if (!user || !user.profile_id) redirect('/login');
 
-  // RLS-equivalent: client only sees their own profile's client-visible jobs.
-  const [allJobs, profile] = await Promise.all([
-    db.listJobs({ profile_id: user.profile_id }),
+  // RLS-equivalent: client only sees their own APPLIED jobs.
+  const [jobs, profile] = await Promise.all([
+    db.listJobs({ profile_id: user.profile_id, status: 'applied' }),
     db.getProfile(user.profile_id),
   ]);
   const profiles: Profile[] = profile ? [profile] : [];
-  const jobs = allJobs; // client table already filters to >= applied
 
   return <ClientJobsClient user={user} jobs={jobs} profiles={profiles} />;
 }

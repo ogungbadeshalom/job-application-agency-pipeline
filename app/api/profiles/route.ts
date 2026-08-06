@@ -68,6 +68,7 @@ export async function PATCH(req: Request) {
     'scrape_sites',
     'scrape_results_wanted',
     'scrape_hours_old',
+    'jobs_per_week',
   ]) {
     if (k in body) (patch as Record<string, unknown>)[k] = (body as Record<string, unknown>)[k];
   }

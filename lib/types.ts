@@ -119,7 +119,7 @@ export interface ScrapeRunResult {
 // DECRYPTED key — never persisted; only the encrypted form is stored.
 export interface AppConfig {
   id: number;
-  ai_provider: 'anthropic' | 'openrouter' | 'custom';
+  ai_provider: 'anthropic' | 'openrouter' | 'custom' | 'deepseek';
   ai_model: string;
   ai_base_url: string | null;
   ai_api_key: string | null;

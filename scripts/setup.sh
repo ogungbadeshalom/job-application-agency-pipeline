@@ -43,6 +43,14 @@ else
     echo "  then run: npm run db:migrate && npm run db:seed"
 fi
 
+# --- JobSpy (user's fork) ----------------------------------------------------
+if command -v python &> /dev/null || command -v python3 &> /dev/null; then
+    PY=$(command -v python3 || command -v python)
+    echo "→ Installing jobspy from the project fork…"
+    "$PY" -m pip install --upgrade "git+https://github.com/ogungbadeshalom/JobSpy.git" 2>/dev/null || \
+        echo "  (jobspy fork install failed — scraping unavailable until installed)"
+fi
+
 echo ""
 echo "✅ Setup complete."
 echo "   • npm run dev     (open http://localhost:3000)"

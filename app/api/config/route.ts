@@ -56,8 +56,8 @@ export async function PUT(req: Request) {
     apiKey?: string | null;
   };
 
-  if (!body.provider || !['anthropic', 'openrouter', 'custom'].includes(body.provider)) {
-    return NextResponse.json({ error: 'provider must be anthropic | openrouter | custom' }, { status: 400 });
+  if (!body.provider || !['anthropic', 'openrouter', 'custom', 'deepseek'].includes(body.provider)) {
+    return NextResponse.json({ error: 'provider must be anthropic | openrouter | custom | deepseek' }, { status: 400 });
   }
   if (!body.model || !body.model.trim()) {
     return NextResponse.json({ error: 'model is required' }, { status: 400 });

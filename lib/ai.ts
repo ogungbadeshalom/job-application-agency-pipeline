@@ -115,6 +115,18 @@ export async function callAI(
         temperature,
       });
     }
+    if (provider === 'deepseek') {
+      // DeepSeek is OpenAI-compatible at https://api.deepseek.com/v1
+      return await callOpenAICompat({
+        baseURL: cfg?.baseUrl || 'https://api.deepseek.com/v1',
+        apiKey: cfg?.apiKey || process.env.AI_API_KEY || '',
+        model,
+        system,
+        user,
+        maxTokens,
+        temperature,
+      });
+    }
     if (provider === 'custom') {
       return await callOpenAICompat({
         baseURL: cfg?.baseUrl || envValue('ai_base_url') || process.env.AI_BASE_URL || '',

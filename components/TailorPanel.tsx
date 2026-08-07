@@ -29,8 +29,13 @@ export default function TailorPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobId: job.id }),
       });
+      // Check res.ok BEFORE res.json() so an HTML error page doesn't throw
+      // "Unexpected token '<'" instead of surfacing the real error.
+      if (!res.ok) {
+        const d = await res.json().catch(() => null);
+        throw new Error(d?.error || 'Tailor failed');
+      }
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Tailor failed');
       setOutput(data.tailored_resume);
       onSaved?.(data.tailored_resume);
     } catch (e) {
@@ -50,8 +55,8 @@ export default function TailorPanel({
         body: JSON.stringify({ tailored_resume: output }),
       });
       if (!res.ok) {
-        const d = await res.json();
-        throw new Error(d.error || 'Save failed');
+        const d = await res.json().catch(() => null);
+        throw new Error(d?.error || 'Save failed');
       }
       setSaved(true);
       onSaved?.(output);

@@ -72,8 +72,11 @@ export default function EditUserModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: user.id, email, full_name: fullName }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Save failed');
+      // Check res.ok BEFORE reading JSON so an HTML error body doesn't crash.
+      if (!res.ok) {
+        const d = await res.json().catch(() => null);
+        throw new Error(d?.error || 'Save failed');
+      }
       // Save the weekly quota to the client's profile (clients only).
       if (isClient && user.profile_id && quota !== jobsPerWeek) {
         const q = await fetch('/api/profiles', {
@@ -107,8 +110,11 @@ export default function EditUserModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: user.id, password: pw }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed');
+      // Check res.ok BEFORE reading JSON so an HTML error body doesn't crash.
+      if (!res.ok) {
+        const d = await res.json().catch(() => null);
+        throw new Error(d?.error || 'Failed');
+      }
       setPw('');
       setPwSaved(true);
       setTimeout(() => setPwSaved(false), 1800);
@@ -135,8 +141,11 @@ export default function EditUserModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed');
+      // Check res.ok BEFORE reading JSON so an HTML error body doesn't crash.
+      if (!res.ok) {
+        const d = await res.json().catch(() => null);
+        throw new Error(d?.error || 'Failed');
+      }
       router.refresh();
       onClose();
     } catch (e) {

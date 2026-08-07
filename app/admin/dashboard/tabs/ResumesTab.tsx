@@ -90,8 +90,11 @@ function UploadModal({ profile, onClose }: { profile: Profile; onClose: () => vo
       form.append('file', file);
       form.append('profile_id', profile.id);
       const res = await fetch('/api/upload', { method: 'POST', body: form });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      // Check res.ok BEFORE reading JSON so an HTML error body doesn't crash.
+      if (!res.ok) {
+        const d = await res.json().catch(() => null);
+        throw new Error(d?.error || 'Upload failed');
+      }
       onClose();
       router.refresh();
     } catch (e) {

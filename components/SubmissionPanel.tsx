@@ -23,6 +23,7 @@ export default function SubmissionPanel({
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function patch(body: Partial<Job>) {
@@ -34,15 +35,19 @@ export default function SubmissionPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
+      // Guard: a non-OK body may be HTML, so parse defensively.
       if (!res.ok) {
-        const d = await res.json();
-        throw new Error(d.error || 'Update failed');
+        const d = await res.json().catch(() => null);
+        throw new Error(d?.error || 'Update failed');
       }
-      const updated = await res.json();
-      onUpdated?.(updated.job ?? body);
+      const updated = await res.json().catch(() => null);
+      onUpdated?.(updated?.job ?? body);
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
-      return updated.job as Job;
+      return (updated?.job ?? body) as Job;
+    } catch (e) {
+      // Surface PATCH failures to the UI instead of crashing/catching silently.
+      throw e;
     } finally {
       setSaving(false);
     }
@@ -55,7 +60,13 @@ export default function SubmissionPanel({
     // Optimistic local update so the top-left status badge + queue reflect
     // immediately, BEFORE the server round-trip resolves.
     onUpdated?.(body);
-    await patch(body);
+    try {
+      await patch(body);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Update failed');
+      // Roll back the optimistic change so the UI matches the server.
+      setStatus(job.status);
+    }
   }
 
   // Upload a proof-of-submission image to local disk, then store its path on the job.
@@ -68,8 +79,12 @@ export default function SubmissionPanel({
       form.append('file', file);
       form.append('job_id', job.id);
       const res = await fetch('/api/upload-proof', { method: 'POST', body: form });
+      // Check res.ok BEFORE res.json() so an HTML error body doesn't crash.
+      if (!res.ok) {
+        const d = await res.json().catch(() => null);
+        throw new Error(d?.error || 'Upload failed');
+      }
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Upload failed');
       const path = data.path as string;
       setProofUrl(path);
       await patch({ proof_of_submission: path });
@@ -81,7 +96,11 @@ export default function SubmissionPanel({
   }
 
   async function saveDetails() {
-    await patch({ notes, proof_of_submission: proofUrl });
+    try {
+      await patch({ notes, proof_of_submission: proofUrl });
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Update failed');
+    }
   }
 
   const isSkipped = status === 'skipped';
@@ -197,6 +216,9 @@ export default function SubmissionPanel({
             Save details
           </button>
           {saved && <span className="text-xs text-brand-green">✓ Saved</span>}
+          {saveError && (
+            <span className="text-xs text-brand-red">{saveError}</span>
+          )}
         </div>
       </div>
     </div>

@@ -217,8 +217,11 @@ function AddWorkerModal({
           profileId: profileId || undefined,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed');
+      // Check res.ok BEFORE reading JSON so an HTML error page doesn't crash.
+      if (!res.ok) {
+        const d = await res.json().catch(() => null);
+        throw new Error(d?.error || 'Failed');
+      }
       onClose();
       router.refresh();
     } catch (e) {
@@ -315,13 +318,19 @@ function AddClientModal({
           assigned_worker_id: workerId || null,
         }),
       });
-      const userData = await userRes.json();
-      if (!userRes.ok) throw new Error(userData.error || 'Failed to create account');
+      // Check res.ok BEFORE reading JSON so an HTML error body doesn't crash.
+      if (!userRes.ok) {
+        const d = await userRes.json().catch(() => null);
+        throw new Error(d?.error || 'Failed to create account');
+      }
 
       // Find the new profile and update its search terms.
       const profilesRes = await fetch('/api/profiles');
-      const profilesData = await profilesRes.json();
-      const newProfile = (profilesData.profiles ?? []).find(
+      if (!profilesRes.ok) {
+        throw new Error('Failed to load profiles');
+      }
+      const profilesData = await profilesRes.json().catch(() => null);
+      const newProfile = (profilesData?.profiles ?? []).find(
         (p: Profile) => p.email === email.toLowerCase()
       );
       if (newProfile && terms.trim()) {

@@ -41,10 +41,25 @@ export async function POST(req: Request) {
     context ? `\nCONTEXT:\n${context}` : '',
   ].join('\n');
 
-  const answer = await callAI(QUESTION_HELPER_SYSTEM, user, {
-    maxTokens: 600,
-    temperature: 0.5,
-  });
+  let answer: string;
+  try {
+    answer = await callAI(QUESTION_HELPER_SYSTEM, user, {
+      maxTokens: 600,
+      temperature: 0.5,
+    });
+  } catch (e) {
+    // Surface AI failures as valid JSON (not an HTML 500 error page) so the
+    // worker UI can show a readable message and stay on the flow.
+    const msg = e instanceof Error ? e.message : String(e);
+    return NextResponse.json(
+      { error: `AI call failed: ${msg}` },
+      { status: 502 }
+    );
+  }
+
+  if (!answer || !answer.length) {
+    return NextResponse.json({ error: 'AI returned an empty answer.' }, { status: 502 });
+  }
 
   return NextResponse.json({ answer });
 }

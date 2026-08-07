@@ -114,8 +114,8 @@ export default function JobTable({
       const q = search.toLowerCase();
       out = out.filter(
         (j) =>
-          j.title.toLowerCase().includes(q) ||
-          j.company.toLowerCase().includes(q) ||
+          (j.title || '').toLowerCase().includes(q) ||
+          (j.company || '').toLowerCase().includes(q) ||
           (j.description || '').toLowerCase().includes(q)
       );
     }
@@ -234,7 +234,7 @@ export default function JobTable({
                       </span>
                     </Cell>
                   )}
-                  <Cell>{job.company}</Cell>
+                  <Cell>{job.company || '—'}</Cell>
                   <Cell>
                     <span className="capitalize text-navy-300">{BOARD_LABELS[job.board] ?? job.board}</span>
                   </Cell>

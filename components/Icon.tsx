@@ -35,6 +35,11 @@ export const Close = (p: IconProps) => (
     <path d="M18 6 6 18M6 6l12 12" />
   </svg>
 );
+export const Menu = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M4 6h16M4 12h16M4 18h16" />
+  </svg>
+);
 export const External = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M15 3h6v6" />

@@ -120,12 +120,12 @@ export default function JobDetailClient({
 
         {/* RIGHT: 3 tabs */}
         <div className="panel p-5">
-          <div className="flex items-center gap-1 border-b border-navy-700 mb-4 -mt-1">
+          <div className="flex items-center gap-1 border-b border-navy-700 mb-4 -mt-1 overflow-x-auto -mx-1 px-1">
             {tabs.map((t) => (
               <button
                 key={t.key}
                 onClick={() => setTab(t.key)}
-                className={`px-3 py-2 text-sm border-b-2 -mb-px transition-colors ${
+                className={`px-3 py-2 text-sm border-b-2 -mb-px whitespace-nowrap transition-colors ${
                   tab === t.key
                     ? 'border-brand-green text-navy-100'
                     : 'border-transparent text-navy-400 hover:text-navy-200'

@@ -173,13 +173,15 @@ for r in all_jobs:
         if not keep:
             continue
 
-    # Keyword include / exclude filters (title + description match).
+    # Keyword include / exclude filters. Match ONLY the job description —
+    # a generic title like "Software Engineer" shouldn't satisfy an include/be
+    # vetoed by an exclude; the stack/tech signals live in the description.
     if include_kw or exclude_kw:
-        hay = f"{r.get('title') or ''} {r.get('description') or ''}".lower()
+        hay = (r.get("description") or "").lower()
         if include_kw and not any(k in hay for k in include_kw):
-            continue  # job must contain at least one included keyword
+            continue  # description must contain at least one included keyword
         if exclude_kw and any(k in hay for k in exclude_kw):
-            continue  # job must NOT contain any excluded keyword
+            continue  # description must NOT contain any excluded keyword
 
     # Remove easy-apply listings (LinkedIn's one-click apply etc.) when enabled.
     if remove_easy_apply:

@@ -36,6 +36,7 @@ export default function RefillJobsModal({
   const [jobType, setJobType] = useState('full time'); // default full-time
   const [includeKw, setIncludeKw] = useState('');
   const [excludeKw, setExcludeKw] = useState('');
+  const [removeEasyApply, setRemoveEasyApply] = useState(true); // default on
   const [resultsWanted, setResultsWanted] = useState('100');
   const [hoursOld, setHoursOld] = useState('72');
   const [profileIds, setProfileIds] = useState<string[]>(profiles.map((p) => p.id));
@@ -54,6 +55,7 @@ export default function RefillJobsModal({
       setJobType('full time');
       setIncludeKw('');
       setExcludeKw('');
+      setRemoveEasyApply(true);
       setResultsWanted('100');
       setHoursOld('72');
       setProfileIds(profiles.map((p) => p.id));
@@ -98,6 +100,7 @@ export default function RefillJobsModal({
             .split(',')
             .map((s) => s.trim())
             .filter(Boolean),
+          remove_easy_apply: removeEasyApply,
           results_wanted: Number(resultsWanted) || 100,
           hours_old: Number(hoursOld) || 72,
           profile_ids: profileIds,
@@ -235,6 +238,19 @@ export default function RefillJobsModal({
             />
             <label htmlFor="remote-only" className="text-sm text-navy-200 cursor-pointer">
               Remote only — overrides the location field for all target profiles
+            </label>
+          </div>
+
+          <div className="flex items-center gap-2 -mt-1">
+            <input
+              id="remove-easy-apply"
+              type="checkbox"
+              checked={removeEasyApply}
+              onChange={(e) => setRemoveEasyApply(e.target.checked)}
+              className="h-4 w-4 rounded border-navy-700 bg-navy-950 text-brand-green focus:ring-brand-green"
+            />
+            <label htmlFor="remove-easy-apply" className="text-sm text-navy-200 cursor-pointer">
+              Remove Easy Apply jobs — skip one-click Easy Apply listings
             </label>
           </div>
 

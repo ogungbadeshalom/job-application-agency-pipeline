@@ -44,10 +44,25 @@ export async function POST(req: Request) {
     profile.base_resume_text,
   ].join('\n');
 
-  const tailored = await callAI(RESUME_TAILOR_SYSTEM, user, {
-    maxTokens: 2000,
-    temperature: 0.4,
-  });
+  let tailored: string;
+  try {
+    tailored = await callAI(RESUME_TAILOR_SYSTEM, user, {
+      maxTokens: 2000,
+      temperature: 0.4,
+    });
+  } catch (e) {
+    // Surface AI failures as valid JSON (not an HTML 500 error page) so the
+    // admin/worker UI can show the cause and retry.
+    const msg = e instanceof Error ? e.message : String(e);
+    return NextResponse.json(
+      { error: `AI call failed: ${msg}` },
+      { status: 502 }
+    );
+  }
+
+  if (!tailored || !tailored.length) {
+    return NextResponse.json({ error: 'AI returned an empty resume.' }, { status: 502 });
+  }
 
   await db.updateJob(jobId, { tailored_resume: tailored, status: 'tailored' });
 

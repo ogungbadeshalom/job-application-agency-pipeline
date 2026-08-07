@@ -108,8 +108,11 @@ function ResetPasswordModal({ user, onClose }: { user: User; onClose: () => void
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: user.id, password }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed');
+      // Check res.ok BEFORE reading JSON so an HTML error body doesn't crash.
+      if (!res.ok) {
+        const d = await res.json().catch(() => null);
+        throw new Error(d?.error || 'Failed');
+      }
       onClose();
       router.refresh();
     } catch (e) {

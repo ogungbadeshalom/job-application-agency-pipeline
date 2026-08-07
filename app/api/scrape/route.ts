@@ -137,7 +137,7 @@ export async function POST(req: Request) {
     // Dedupe + insert per profile.
     let totalAdded = 0;
     for (const profile of targetProfiles) {
-      const fresh = await dedupeAndMap(allRaw, profile.id);
+      const fresh = await dedupeAndMap(allRaw, profile.id, run.id);
       if (fresh.length) {
         await db.createJobs(fresh as Job[]);
         totalAdded += fresh.length;
@@ -169,14 +169,29 @@ export async function POST(req: Request) {
 }
 
 // Map JobSpy rows to our Job shape and dedupe by URL against the profile.
-async function dedupeAndMap(raw: ScrapeResultJob[], profileId: string): Promise<Job[]> {
+async function dedupeAndMap(
+  raw: ScrapeResultJob[],
+  profileId: string,
+  scrapeRunId: string
+): Promise<Job[]> {
   const mask = await db.dedupeJobsByURL(
     profileId,
     raw.map((r) => ({ url: r.job_url }))
   );
   const fresh = raw.filter((_, i) => mask[i]);
+  // Also drop duplicate URLs within this same scrape batch (e.g. the same
+  // posting surfacing across two site-groups or two search terms), so each
+  // profile gets at most one row per URL.
+  const seenThisBatch = new Set<string>();
+  const deduped = fresh.filter((r) => {
+    const u = (r.job_url || '').trim();
+    const key = u || `__noUrl__${r.site || ''}__${r.title || ''}`;
+    if (seenThisBatch.has(key)) return false;
+    seenThisBatch.add(key);
+    return true;
+  });
   const now = new Date().toISOString();
-  return fresh.map((r) => ({
+  return deduped.map((r) => ({
     id: '',
     profile_id: profileId,
     title: r.title || 'Untitled',
@@ -194,7 +209,7 @@ async function dedupeAndMap(raw: ScrapeResultJob[], profileId: string): Promise<
     submitted_at: null,
     proof_of_submission: null,
     notes: null,
-    scrape_run_id: null,
+    scrape_run_id: scrapeRunId,
     created_at: now,
     updated_at: now,
   }));
@@ -248,9 +263,9 @@ async function runJobSpy(args: JobSpyArgs): Promise<ScrapeResultJob[]> {
     // (invalid strict JSON) if a value slips past our sanitizer. Rewrite them to
     // null so JSON.parse never throws the "Unexpected token 'N'" error.
     const safeText = text
+      .replace(/-Infinity/g, 'null')
       .replace(/\bNaN\b/g, 'null')
-      .replace(/\bInfinity\b/g, 'null')
-      .replace(/-Infinity\b/g, 'null');
+      .replace(/\bInfinity\b/g, 'null');
     const parsed = JSON.parse(safeText);
     if (!Array.isArray(parsed)) return [];
     return parsed as ScrapeResultJob[];

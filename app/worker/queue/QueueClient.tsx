@@ -92,14 +92,23 @@ export default function QueueClient({
   }, [pathname]);
 
   async function quickAction(job: Job, action: 'applied' | 'skipped' | 'saved') {
-    await fetch(`/api/jobs/${job.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        status: action,
-        ...(action === 'applied' ? { submitted_at: new Date().toISOString() } : {}),
-      }),
-    });
+    try {
+      const res = await fetch(`/api/jobs/${job.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: action,
+          ...(action === 'applied' ? { submitted_at: new Date().toISOString() } : {}),
+        }),
+      });
+      if (!res.ok) {
+        // Surface failures instead of silently refreshing into a stale list.
+        const d = await res.json().catch(() => null);
+        console.warn('Queue action failed', d?.error || res.status);
+      }
+    } catch (e) {
+      console.warn('Queue action error', e);
+    }
     router.refresh();
   }
 

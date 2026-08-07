@@ -22,10 +22,22 @@ export default function QuestionPanel({
   const [snipSearch, setSnipSearch] = useState('');
 
   useEffect(() => {
+    let cancelled = false;
     fetch(`/api/snippets?profile_id=${profileId}`)
-      .then((r) => r.json())
-      .then((d) => setSnippets(d.snippets ?? []))
-      .catch(() => setSnippets([]));
+      .then(async (r) => {
+        if (!r.ok) return [];
+        // Guard against a non-JSON error body ("Unexpected token '<'").
+        return (await r.json().catch(() => [])).snippets ?? [];
+      })
+      .then((list: QuestionSnippet[]) => {
+        if (!cancelled) setSnippets(list);
+      })
+      .catch(() => {
+        if (!cancelled) setSnippets([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [profileId]);
 
   async function getAnswer() {
@@ -37,8 +49,13 @@ export default function QuestionPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobId, question, context }),
       });
+      // Check res.ok BEFORE res.json() so an HTML error page doesn't throw
+      // "Unexpected token '<'" instead of surfacing the real error.
+      if (!res.ok) {
+        const d = await res.json().catch(() => null);
+        throw new Error(d?.error || 'Failed to generate answer');
+      }
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed');
       setAnswer(data.answer);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error');
@@ -55,14 +72,19 @@ export default function QuestionPanel({
 
   async function saveSnippet() {
     if (!question.trim() || !answer.trim()) return;
-    const res = await fetch('/api/snippets', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ profile_id: profileId, question, answer }),
-    });
-    const data = await res.json();
-    if (res.ok && data.snippet) {
-      setSnippets((s) => [data.snippet, ...s]);
+    try {
+      const res = await fetch('/api/snippets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile_id: profileId, question, answer }),
+      });
+      if (!res.ok) return;
+      const data = await res.json().catch(() => null);
+      if (data?.snippet) {
+        setSnippets((s) => [data.snippet, ...s]);
+      }
+    } catch {
+      // ignore; saving a snippet is best-effort
     }
   }
 

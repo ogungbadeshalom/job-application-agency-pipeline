@@ -14,6 +14,7 @@ export const SITE_OPTIONS: { name: string; site: string; disabled?: boolean; not
   { name: 'BuiltIn', site: 'builtin' },
   { name: 'Greenhouse', site: 'greenhouse' },
   { name: 'SmartRecruiters', site: 'smart_recruiters' },
+  { name: 'WeWorkRemotely', site: 'weworkremotely' },
   { name: 'Glassdoor', site: 'glassdoor', disabled: true, note: 'currently unavailable' },
   { name: 'ZipRecruiter', site: 'zip_recruiter', disabled: true, note: 'currently unavailable' },
 ];
@@ -29,7 +30,7 @@ export default function RefillJobsModal({
   profiles: Profile[];
   onDone?: (result: { jobs_added: number }) => void;
 }) {
-  const [sites, setSites] = useState<string[]>(['indeed', 'linkedin', 'remoteok', 'greenhouse', 'smart_recruiters']);
+  const [sites, setSites] = useState<string[]>(['indeed', 'linkedin', 'remoteok', 'greenhouse', 'smart_recruiters', 'weworkremotely']);
   const [searchTerms, setSearchTerms] = useState('');
   const [location, setLocation] = useState('United States');
   const [remoteOnly, setRemoteOnly] = useState(true); // most clients want remote
@@ -43,12 +44,14 @@ export default function RefillJobsModal({
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ jobs_found: number; jobs_added: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Number of enabled (non-disabled) sites for the result summary.
+  const [enabledSiteCount, setEnabledSiteCount] = useState(sites.length);
 
   // Reset the form to defaults every time the modal is opened, so a fresh
   // Refill pops up clean (no stale sites/terms/result from the last run).
   useEffect(() => {
     if (open) {
-      setSites(['indeed', 'linkedin', 'remoteok', 'greenhouse', 'smart_recruiters']);
+      setSites(['indeed', 'linkedin', 'remoteok', 'greenhouse', 'smart_recruiters', 'weworkremotely']);
       setSearchTerms('');
       setLocation('United States');
       setRemoteOnly(true);
@@ -106,9 +109,16 @@ export default function RefillJobsModal({
           profile_ids: profileIds,
         }),
       });
+      // Check res.ok BEFORE res.json(): a non-OK response may be an HTML
+      // error page (proxy/500), and calling .json() on that throws the
+      // "Unexpected token '<'" TypeError we want to avoid.
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        throw new Error(err?.error || 'Scrape failed');
+      }
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Scrape failed');
       setResult({ jobs_found: data.jobs_found, jobs_added: data.jobs_added });
+      setEnabledSiteCount(enabledSites.length);
       // Fire the soft-update so the Applications table updates in place.
       onDone?.({ jobs_added: data.jobs_added });
       // Auto-close after a beat so the user sees the result.
@@ -155,7 +165,7 @@ export default function RefillJobsModal({
             {result.jobs_added} new {result.jobs_added === 1 ? 'job' : 'jobs'} added
           </div>
           <div className="text-sm text-navy-400 mt-1">
-            {result.jobs_found} found across {sites.length} {sites.length === 1 ? 'site' : 'sites'} ·
+            {result.jobs_found} found across {enabledSiteCount} {enabledSiteCount === 1 ? 'site' : 'sites'} ·
             deduped by URL
           </div>
         </div>

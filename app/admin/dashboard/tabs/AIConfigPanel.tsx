@@ -30,16 +30,29 @@ export default function AIConfigPanel() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     fetch('/api/config')
-      .then((r) => r.json())
-      .then((d: ConfigResponse) => {
+      .then(async (r) => {
+        if (!r.ok) throw new Error('Load failed');
+        // Guard against a non-JSON error body ("Unexpected token '<'").
+        return (await r.json().catch(() => null)) as ConfigResponse | null;
+      })
+      .then((d) => {
+        if (cancelled || !d) return;
         setCfg(d);
         setProvider(d.ai_provider);
         setModel(d.ai_model);
         setBaseUrl(d.ai_base_url ?? '');
       })
-      .catch(() => setError('Could not load AI config.'))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (!cancelled) setError('Could not load AI config.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function save() {
@@ -59,8 +72,12 @@ export default function AIConfigPanel() {
           apiKey: apiKeyToSend,
         }),
       });
+      // Check res.ok BEFORE reading JSON so an HTML error body doesn't crash.
+      if (!res.ok) {
+        const d = await res.json().catch(() => null);
+        throw new Error(d?.error || 'Save failed');
+      }
       const data: ConfigResponse = await res.json();
-      if (!res.ok) throw new Error('Save failed');
       setCfg(data);
       setApiKey(''); // clear the input after saving
       setSavedAt(Date.now());
@@ -83,8 +100,8 @@ export default function AIConfigPanel() {
         body: JSON.stringify({ provider, model, baseUrl: baseUrl || null, apiKey: '' }),
       });
       if (!res.ok) throw new Error('Failed');
-      const data: ConfigResponse = await res.json();
-      setCfg(data);
+      const data: ConfigResponse = await res.json().catch(() => null);
+      if (data) setCfg(data);
       setApiKey('');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error');

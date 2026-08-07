@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import type { Job, JobStatus, Profile } from '@/lib/types';
 import { CLIENT_VISIBLE_STATUSES, STATUS_ORDER } from '@/lib/types';
@@ -85,9 +86,16 @@ export default function JobTable({
   onQuickAction?: (job: Job, action: 'applied' | 'skipped' | 'saved') => void;
   onRowClick?: (job: Job) => void;
 }) {
+  const router = useRouter();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<JobStatus | 'all'>('all');
   const [clientFilter, setClientFilter] = useState<string>('all');
+
+  // Navigate to a job WITHOUT letting Next auto-scroll-to-top, so a Back later
+  // returns to the same scroll position. Falls back to a plain Link.
+  function openJob(href: string) {
+    router.push(href, { scroll: false });
+  }
 
   const profileName = useMemo(() => {
     const map = new Map(profiles.map((p) => [p.id, p.name]));
@@ -209,9 +217,16 @@ export default function JobTable({
                             {job.title || 'Untitled'}
                           </button>
                         ) : jobHref ? (
-                          <Link href={jobHref} className="text-brand-blue hover:underline">
+                          <a
+                            href={jobHref}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              openJob(jobHref);
+                            }}
+                            className="text-brand-blue hover:underline"
+                          >
                             {job.title || 'Untitled'}
-                          </Link>
+                          </a>
                         ) : (
                           <span>{job.title || 'Untitled'}</span>
                         )}

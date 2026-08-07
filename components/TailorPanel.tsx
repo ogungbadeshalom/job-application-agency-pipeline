@@ -35,7 +35,12 @@ export default function TailorPanel({
         const d = await res.json().catch(() => null);
         throw new Error(d?.error || 'Tailor failed');
       }
-      const data = await res.json();
+      // Parse defensively so an HTML/oddly-empty body can't throw
+      // "Unexpected token '<'".
+      const data = (await res.json().catch(() => null)) ?? {};
+      if (typeof data.tailored_resume !== 'string') {
+        throw new Error('Tailor returned no resume text. Please try again.');
+      }
       setOutput(data.tailored_resume);
       onSaved?.(data.tailored_resume);
     } catch (e) {
@@ -68,18 +73,24 @@ export default function TailorPanel({
   }
 
   async function downloadPdf() {
+    setError(null);
     try {
+      const safeTitle = job.title || 'job';
+      const safeCompany = job.company || 'resume';
       const res = await fetch('/api/pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: output, filename: `${job.company}-${job.title}-resume.txt` }),
+        body: JSON.stringify({ text: output, filename: `${safeCompany}-${safeTitle}-resume.txt` }),
       });
-      if (!res.ok) throw new Error('PDF generation failed');
+      if (!res.ok) {
+        const d = await res.json().catch(() => null);
+        throw new Error(d?.error || 'PDF generation failed');
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${job.company || 'resume'}-tailored.pdf`;
+      a.download = `${safeCompany}-tailored.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
@@ -88,9 +99,14 @@ export default function TailorPanel({
   }
 
   async function copy() {
-    await navigator.clipboard.writeText(output);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    setError(null);
+    try {
+      await navigator.clipboard.writeText(output);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setError('Clipboard unavailable — copy the text manually from the box below.');
+    }
   }
 
   return (

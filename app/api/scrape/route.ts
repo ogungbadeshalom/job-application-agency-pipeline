@@ -53,24 +53,29 @@ export async function POST(req: Request) {
     started_at: new Date().toISOString(),
   });
 
-  // Aggregate all terms across profiles.
-  const allTerms = new Set<string>();
-  for (const p of targetProfiles) {
-    (config.search_terms.length ? config.search_terms : p.scrape_search_terms).forEach((t) =>
-      allTerms.add(t)
-    );
-  }
-  const terms = Array.from(allTerms).filter(Boolean);
-  if (terms.length === 0) {
-    await db.updateScrapeRun(run.id, {
-      status: 'failed',
-      error_message: 'No search terms provided.',
-      completed_at: new Date().toISOString(),
-    });
-    return NextResponse.json({ error: 'No search terms provided.' }, { status: 400 });
-  }
-
+  // Guard the WHOLE post-create block so a failure in the terms resolution,
+  // no-search-terms update, scrape, or insert always marks the run failed.
+  // Previously only the scrape loop had a try/catch: a crash in the terms
+  // mapping or the no-terms update left the run stuck in 'running' forever.
   try {
+    // Aggregate all terms across profiles.
+    const allTerms = new Set<string>();
+    for (const p of targetProfiles) {
+      (config.search_terms.length ? config.search_terms : p.scrape_search_terms).forEach((t) =>
+        allTerms.add(t)
+      );
+    }
+    const terms = Array.from(allTerms).filter(Boolean);
+    if (terms.length === 0) {
+      await db.updateScrapeRun(run.id, {
+        status: 'failed',
+        error_message: 'No search terms provided.',
+        completed_at: new Date().toISOString(),
+      });
+      return NextResponse.json({ error: 'No search terms provided.' }, { status: 400 });
+    }
+
+    try {
     // Glassdoor + ZipRecruiter can't parse a bare "Remote" location (JobSpy
     // returns 400 "location not parsed"). RemoteOK/BuiltIn/Indeed/LinkedIn are
     // remote-friendly, so give them the configured location ("Remote" when the
@@ -167,6 +172,18 @@ export async function POST(req: Request) {
     // Bubble subprocess errors to the UI as readable messages.
     return NextResponse.json({ error: msg }, { status: 500 });
   }
+  } catch (e) {
+    // Outer guard: a failure anywhere in the run (terms resolution, DB hiccup
+    // after the scrape_run row was created, etc.) must mark the run failed so
+    // it doesn't sit in 'running' forever with no completion timestamp.
+    const msg = e instanceof Error ? e.message : String(e);
+    await db.updateScrapeRun(run.id, {
+      status: 'failed',
+      error_message: msg,
+      completed_at: new Date().toISOString(),
+    });
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 }
 
 // Map JobSpy rows to our Job shape and dedupe by URL against the profile.
@@ -245,23 +262,41 @@ async function runJobSpy(args: JobSpyArgs): Promise<ScrapeResultJob[]> {
       });
       let stderr = '';
       child.stderr.on('data', (d) => (stderr += d.toString()));
-      child.on('error', (err) => reject(err));
+      // Settle the promise exactly once and always clear the timer, whichever
+      // of {timer, error, close} fires first. Without a shared guard, a kill by
+      // the timeout is followed by a spurious second reject from 'close' (the
+      // error message would read "JobSpy exited null" and mask the timeout),
+      // and a spawn 'error' leaves the 150s timer pending (it would fire later
+      // against an already-settled promise and keep the process alive).
+      let settled = false;
+      let timer: NodeJS.Timeout | null = null;
+      const finish = (err: Error | null) => {
+        if (settled) return;
+        settled = true;
+        if (timer) clearTimeout(timer);
+        if (err) reject(err);
+        else resolve();
+      };
+      child.on('error', (e) => finish(e));
       // Hard cap on the whole scrape so a hung board can't stall the request
       // indefinitely (8+ boards sequentially can exceed default limits).
-      const t = setTimeout(() => {
+      timer = setTimeout(() => {
         child.kill('SIGKILL');
-        reject(new Error(`JobSpy timed out after 150s. ${stderr.slice(0, 300)}`.trim()));
+        finish(new Error(`JobSpy timed out after 150s. ${stderr.slice(0, 300)}`.trim()));
       }, 150_000);
-      child.on('close', (code) => {
-        clearTimeout(t);
-        if (code !== 0) {
-          reject(
+      child.on('close', (code, signal) => {
+        if (code === 0) {
+          finish(null);
+        } else if (signal) {
+          // Killed by our own timeout (or an external signal) — the specific
+          // error is already surfaced by the timer, so don't double-report.
+          if (!settled) finish(new Error(`JobSpy killed by signal ${signal}.`));
+        } else {
+          finish(
             new Error(
               `JobSpy exited ${code}. ${stderr.slice(0, 1000) || 'No stderr.'}`.trim()
             )
           );
-        } else {
-          resolve();
         }
       });
     });

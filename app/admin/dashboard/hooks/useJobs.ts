@@ -10,8 +10,10 @@ export function useJobs(initial: Job[]) {
     try {
       const res = await fetch('/api/jobs');
       if (!res.ok) return;
-      const data = await res.json();
-      setJobs(data.jobs ?? []);
+      // Parse defensively so an HTML/oddly-empty body can't throw
+      // "Unexpected token '<'".
+      const data = (await res.json().catch(() => null)) ?? {};
+      setJobs(Array.isArray(data.jobs) ? data.jobs : []);
     } catch {
       // ignore transient fetch errors; keep current list
     }

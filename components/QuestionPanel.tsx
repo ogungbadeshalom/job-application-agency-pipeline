@@ -55,7 +55,12 @@ export default function QuestionPanel({
         const d = await res.json().catch(() => null);
         throw new Error(d?.error || 'Failed to generate answer');
       }
-      const data = await res.json();
+      // Parse defensively so an HTML/oddly-empty body can't throw
+      // "Unexpected token '<'".
+      const data = (await res.json().catch(() => null)) ?? {};
+      if (typeof data.answer !== 'string') {
+        throw new Error('No answer returned. Please try again.');
+      }
       setAnswer(data.answer);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error');
@@ -65,9 +70,14 @@ export default function QuestionPanel({
   }
 
   async function copy(text: string) {
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    setError(null);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setError('Clipboard unavailable — copy the text manually from the box below.');
+    }
   }
 
   async function saveSnippet() {
@@ -91,8 +101,8 @@ export default function QuestionPanel({
   const filteredSnippets = snippets.filter(
     (s) =>
       !snipSearch ||
-      s.question.toLowerCase().includes(snipSearch.toLowerCase()) ||
-      s.answer.toLowerCase().includes(snipSearch.toLowerCase())
+      (s.question || '').toLowerCase().includes(snipSearch.toLowerCase()) ||
+      (s.answer || '').toLowerCase().includes(snipSearch.toLowerCase())
   );
 
   return (
@@ -182,17 +192,19 @@ export default function QuestionPanel({
           {filteredSnippets.map((s) => (
             <div key={s.id} className="p-3 hover:bg-navy-850">
               <div className="flex items-start justify-between gap-2">
-                <div className="text-sm font-medium text-navy-200">{s.question}</div>
+                <div className="text-sm font-medium text-navy-200">{s.question || ''}</div>
                 <button
-                  onClick={() => copy(s.answer)}
+                  onClick={() => copy(s.answer || '')}
                   className="text-navy-500 hover:text-navy-200 shrink-0"
                   title="Copy answer"
                 >
                   <Copy size={14} />
                 </button>
               </div>
-              <p className="text-xs text-navy-400 mt-1">{s.answer}</p>
-              <div className="text-[10px] text-navy-600 mt-1">Used {s.use_count}×</div>
+              <p className="text-xs text-navy-400 mt-1">{s.answer || ''}</p>
+              <div className="text-[10px] text-navy-600 mt-1">
+                Used {typeof s.use_count === 'number' ? s.use_count : 0}×
+              </div>
             </div>
           ))}
         </div>

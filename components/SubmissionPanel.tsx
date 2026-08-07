@@ -84,8 +84,11 @@ export default function SubmissionPanel({
         const d = await res.json().catch(() => null);
         throw new Error(d?.error || 'Upload failed');
       }
-      const data = await res.json();
+      // Parse defensively so an HTML/oddly-empty body can't throw
+      // "Unexpected token '<'".
+      const data = (await res.json().catch(() => null)) ?? {};
       const path = data.path as string;
+      if (!path) throw new Error('Upload succeeded but returned no file path.');
       setProofUrl(path);
       await patch({ proof_of_submission: path });
     } catch (e) {

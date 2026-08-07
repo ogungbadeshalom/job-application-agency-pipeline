@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import StatusBadge from '@/components/StatusBadge';
@@ -28,11 +27,18 @@ export default function JobDetailClient({
   const [job, setJob] = useState(initialJob);
   const [tab, setTab] = useState<Tab>('tailor');
 
-  // Update local state AND refresh the server tree so the queue (and any other
-  // server-rendered views) reflect changes immediately — without a hard reload.
+  // Update local state AND refresh the server tree so the queue reflect changes
+  // immediately (no hard reload needed).
   function updateJob(patch: Partial<Job>) {
     setJob((prev) => ({ ...prev, ...patch }));
     router.refresh();
+  }
+
+  // Navigate back to the queue WITHOUT auto-scrolling to top. The queue's
+  // scroll-restore hook reads sessionStorage and puts the worker back where
+  // they left off. Without scroll:false, Next resets to the top (job #1).
+  function backToQueue() {
+    router.push('/worker/queue', { scroll: false });
   }
 
   const tabs: { key: Tab; label: string }[] = [
@@ -44,9 +50,16 @@ export default function JobDetailClient({
   return (
     <DashboardLayout user={user} nav={nav} active="/worker/queue">
       <div className="mb-4">
-        <Link href="/worker/queue" className="text-sm text-navy-400 hover:text-navy-200">
+        <a
+          href="/worker/queue"
+          onClick={(e) => {
+            e.preventDefault();
+            backToQueue();
+          }}
+          className="text-sm text-navy-400 hover:text-navy-200"
+        >
           ← Back to queue
-        </Link>
+        </a>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

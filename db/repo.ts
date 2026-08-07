@@ -57,8 +57,12 @@ function mapProfile(r: Record<string, unknown>): Profile {
 
 // Strip tracking/query noise from a job URL so dedup treats the same posting
 // (e.g. with/without ?utm_source or ?gh_src) as identical, without over-blocking
-// genuinely different jobs.
+// genuinely different jobs. Missing/empty URLs normalize to a sentinel so they
+// never throw (non-string job_url would crash JSON.parse/dedup upstream and
+// abort a whole refill) and never collide with a real URL's key.
+const EMPTY_URL = '__no_url__';
 function normalizeJobURL(url: string): string {
+  if (typeof url !== 'string' || url.trim() === '') return EMPTY_URL;
   try {
     const u = new URL(url);
     const keys = Array.from(u.searchParams.keys());

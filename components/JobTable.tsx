@@ -236,18 +236,24 @@ export default function JobTable({
                   )}
                   <Cell>{job.company || '—'}</Cell>
                   <Cell>
-                    <span className="capitalize text-navy-300">{BOARD_LABELS[job.board] ?? job.board}</span>
+                    <span className="capitalize text-navy-300">
+                      {BOARD_LABELS[job.board] ?? job.board ?? '—'}
+                    </span>
                   </Cell>
                   {(mode === 'admin' || mode === 'client') && (
                     <Cell>
-                      <a
-                        href={job.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-brand-blue hover:underline"
-                      >
-                        Open <External size={12} />
-                      </a>
+                      {job.url ? (
+                        <a
+                          href={job.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-brand-blue hover:underline"
+                        >
+                          Open <External size={12} />
+                        </a>
+                      ) : (
+                        <span className="text-navy-600">—</span>
+                      )}
                     </Cell>
                   )}
                   <Cell>{fmtMoney(job.compensation_min, job.compensation_max)}</Cell>

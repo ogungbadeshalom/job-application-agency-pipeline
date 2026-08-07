@@ -1,9 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Modal from './Modal';
 import { Spinner } from './Icon';
 import type { Profile } from '@/lib/types';
+
+// Client-side cap for the /api/scrape round-trip. JobSpy can legitimately take
+// a couple of minutes, but if the proxy/backend hangs and never responds we
+// must not leave the modal stuck in a permanent "Scraping…" loading state.
+// The server also enforces its own 150s-per-board subprocess cap, so this is a
+// generous ceiling well above that — it only fires for truly hung requests.
+const SCRAPE_TIMEOUT_MS = 600_000; // 10 min
 
 // Scrape source options (map to jobspy Site names from the project fork).
 // `disabled: true` sites are grayed out — known-flaky on this deployment.
@@ -48,11 +55,19 @@ export default function RefillJobsModal({
   const [error, setError] = useState<string | null>(null);
   // Number of enabled (non-disabled) sites for the result summary.
   const [enabledSiteCount, setEnabledSiteCount] = useState(sites.length);
+  // Abort controller for an in-flight scrape, so closing the modal (or a client
+  // timeout) can cancel the request instead of leaving a dangling promise that
+  // resolves later and pops a stale result/error onto the freshly reset form.
+  const abortRef = useRef<AbortController | null>(null);
 
   // Reset the form to defaults every time the modal is opened, so a fresh
   // Refill pops up clean (no stale sites/terms/result from the last run).
   useEffect(() => {
     if (open) {
+      // Cancel any scrape still running from a previous open so its result
+      // can't land on the freshly reset form.
+      abortRef.current?.abort();
+      abortRef.current = null;
       setSites(['indeed', 'linkedin', 'remoteok', 'greenhouse', 'smart_recruiters', 'weworkremotely', 'remotive', 'workingnomads']);
       setSearchTerms('');
       setLocation('United States');
@@ -76,6 +91,11 @@ export default function RefillJobsModal({
   }
 
   async function submit() {
+    if (loading) return; // guard against double-clicks racing two scrapes
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const token = setTimeout(() => controller.abort('timeout'), SCRAPE_TIMEOUT_MS);
     setLoading(true);
     setError(null);
     setResult(null);
@@ -110,7 +130,11 @@ export default function RefillJobsModal({
           hours_old: Number(hoursOld) || 72,
           profile_ids: profileIds,
         }),
+        signal: controller.signal,
       });
+      // A stale scrape resolving after the modal was re-opened should not touch
+      // the current form state.
+      if (controller.signal.aborted) return;
       // Check res.ok BEFORE res.json(): a non-OK response may be an HTML
       // error page (proxy/500), and calling .json() on that throws the
       // "Unexpected token '<'" TypeError we want to avoid.
@@ -118,7 +142,12 @@ export default function RefillJobsModal({
         const err = await res.json().catch(() => null);
         throw new Error(err?.error || 'Scrape failed');
       }
-      const data = await res.json();
+      // Parse defensively so even a 200-with-no-body / proxy HTML body can't
+      // throw "Unexpected token '<'". Validate the shape before trusting it.
+      const data = (await res.json().catch(() => null)) ?? {};
+      if (typeof data.jobs_added !== 'number' || typeof data.jobs_found !== 'number') {
+        throw new Error('Scrape request failed to return results. Please try again.');
+      }
       setResult({ jobs_found: data.jobs_found, jobs_added: data.jobs_added });
       setEnabledSiteCount(enabledSites.length);
       // Fire the soft-update so the Applications table updates in place.
@@ -126,8 +155,18 @@ export default function RefillJobsModal({
       // Auto-close after a beat so the user sees the result.
       setTimeout(() => onClose(), 1200);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unknown error');
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        setError(
+          'The scrape took too long and was stopped. Check the Scrape Run History for partial results, then try again.'
+        );
+      } else if (e instanceof Error) {
+        setError(e.message);
+      } else {
+        setError('Unknown error');
+      }
     } finally {
+      clearTimeout(token);
+      if (abortRef.current === controller) abortRef.current = null;
       setLoading(false);
     }
   }
@@ -266,7 +305,7 @@ export default function RefillJobsModal({
             </label>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <Field label="Job type">
               <select
                 value={jobType}

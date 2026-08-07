@@ -154,7 +154,8 @@ for r in all_jobs:
     # says remote, OR the row flag is true AND the location names no specific
     # city (vague state-only like "MO, US" / "US" => remote-capable).
     if is_remote:
-        loc_txt = (r.get("location") or "").lower()
+        _loc = r.get("location")
+        loc_txt = ("" if not isinstance(_loc, str) else _loc).lower()
         row_remote = bool(r.get("is_remote"))
         loc_remote = any(
             marker in loc_txt
@@ -176,8 +177,11 @@ for r in all_jobs:
     # Keyword include / exclude filters. Match ONLY the job description —
     # a generic title like "Software Engineer" shouldn't satisfy an include/be
     # vetoed by an exclude; the stack/tech signals live in the description.
+    # Guard: some scrapers return description as a float/NaN (e.g. numpy) —
+    # coerce to str so .lower() never raises.
     if include_kw or exclude_kw:
-        hay = (r.get("description") or "").lower()
+        _desc = r.get("description")
+        hay = ("" if not isinstance(_desc, str) else _desc).lower()
         if include_kw and not any(k in hay for k in include_kw):
             continue  # description must contain at least one included keyword
         if exclude_kw and any(k in hay for k in exclude_kw):
@@ -185,7 +189,10 @@ for r in all_jobs:
 
     # Remove easy-apply listings (LinkedIn's one-click apply etc.) when enabled.
     if remove_easy_apply:
-        _all = f"{r.get('title') or ''} {r.get('description') or ''} {r.get('job_url') or ''}".lower()
+        _t = r.get("title")
+        _d = r.get("description")
+        _u = r.get("job_url")
+        _all = f"{_t if isinstance(_t, str) else ''} {_d if isinstance(_d, str) else ''} {_u if isinstance(_u, str) else ''}".lower()
         if any(m in _all for m in ("easy apply", "easy-apply", "easyapply", "quick apply", "quick-apply")):
             continue
 

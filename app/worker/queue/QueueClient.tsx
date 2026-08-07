@@ -39,15 +39,25 @@ export default function QueueClient({
     catch { /* storage may be unavailable */ }
   };
   const restoreScroll = () => {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        try {
-          const y = Number(sessionStorage.getItem(SCROLL_KEY) || 0);
-          sessionStorage.removeItem(SCROLL_KEY);
-          window.scrollTo({ top: y, left: 0, behavior: 'instant' as ScrollBehavior });
-        } catch { /* ignore */ }
-      });
-    });
+    // The queue table renders asynchronously (esp. through a slow tunnel), so a
+    // one-shot scrollTo often fires before the page is tall enough and gets
+    // clamped to the top. Retry until the target is actually reachable or the
+    // page stabilizes. Cheap: a handful of rAF ticks over ~600ms max.
+    const y = Number(sessionStorage.getItem(SCROLL_KEY) || 0);
+    sessionStorage.removeItem(SCROLL_KEY);
+    let attempt = 0;
+    const maxTicks = 24; // ~2s of rAF frames
+    const tick = () => {
+      attempt += 1;
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      if (y > 0 && attempt < maxTicks && maxScroll < y) {
+        // Page not tall enough yet (table still loading) -> retry next frame.
+        requestAnimationFrame(tick);
+        return;
+      }
+      try { window.scrollTo({ top: Math.min(y, maxScroll), left: 0, behavior: 'instant' as ScrollBehavior }); } catch { /* ignore */ }
+    };
+    requestAnimationFrame(tick);
   };
 
   useEffect(() => {

@@ -28,34 +28,56 @@ export default function QueueClient({
   const router = useRouter();
   const pathname = usePathname();
 
-  // When leaving the queue to open a job, save the current scroll offset so a
-  // return-to-queue can restore it.
+  // ---- Scroll preservation across queue <-> job navigation ----
+  // Next.js App Router resets scroll to top on navigation BEFORE the queue
+  // unmounts, so capturing scroll in unmount/pagehide gets a stale 0. Instead
+  // we continuously persist the queue's scroll offset as the user scrolls
+  // (cheap), then restore it on (a) full loads, (b) popstate/Back, and (c)
+  // pathname re-entry to /worker/queue.
   const saveScroll = () => {
-    try {
-      sessionStorage.setItem(SCROLL_KEY, String(window.scrollY));
-    } catch { /* storage may be unavailable */ }
+    try { sessionStorage.setItem(SCROLL_KEY, String(window.scrollY || 0)); }
+    catch { /* storage may be unavailable */ }
   };
-  useEffect(() => {
-    // Fire on route change / tab-switch / navigation-away.
-    window.addEventListener('pagehide', saveScroll);
-    return () => {
-      window.removeEventListener('pagehide', saveScroll);
-      saveScroll();
-    };
-  }, []);
+  const restoreScroll = () => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        try {
+          const y = Number(sessionStorage.getItem(SCROLL_KEY) || 0);
+          sessionStorage.removeItem(SCROLL_KEY);
+          window.scrollTo({ top: y, left: 0, behavior: 'instant' as ScrollBehavior });
+        } catch { /* ignore */ }
+      });
+    });
+  };
 
-  // Preserve scroll position when the worker jumps to a job and comes back,
-  // so they don't lose their place in a long queue.
-  // When the path becomes the queue (e.g. returning from a job page), restore
-  // the previously saved scroll offset once the table is painted.
+  useEffect(() => {
+    // Persist live scroll ONLY while we're on the queue, so a stale value from
+    // the job page (scroll 0) can't overwrite the saved offset. Capture is
+    // throttled via requestAnimationFrame for cheapness. We deliberately do
+    // NOT save on pagehide/unmount — the router resets scroll to 0 before
+    // those fire, which would clobber the correct value we already persisted.
+    let scheduled = false;
+    const onScroll = () => {
+      if (pathname !== '/worker/queue') return;
+      if (scheduled) return;
+      scheduled = true;
+      requestAnimationFrame(() => {
+        scheduled = false;
+        saveScroll();
+      });
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('popstate', restoreScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('popstate', restoreScroll);
+    };
+  }, [pathname]);
+
+  // Restore on normal (non-back) re-entry too, e.g. landing on the queue.
   useEffect(() => {
     if (pathname === '/worker/queue') {
-      const y = Number(sessionStorage.getItem(SCROLL_KEY) || 0);
-      requestAnimationFrame(() => {
-        // free up so the app doesn't keep re-saving a stale value
-        sessionStorage.removeItem(SCROLL_KEY);
-        window.scrollTo({ top: y, behavior: 'instant' as ScrollBehavior });
-      });
+      restoreScroll();
     }
   }, [pathname]);
 

@@ -105,30 +105,38 @@ def _proxy_alive():
     except Exception:
         return False
 
+# Scrape each (term, site) independently so one board failing (e.g. Indeed's
+# anti-bot KeyError) doesn't discard the other boards for a term.
 for term in search_terms:
     term = (term or "").strip()
     if not term:
         continue
-    try:
-        df = scrape_jobs(
-            site_name=sites,
-            search_term=term,
-            location=location,
-            results_wanted=results_wanted,
-            hours_old=hours_old,
-            is_remote=is_remote,
-            job_type=job_type_value,
-            linkedin_fetch_description=True,
-            proxies=_use_proxy(sites),
-            ca_cert=False if _use_proxy(sites) else None,
-        )
-        if df is not None and not df.empty:
-            all_jobs.extend(df.to_dict("records"))
-    except Exception as exc:
-        # Record per-term failures but keep going; surface at the end.
-        msg = "".join(traceback.format_exception_only(type(exc), exc)).strip()
-        errors.append(f"{term}: {msg}")
-        print(f"[warn] term '{term}' failed: {msg}", file=sys.stderr)
+    term_ok = 0
+    for site in sites:
+        try:
+            df = scrape_jobs(
+                site_name=[site],
+                search_term=term,
+                location=location,
+                results_wanted=results_wanted,
+                hours_old=hours_old,
+                is_remote=is_remote,
+                job_type=job_type_value,
+                linkedin_fetch_description=True,
+                proxies=_use_proxy([site]),
+                ca_cert=False if _use_proxy([site]) else None,
+            )
+            if df is not None and not df.empty:
+                rec = df.to_dict("records")
+                all_jobs.extend(rec)
+                term_ok += len(rec)
+        except Exception as exc:
+            # Record per-site failures but keep going with the other boards.
+            msg = "".join(traceback.format_exception_only(type(exc), exc)).strip()
+            errors.append(f"{term} / {site}: {msg}")
+            print(f"[warn] {term} / {site}: {msg}", file=sys.stderr)
+    if term_ok == 0:
+        print(f"[warn] term '{term}' returned no jobs", file=sys.stderr)
 
 # --- JSON-safe sanitizer -----------------------------------------------------
 # JobSpy rows contain numpy scalars, pandas.Timestamp, and NaN/Infinity.

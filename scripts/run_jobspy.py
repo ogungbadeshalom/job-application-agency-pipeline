@@ -80,6 +80,31 @@ if not search_terms:
 all_jobs = []
 errors = []
 
+# Optional rotating proxy (mubeng) for IP-blocked boards (Glassdoor, ZipRecruiter,
+# LinkedIn). Enabled by setting MUBENG_PROXY (default off unless the env var is set
+# AND localhost is listening). We route ONLY the fragile boards through it so the
+# fast/reliable boards stay on the direct IP.
+import os
+PROXY = os.environ.get("MUBENG_PROXY", "").strip() or "http://127.0.0.1:8899"
+FRAGILE = {"glassdoor", "zip_recruiter", "linkedin"}
+
+def _use_proxy(site_names):
+    """Return the proxy for the fragile boards if mubeng is actually up."""
+    if not any(s in site_names for s in FRAGILE):
+        return None  # reliable boards stay on direct IP
+    if not _proxy_alive():
+        return None  # mubeng down -> go direct (may 403, but no worse)
+    return PROXY
+
+def _proxy_alive():
+    try:
+        import socket
+        h, _, p = PROXY.replace("http://", "").rpartition(":")
+        with socket.create_connection((h.strip(), int(p or 8899)), timeout=1):
+            return True
+    except Exception:
+        return False
+
 for term in search_terms:
     term = (term or "").strip()
     if not term:
@@ -94,6 +119,8 @@ for term in search_terms:
             is_remote=is_remote,
             job_type=job_type_value,
             linkedin_fetch_description=True,
+            proxies=_use_proxy(sites),
+            ca_cert=False if _use_proxy(sites) else None,
         )
         if df is not None and not df.empty:
             all_jobs.extend(df.to_dict("records"))

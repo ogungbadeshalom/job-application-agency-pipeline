@@ -53,6 +53,7 @@ is_remote = bool(config.get("is_remote", False))
 job_type = (config.get("job_type") or "").strip()
 include_kw = [k.strip().lower() for k in (config.get("include_kw") or []) if k and k.strip()]
 exclude_kw = [k.strip().lower() for k in (config.get("exclude_kw") or []) if k and k.strip()]
+remove_easy_apply = bool(config.get("remove_easy_apply", True))  # default on
 
 # Map friendly labels -> JobSpy JobType VALUES (get_enum_from_value matches
 # against JobType.value, e.g. "fulltime", "parttime", "contract", "perdiem").
@@ -179,6 +180,12 @@ for r in all_jobs:
             continue  # job must contain at least one included keyword
         if exclude_kw and any(k in hay for k in exclude_kw):
             continue  # job must NOT contain any excluded keyword
+
+    # Remove easy-apply listings (LinkedIn's one-click apply etc.) when enabled.
+    if remove_easy_apply:
+        _all = f"{r.get('title') or ''} {r.get('description') or ''} {r.get('job_url') or ''}".lower()
+        if any(m in _all for m in ("easy apply", "easy-apply", "easyapply", "quick apply", "quick-apply")):
+            continue
 
     # Cross-board dedup by job URL.
     jurl = (r.get("job_url") or "").strip()

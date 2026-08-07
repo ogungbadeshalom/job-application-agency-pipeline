@@ -27,6 +27,7 @@ export async function POST(req: Request) {
     job_type: body.job_type || '',
     include_kw: body.include_kw || [],
     exclude_kw: body.exclude_kw || [],
+    remove_easy_apply: Boolean(body.remove_easy_apply),
   };
 
   if (config.profile_ids.length === 0) {
@@ -103,6 +104,7 @@ export async function POST(req: Request) {
         job_type: config.job_type || undefined,
         include_kw: config.include_kw?.length ? config.include_kw : undefined,
         exclude_kw: config.exclude_kw?.length ? config.exclude_kw : undefined,
+        remove_easy_apply: config.remove_easy_apply,
       });
       allRaw.push(...raw);
 
@@ -125,6 +127,7 @@ export async function POST(req: Request) {
               job_type: config.job_type || undefined,
               include_kw: config.include_kw?.length ? config.include_kw : undefined,
               exclude_kw: config.exclude_kw?.length ? config.exclude_kw : undefined,
+              remove_easy_apply: config.remove_easy_apply,
             }))
           );
         }
@@ -207,6 +210,7 @@ interface JobSpyArgs {
   job_type?: string;
   include_kw?: string[];
   exclude_kw?: string[];
+  remove_easy_apply?: boolean;
 }
 
 // Spawn the Python JobSpy script and parse its JSON output.

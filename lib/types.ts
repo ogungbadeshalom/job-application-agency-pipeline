@@ -100,6 +100,7 @@ export interface ScrapeConfig {
   job_type?: string;
   include_kw?: string[];
   exclude_kw?: string[];
+  remove_easy_apply?: boolean;
 }
 
 export interface ScrapeResultJob {

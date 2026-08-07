@@ -106,14 +106,24 @@ def _proxy_alive():
         return False
 
 # Scrape each (term, site) independently so one board failing (e.g. Indeed's
-# anti-bot KeyError) doesn't discard the other boards for a term.
+# anti-bot KeyError) doesn't discard the other boards for a term. A per-site
+# hard cap keeps a slow/hung board (LinkedIn over proxies) from stalling the run.
+import signal as _signal
+SITE_TIMEOUT_S = 45
+
 for term in search_terms:
     term = (term or "").strip()
     if not term:
         continue
     term_ok = 0
     for site in sites:
+        def _deadline(_signum, _frame):
+            raise TimeoutError(f"site '{site}' exceeded {SITE_TIMEOUT_S}s")
+        _has_alarm = hasattr(_signal, "SIGALRM") and hasattr(_signal, "setitimer")
         try:
+            if _has_alarm:
+                _signal.signal(_signal.SIGALRM, _deadline)
+                _signal.setitimer(_signal.ITIMER_REAL, SITE_TIMEOUT_S)
             df = scrape_jobs(
                 site_name=[site],
                 search_term=term,
@@ -135,6 +145,10 @@ for term in search_terms:
             msg = "".join(traceback.format_exception_only(type(exc), exc)).strip()
             errors.append(f"{term} / {site}: {msg}")
             print(f"[warn] {term} / {site}: {msg}", file=sys.stderr)
+        finally:
+            # Cancel the deadline timer so it can't stray into the next site.
+            if _has_alarm:
+                _signal.setitimer(_signal.ITIMER_REAL, 0)
     if term_ok == 0:
         print(f"[warn] term '{term}' returned no jobs", file=sys.stderr)
 

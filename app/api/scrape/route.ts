@@ -246,7 +246,14 @@ async function runJobSpy(args: JobSpyArgs): Promise<ScrapeResultJob[]> {
       let stderr = '';
       child.stderr.on('data', (d) => (stderr += d.toString()));
       child.on('error', (err) => reject(err));
+      // Hard cap on the whole scrape so a hung board can't stall the request
+      // indefinitely (8+ boards sequentially can exceed default limits).
+      const t = setTimeout(() => {
+        child.kill('SIGKILL');
+        reject(new Error(`JobSpy timed out after 150s. ${stderr.slice(0, 300)}`.trim()));
+      }, 150_000);
       child.on('close', (code) => {
+        clearTimeout(t);
         if (code !== 0) {
           reject(
             new Error(

@@ -125,7 +125,7 @@ export default function QueueClient({
       </div>
 
       {/* Weekly quota banner */}
-      <div className="panel p-4 mb-4 grid grid-cols-3 gap-4">
+      <div className="panel p-4 mb-4 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <div>
           <div className="th-uppercase">Applied this week</div>
           <div className={`text-2xl font-semibold ${weeklyApplied >= quota ? 'text-brand-green' : 'text-navy-100'}`}>

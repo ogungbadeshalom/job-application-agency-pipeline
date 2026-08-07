@@ -55,6 +55,27 @@ function mapProfile(r: Record<string, unknown>): Profile {
   };
 }
 
+// Strip tracking/query noise from a job URL so dedup treats the same posting
+// (e.g. with/without ?utm_source or ?gh_src) as identical, without over-blocking
+// genuinely different jobs.
+function normalizeJobURL(url: string): string {
+  try {
+    const u = new URL(url);
+    const keys = Array.from(u.searchParams.keys());
+    const keep = keys.filter(
+      (k) => !/^(utm_|source|gh_|sc_|mc_|spm_)/i.test(k) && k !== 'ref'
+    );
+    u.search = keep.length ? keep.map((k) => `${k}=${u.searchParams.get(k)}`).join('&') : '';
+    // strip trailing slash + hash
+    u.hash = '';
+    let s = u.toString();
+    s = s.replace(/\/+$/, '');
+    return s;
+  } catch {
+    return url.replace(/[#?].*$/, '').replace(/\/+$/, '');
+  }
+}
+
 function mapJob(r: Record<string, unknown>): Job {
   return {
     id: r.id as string,
@@ -406,10 +427,10 @@ export const db = {
   async dedupeJobsByURL(profileId: string, incoming: { url: string }[]): Promise<boolean[]> {
     const existing = new Set(
       (await all('select url from jobs where profile_id = $1 and url is not null', [profileId])).map(
-        (r) => r.url as string
+        (r) => normalizeJobURL(r.url as string)
       )
     );
-    return incoming.map((j) => !existing.has(j.url));
+    return incoming.map((j) => !existing.has(normalizeJobURL(j.url)));
   },
 
   // scrape runs

@@ -61,13 +61,14 @@ export default function DashboardLayout({
             </Link>
 
             {/* Desktop nav */}
-            <nav className="hidden md:flex items-center gap-1">
+            <nav className="hidden md:flex items-center gap-1" aria-label="Primary">
               {nav.map((n) => {
                 const isActive = active === n.href;
                 return (
                   <Link
                     key={n.href}
                     href={n.href}
+                    aria-current={isActive ? 'page' : undefined}
                     className={`px-3 py-1.5 rounded-md text-sm flex items-center gap-2 font-medium transition-colors ${
                       isActive
                         ? 'bg-brand-green text-navy-950 hover:bg-emerald-400'
@@ -105,6 +106,8 @@ export default function DashboardLayout({
               <button
                 onClick={() => setMenuOpen((v) => !v)}
                 title={menuOpen ? 'Close menu' : 'Menu'}
+                aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+                aria-expanded={menuOpen}
                 className="md:hidden p-2 rounded-md text-navy-400 hover:text-navy-100 hover:bg-navy-800"
               >
                 {menuOpen ? <Close /> : <Menu />}
@@ -115,7 +118,7 @@ export default function DashboardLayout({
 
         {/* Mobile dropdown nav */}
         {menuOpen && (
-          <nav className="md:hidden border-t border-navy-800 bg-navy-900/95 backdrop-blur">
+          <nav className="md:hidden border-t border-navy-800 bg-navy-900/95 backdrop-blur" aria-label="Primary mobile">
             <div className="px-3 py-2 space-y-1">
               {nav.map((n) => {
                 const isActive = active === n.href;
@@ -124,6 +127,7 @@ export default function DashboardLayout({
                     key={n.href}
                     href={n.href}
                     onClick={() => setMenuOpen(false)}
+                    aria-current={isActive ? 'page' : undefined}
                     className={`block px-3 py-2.5 rounded-md text-sm flex items-center justify-between font-medium transition-colors ${
                       isActive
                         ? 'bg-brand-green text-navy-950'

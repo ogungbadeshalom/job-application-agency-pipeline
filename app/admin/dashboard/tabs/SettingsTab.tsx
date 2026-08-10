@@ -167,6 +167,8 @@ function ScrapeStatus({ status }: { status: ScrapeRun['status'] }) {
     completed: { c: 'bg-emerald-500/15 text-brand-green', t: 'Completed' },
     failed: { c: 'bg-red-500/15 text-brand-red', t: 'Failed' },
   };
-  const s = map[status];
+  // Guard against any unexpected/null legacy value so an unknown status can't
+  // crash the whole Settings tab (map[status] would be undefined -> `.c` throws).
+  const s = map[status] ?? { c: 'bg-navy-700 text-navy-300', t: String(status) };
   return <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${s.c}`}>{s.t}</span>;
 }

@@ -17,20 +17,27 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
-    const res = await signIn('credentials', {
-      redirect: false,
-      email,
-      password,
-    });
+    try {
+      const res = await signIn('credentials', {
+        redirect: false,
+        email,
+        password,
+      });
 
-    if (res?.error) {
-      setError('Invalid email or password.');
+      if (res?.error) {
+        setError('Invalid email or password.');
+        return;
+      }
+
+      router.push('/');
+      router.refresh();
+    } catch {
+      // e.g. network/server unreachable: reset so the form stays usable
+      // instead of being stuck with a disabled submit button + spinner.
+      setError('Unable to sign in. Check your connection and try again.');
+    } finally {
       setLoading(false);
-      return;
     }
-
-    router.push('/');
-    router.refresh();
   }
 
   return (
@@ -44,43 +51,51 @@ export default function LoginPage() {
 
         <form onSubmit={onSubmit} className="panel p-6 space-y-4">
           <div>
-            <label className="block th-uppercase mb-1">Email</label>
+            <label htmlFor="login-email" className="block th-uppercase mb-1">Email</label>
             <input
+              id="login-email"
               type="email"
               autoComplete="email"
+              autoFocus
               required
+              disabled={loading}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full bg-navy-950 border border-navy-700 rounded-md px-3 py-2 text-sm text-navy-100 focus:outline-none focus:border-brand-blue"
+              className="w-full bg-navy-950 border border-navy-700 rounded-md px-3 py-2 text-sm text-navy-100 focus:outline-none focus:border-brand-blue disabled:opacity-60"
             />
           </div>
           <div>
-            <label className="block th-uppercase mb-1">Password</label>
+            <label htmlFor="login-password" className="block th-uppercase mb-1">Password</label>
             <input
+              id="login-password"
               type="password"
               autoComplete="current-password"
               required
+              disabled={loading}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full bg-navy-950 border border-navy-700 rounded-md px-3 py-2 text-sm text-navy-100 focus:outline-none focus:border-brand-blue"
+              className="w-full bg-navy-950 border border-navy-700 rounded-md px-3 py-2 text-sm text-navy-100 focus:outline-none focus:border-brand-blue disabled:opacity-60"
             />
           </div>
 
           {error && (
-            <div className="text-sm text-brand-red bg-red-500/10 border border-red-500/30 rounded-md px-3 py-2">
+            <div
+              role="alert"
+              className="text-sm text-brand-red bg-red-500/10 border border-red-500/30 rounded-md px-3 py-2"
+            >
               {error}
             </div>
           )}
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !email || !password}
             className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-md bg-brand-greenDark text-white hover:bg-emerald-700 disabled:opacity-50"
           >
-            {loading ? <Spinner /> : null}
-            Sign in
+            <Spinner size={16} className={loading ? '' : 'opacity-0'} />
+            {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
       </div>

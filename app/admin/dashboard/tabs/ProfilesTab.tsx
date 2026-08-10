@@ -22,8 +22,6 @@ export default function ProfilesTab({
   const [addWorkerOpen, setAddWorkerOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<{ user: User; jobsPerWeek?: number } | null>(null);
 
-  const profileFor = (uid: string | null) =>
-    profiles.find((p) => p.id === uid || p.assigned_worker_id === uid) ?? null;
   const appliedCount = (pid: string) =>
     jobs.filter((j) => j.profile_id === pid && j.status === 'applied').length;
   const assignedClientOf = (workerId: string) =>

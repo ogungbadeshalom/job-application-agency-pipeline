@@ -44,10 +44,20 @@ export async function POST(req: Request) {
     profile.base_resume_text,
   ].join('\n');
 
+  // Trim long text so "terminated" failures on the free inference endpoint are
+  // avoided: cap the JD and base resume individually and keep the total prompt
+  // within a safe size.
+  const MAX = 4000;
+  function clip(s: string): string {
+    if (!s) return s;
+    return s.length > MAX ? s.slice(0, MAX) + '\n…' : s;
+  }
+  const prompt = clip(user);
+
   let tailored: string;
   try {
-    tailored = await callAI(RESUME_TAILOR_SYSTEM, user, {
-      maxTokens: 2000,
+    tailored = await callAI(RESUME_TAILOR_SYSTEM, prompt, {
+      maxTokens: 1500,
       temperature: 0.4,
     });
   } catch (e) {

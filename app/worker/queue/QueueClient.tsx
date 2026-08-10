@@ -43,14 +43,19 @@ export default function QueueClient({
     // one-shot scrollTo often fires before the page is tall enough and gets
     // clamped to the top. Retry until the target is actually reachable or the
     // page stabilizes. Cheap: a handful of rAF ticks over ~600ms max.
-    const y = Number(sessionStorage.getItem(SCROLL_KEY) || 0);
+    // Guard against a missing/corrupt stored value (NaN/negative) so scrollTo
+    // is never called with an invalid target.
+    const raw = sessionStorage.getItem(SCROLL_KEY) || '0';
     sessionStorage.removeItem(SCROLL_KEY);
+    const parsed = Number(raw);
+    const y = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+    if (y <= 0) return;
     let attempt = 0;
     const maxTicks = 24; // ~2s of rAF frames
     const tick = () => {
       attempt += 1;
-      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-      if (y > 0 && attempt < maxTicks && maxScroll < y) {
+      const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      if (attempt < maxTicks && maxScroll < y) {
         // Page not tall enough yet (table still loading) -> retry next frame.
         requestAnimationFrame(tick);
         return;

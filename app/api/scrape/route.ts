@@ -202,8 +202,10 @@ async function dedupeAndMap(
   // profile gets at most one row per URL.
   const seenThisBatch = new Set<string>();
   const deduped = fresh.filter((r) => {
-    const u = (r.job_url || '').trim();
-    const key = u || `__noUrl__${r.site || ''}__${r.title || ''}`;
+    // Coerce job_url defensively: a raw/numeric job_url (or null) must never
+    // crash .trim() — normalize to '' and key on the sentinel instead.
+    const u = String(r.job_url ?? '').trim();
+    const key = u || `__noUrl__${String(r.site || '')}__${String(r.title || '')}`;
     if (seenThisBatch.has(key)) return false;
     seenThisBatch.add(key);
     return true;

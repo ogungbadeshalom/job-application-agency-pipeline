@@ -15,19 +15,38 @@ export default function HistoryClient({
 }) {
   const applied = jobs.filter((j) => j.status === 'applied' && j.submitted_at);
 
-  // Key each applied job by the Monday of its submission week.
-  const byWeek = new Map<string, Job[]>();
-  for (const j of applied) {
-    const d = new Date(j.submitted_at!);
+  // Key each applied job by the Monday (00:00 local) of its submission week.
+  // Grouping and display MUST both use local wall-clock dates so a job can never
+  // land in a different visible week than the one it was bucketed into, and so a
+  // malformed date can't throw (toISOString on Invalid Date raises RangeError).
+  function mondayOf(iso: string): Date | null {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return null;
     const day = (d.getDay() + 6) % 7; // Mon=0
     const mon = new Date(d);
     mon.setDate(d.getDate() - day);
     mon.setHours(0, 0, 0, 0);
-    const key = mon.toISOString().slice(0, 10);
-    if (!byWeek.has(key)) byWeek.set(key, []);
-    byWeek.get(key)!.push(j);
+    return mon;
   }
-  const weeks = Array.from(byWeek.entries()).sort((a, b) => (a[0] < b[0] ? 1 : -1));
+
+  const byWeek = new Map<string, { mon: Date; jobs: Job[] }>();
+  for (const j of applied) {
+    const mon = mondayOf(j.submitted_at!);
+    // Skip jobs with an unparseable submitted_at rather than crashing the page.
+    if (!mon) continue;
+    // Local date key (not UTC ISO), so the key matches the local "Monday" we
+    // render in the header — no tz-dependent off-by-one-day drift.
+    const key = `${mon.getFullYear()}-${String(mon.getMonth() + 1).padStart(2, '0')}-${String(
+      mon.getDate()
+    ).padStart(2, '0')}`;
+    if (!byWeek.has(key)) byWeek.set(key, { mon, jobs: [] });
+    byWeek.get(key)!.jobs.push(j);
+  }
+  const weeks = Array.from(byWeek.entries()).sort((a, b) => {
+    if (a[0] < b[0]) return 1;
+    if (a[0] > b[0]) return -1;
+    return 0;
+  });
 
   return (
     <DashboardLayout user={user} nav={nav} active="/worker/history">
@@ -36,15 +55,16 @@ export default function HistoryClient({
         <p className="text-sm text-navy-400">Your applied jobs, grouped by week.</p>
       </div>
 
-      {applied.length === 0 ? (
+      {weeks.length === 0 ? (
         <div className="panel p-6 text-center text-navy-400">
-          No applications completed yet. Jobs you mark Applied will show up here.
+          {applied.length === 0
+            ? 'No applications completed yet. Jobs you mark Applied will show up here.'
+            : 'Your applied jobs are missing valid submission dates, so no weeks can be shown.'}
         </div>
       ) : (
         <div className="panel">
           <div className="divide-y divide-navy-800">
-            {weeks.map(([key, list]) => {
-              const mon = new Date(key + 'T00:00:00');
+            {weeks.map(([key, { mon, jobs }]) => {
               const wkStart = mon.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
               const sun = new Date(mon);
               sun.setDate(mon.getDate() + 6);
@@ -62,10 +82,10 @@ export default function HistoryClient({
                         </span>
                       )}
                     </div>
-                    <span className="text-sm font-semibold text-navy-200">{list.length} applied</span>
+                    <span className="text-sm font-semibold text-navy-200">{jobs.length} applied</span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {list.map((j) => (
+                    {jobs.map((j) => (
                       <span
                         key={j.id}
                         className="text-xs px-2 py-0.5 rounded bg-navy-800 text-navy-300"

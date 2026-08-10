@@ -28,6 +28,14 @@ export default function ClientJobsClient({
     return /^proof\//.test(v);
   }
 
+  // Guard against a malformed submitted_at: a throw from toLocaleDateString on
+  // an Invalid Date would crash the whole read-only modal.
+  function fmtApplied(iso: string | null): string {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString();
+  }
+
   async function downloadPdf(job: Job) {
     if (!job.tailored_resume) return;
     const res = await fetch('/api/pdf', {
@@ -82,9 +90,7 @@ export default function ClientJobsClient({
             <div className="flex items-center gap-3 flex-wrap">
               <StatusBadge status={selected.status} />
               <span className="text-xs text-navy-500 capitalize">{selected.board}</span>
-              <span className="text-xs text-navy-500">
-                Applied {selected.submitted_at ? new Date(selected.submitted_at).toLocaleDateString() : '—'}
-              </span>
+              <span className="text-xs text-navy-500">Applied {fmtApplied(selected.submitted_at)}</span>
               <a
                 href={selected.url}
                 target="_blank"

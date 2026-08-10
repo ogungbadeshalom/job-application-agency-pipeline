@@ -41,6 +41,14 @@ export default function JobDetailClient({
     router.push('/worker/queue', { scroll: false });
   }
 
+  // Guard against malformed dates: a throw from toLocaleDateString on an
+  // Invalid Date would crash the whole job detail page.
+  function fmtLocalDate(iso: string | null): string {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString();
+  }
+
   const tabs: { key: Tab; label: string }[] = [
     { key: 'tailor', label: 'Tailor Resume' },
     { key: 'question', label: 'Answer Question' },
@@ -85,10 +93,10 @@ export default function JobDetailClient({
             </Detail>
             <Detail label="Currency">{job.compensation_currency || 'USD'}</Detail>
             <Detail label="Created">
-              {new Date(job.created_at).toLocaleDateString()}
+              {fmtLocalDate(job.created_at)}
             </Detail>
             <Detail label="Submitted">
-              {job.submitted_at ? new Date(job.submitted_at).toLocaleDateString() : '—'}
+              {fmtLocalDate(job.submitted_at)}
             </Detail>
           </div>
 

@@ -120,6 +120,9 @@ for term in search_terms:
         def _deadline(_signum, _frame):
             raise TimeoutError(f"site '{site}' exceeded {SITE_TIMEOUT_S}s")
         _has_alarm = hasattr(_signal, "SIGALRM") and hasattr(_signal, "setitimer")
+        # Resolve the proxy once: _use_proxy does a 1s TCP liveness check, so
+        # calling it twice per (term, site) doubled the wait on a down proxy.
+        _proxy = _use_proxy([site])
         try:
             if _has_alarm:
                 _signal.signal(_signal.SIGALRM, _deadline)
@@ -133,8 +136,8 @@ for term in search_terms:
                 is_remote=is_remote,
                 job_type=job_type_value,
                 linkedin_fetch_description=True,
-                proxies=_use_proxy([site]),
-                ca_cert=False if _use_proxy([site]) else None,
+                proxies=_proxy,
+                ca_cert=False if _proxy else None,
             )
             if df is not None and not df.empty:
                 rec = df.to_dict("records")
@@ -175,8 +178,13 @@ def _sanitize(value):
         return value.isoformat()
     # numpy / pandas scalar floats and ints.
     if hasattr(value, "item") and callable(value.item) and type(value).__module__.startswith(("numpy", "pandas")):
-        item = value.item()
-        return _sanitize(item)
+        try:
+            return _sanitize(value.item())
+        except Exception:
+            # Multi-element bytecodes arrays (e.g. a 2-element pay range) have no
+            # scalar .item(); fall back to a JSON-safe list so the sanitize call
+            # never crashes and aborts the whole refill.
+            return [_sanitize(v) for v in value]
     # Plain float.
     if isinstance(value, float):
         if math.isnan(value) or math.isinf(value):
@@ -189,6 +197,23 @@ def _sanitize(value):
         return [_sanitize(v) for v in value]
     # Fallback: stringify anything else (numpy arrays, Series, etc.).
     return str(value)
+
+def _text(value):
+    """Coerce a text column to a JSON-safe string, mapping None/NaN to ''.
+
+    Some scrapers leak floats into text columns (description/location/title),
+    e.g. a numpy value, which would otherwise be written as a bare number and
+    then handed to the DB as a numeric in a text column. Normalize to a string.
+    """
+    if value is None:
+        return ""
+    try:
+        cleaned = _sanitize(value)
+    except Exception:
+        return str(value)
+    if cleaned is None:
+        return ""
+    return str(cleaned)
 
 # --- write output -----------------------------------------------------------
 # Normalize keys: jobspy columns -> our ScrapeResultJob shape. Dedup across
@@ -246,21 +271,23 @@ for r in all_jobs:
             continue
 
     # Cross-board dedup by job URL.
-    jurl = (r.get("job_url") or "").strip()
+    # job_url can be a numpy/float NaN (truthy) rather than a string; coerce so
+    # .strip()/.lower() can never raise and abort the whole refill.
+    jurl = str(r.get("job_url") or "").strip()
     if jurl:
         if jurl in seen_urls:
             continue
         seen_urls.add(jurl)
 
     rec = {
-        "title": _sanitize(r.get("title")),
-        "company": _sanitize(r.get("company")),
-        "site": str(r.get("site", "")).lower() if r.get("site") else None,
-        "job_url": _sanitize(r.get("job_url")),
-        "description": _sanitize(r.get("description")),
-        "location": _sanitize(r.get("location")),
+        "title": _text(r.get("title")),
+        "company": _text(r.get("company")),
+        "site": (str(r.get("site") or "").lower()) or None,
+        "job_url": _text(r.get("job_url")),
+        "description": _text(r.get("description")),
+        "location": _text(r.get("location")),
         "interval_amount": _sanitize(r.get("interval_amount") or r.get("min_amount")),
-        "currency": _sanitize(r.get("currency")),
+        "currency": _text(r.get("currency")),
         "date_posted": _sanitize(r.get("date_posted")),
     }
     records.append(rec)

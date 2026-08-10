@@ -114,12 +114,23 @@ export default function QueueClient({
 
   return (
     <DashboardLayout user={user} nav={nav} active="/worker/queue">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
+      <div className="mb-4">
+        <div className="flex items-center justify-between">
           <h1 className="text-xl font-semibold text-navy-100">My Queue</h1>
           <p className="text-sm text-navy-400">
             {jobs.length} jobs for{' '}
             <span className="text-navy-200">{profiles.find((p) => p.assigned_worker_id === user.id)?.name}</span>
+          </p>
+        </div>
+        <div className="mt-2 flex items-center gap-2">
+          <span className="text-xs px-2 py-1 rounded-md bg-brand-green/15 text-brand-green">
+            💡 Tip
+          </span>
+          <p className="text-sm text-navy-400">
+            Switch between the <span className="text-navy-200 font-medium">Queue</span> and{' '}
+            <span className="text-navy-200 font-medium">History</span> tabs in the top nav. Use{' '}
+            <span className="text-navy-200">Queue</span> to apply to jobs, and{' '}
+            <span className="text-navy-200">History</span> to see everything you've completed, grouped by week.
           </p>
         </div>
       </div>

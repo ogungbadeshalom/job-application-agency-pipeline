@@ -179,16 +179,27 @@ interface OpenAICompatArgs {
 
 async function callOpenAICompat(a: OpenAICompatArgs): Promise<string> {
   const client = new OpenAI({ baseURL: a.baseURL, apiKey: a.apiKey });
-  const completion = await client.chat.completions.create({
-    model: a.model,
-    temperature: a.temperature,
-    max_tokens: a.maxTokens,
-    messages: [
-      { role: 'system', content: a.system },
-      { role: 'user', content: a.user },
-    ],
-  });
-  return completion.choices[0]?.message?.content?.trim() || '';
+  let lastErr: unknown;
+  // Retry terminations: free inference endpoints can drop a connection once;
+  // a quick retry usually succeeds.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const completion = await client.chat.completions.create({
+        model: a.model,
+        temperature: a.temperature,
+        max_tokens: a.maxTokens,
+        messages: [
+          { role: 'system', content: a.system },
+          { role: 'user', content: a.user },
+        ],
+      });
+      return completion.choices[0]?.message?.content?.trim() || '';
+    } catch (e) {
+      lastErr = e;
+      if (attempt < 2) await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+    }
+  }
+  throw lastErr;
 }
 
 // --- prompts ---------------------------------------------------------------

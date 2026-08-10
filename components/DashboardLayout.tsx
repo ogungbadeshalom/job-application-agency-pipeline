@@ -42,58 +42,77 @@ export default function DashboardLayout({
     client: 'Client',
   };
 
+  const NavLinks = ({ onNavigate }: { onNavigate?: () => void }) => (
+    <nav className="flex-1 space-y-1 overflow-y-auto" aria-label="Primary">
+      {nav.map((n) => {
+        const isActive = active === n.href;
+        return (
+          <Link
+            key={n.href}
+            href={n.href}
+            onClick={onNavigate}
+            aria-current={isActive ? 'page' : undefined}
+            className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+              isActive
+                ? 'bg-brand-green text-navy-950 hover:bg-emerald-400'
+                : 'text-navy-300 hover:text-white hover:bg-brand-green/30'
+            }`}
+          >
+            <span className="flex-1 truncate">{n.label}</span>
+            {typeof n.badge === 'number' && n.badge > 0 && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-navy-900/70 text-brand-green">
+                {n.badge}
+              </span>
+            )}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+
+  const Logo = ({ onNavigate }: { onNavigate?: () => void }) => (
+    <Link href={active} onClick={onNavigate} className="flex items-center gap-2 px-2 min-w-0">
+      <span className="text-brand-green text-lg">●</span>
+      <span className="font-semibold tracking-tight truncate">Job Bidder</span>
+      <span className="text-xs px-1.5 py-0.5 rounded bg-brand-blue/15 text-brand-blue font-mono">
+        v{APP_VERSION}
+      </span>
+    </Link>
+  );
+
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Top bar */}
-      <header className="sticky top-0 z-40 border-b border-navy-700 bg-navy-900/95 backdrop-blur supports-[backdrop-filter]:bg-navy-900/80">
-        <div className="mx-auto max-w-[1400px] px-4 sm:px-6 h-14 flex items-center justify-between gap-2">
-          {/* Left: logo + mobile menu toggle */}
-          <div className="flex items-center gap-2 min-w-0">
-            <Link href={active} className="flex items-center gap-2 min-w-0" onClick={() => setMenuOpen(false)}>
-              <span className="text-brand-green text-lg">●</span>
-              <span className="font-semibold tracking-tight truncate">Job Bidder</span>
-              <span className="hidden xs:inline text-xs px-1.5 py-0.5 rounded bg-brand-blue/15 text-brand-blue font-mono">
-                v{APP_VERSION}
-              </span>
-              <span className="hidden sm:inline text-xs px-1.5 py-0.5 rounded bg-navy-800 text-navy-400 uppercase">
-                {roleLabel[user.role]}
-              </span>
-            </Link>
-
-            {/* Desktop nav */}
-            <nav className="hidden md:flex items-center gap-1" aria-label="Primary">
-              {nav.map((n) => {
-                const isActive = active === n.href;
-                return (
-                  <Link
-                    key={n.href}
-                    href={n.href}
-                    aria-current={isActive ? 'page' : undefined}
-                    className={`px-3 py-1.5 rounded-md text-sm flex items-center gap-2 font-medium transition-colors ${
-                      isActive
-                        ? 'bg-brand-green text-navy-950 hover:bg-emerald-400'
-                        : 'text-navy-300 hover:text-white hover:bg-brand-green/30'
-                    }`}
-                  >
-                    {n.label}
-                    {typeof n.badge === 'number' && n.badge > 0 && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-navy-900/70 text-brand-green">
-                        {n.badge}
-                      </span>
-                    )}
-                  </Link>
-                );
-              })}
-            </nav>
+    <div className="min-h-screen lg:flex">
+      {/* Desktop sidebar (fixed left) */}
+      <aside className="hidden lg:flex flex-col fixed inset-y-0 left-0 w-64 border-r border-navy-700 bg-navy-900">
+        <div className="px-3 py-4 border-b border-navy-700 flex items-center justify-between">
+          <Logo onNavigate={() => setMenuOpen(false)} />
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-navy-800 text-navy-400 uppercase">
+            {roleLabel[user.role]}
+          </span>
+        </div>
+        <div className="p-3 flex-1 flex flex-col">
+          <NavLinks />
+        </div>
+        <div className="p-3 border-t border-navy-800">
+          <div className="px-2 pb-2 text-right">
+            <div className="text-sm text-navy-200 truncate">{user.full_name}</div>
+            <div className="text-xs text-navy-500 truncate">{user.email}</div>
           </div>
+          <button
+            onClick={logout}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-navy-300 hover:text-white hover:bg-navy-800"
+          >
+            <Logout /> Sign out
+          </button>
+        </div>
+      </aside>
 
-          {/* Right: actions + user + mobile toggle / logout */}
-          <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
+      {/* Mobile top bar */}
+      <header className="lg:hidden sticky top-0 z-40 border-b border-navy-700 bg-navy-900/95 backdrop-blur">
+        <div className="px-4 h-14 flex items-center justify-between gap-2">
+          <Logo onNavigate={() => setMenuOpen(false)} />
+          <div className="flex items-center gap-1.5">
             {actions && <div className="hidden sm:block">{actions}</div>}
-            <div className="hidden md:block text-right">
-              <div className="text-sm text-navy-200 max-w-[180px] truncate">{user.full_name}</div>
-              <div className="text-xs text-navy-500 max-w-[180px] truncate">{user.email}</div>
-            </div>
             <button
               onClick={logout}
               title="Sign out"
@@ -101,54 +120,54 @@ export default function DashboardLayout({
             >
               <Logout />
             </button>
-            {/* Mobile hamburger (only when there are nav items to collapse) */}
             {nav.length > 0 && (
               <button
                 onClick={() => setMenuOpen((v) => !v)}
                 title={menuOpen ? 'Close menu' : 'Menu'}
                 aria-label={menuOpen ? 'Close menu' : 'Open menu'}
                 aria-expanded={menuOpen}
-                className="md:hidden p-2 rounded-md text-navy-400 hover:text-navy-100 hover:bg-navy-800"
+                className="p-2 rounded-md text-navy-400 hover:text-navy-100 hover:bg-navy-800"
               >
                 {menuOpen ? <Close /> : <Menu />}
               </button>
             )}
           </div>
         </div>
-
-        {/* Mobile dropdown nav */}
-        {menuOpen && (
-          <nav className="md:hidden border-t border-navy-800 bg-navy-900/95 backdrop-blur" aria-label="Primary mobile">
-            <div className="px-3 py-2 space-y-1">
-              {nav.map((n) => {
-                const isActive = active === n.href;
-                return (
-                  <Link
-                    key={n.href}
-                    href={n.href}
-                    onClick={() => setMenuOpen(false)}
-                    aria-current={isActive ? 'page' : undefined}
-                    className={`block px-3 py-2.5 rounded-md text-sm flex items-center justify-between font-medium transition-colors ${
-                      isActive
-                        ? 'bg-brand-green text-navy-950'
-                        : 'text-navy-300 hover:text-white hover:bg-brand-green/30'
-                    }`}
-                  >
-                    <span>{n.label}</span>
-                    {typeof n.badge === 'number' && n.badge > 0 && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-navy-900/70 text-brand-green">
-                        {n.badge}
-                      </span>
-                    )}
-                  </Link>
-                );
-              })}
-            </div>
-          </nav>
-        )}
       </header>
 
-      <main className="flex-1 mx-auto max-w-[1400px] w-full px-4 sm:px-6 py-4 sm:py-6">{children}</main>
+      {/* Mobile drawer */}
+      {menuOpen && (
+        <div className="lg:hidden fixed inset-0 z-50 flex">
+          <div className="w-64 bg-navy-900 border-r border-navy-700 flex flex-col">
+            <div className="px-3 py-4 border-b border-navy-700 flex items-center justify-between">
+              <Logo onNavigate={() => setMenuOpen(false)} />
+              <button
+                onClick={() => setMenuOpen(false)}
+                aria-label="Close menu"
+                className="p-1.5 rounded-md text-navy-400 hover:text-navy-100"
+              >
+                <Close />
+              </button>
+            </div>
+            <NavLinks onNavigate={() => setMenuOpen(false)} />
+            <div className="p-3 border-t border-navy-800">
+              <div className="px-2 py-2 text-sm text-navy-400 truncate">{user.full_name}</div>
+              <button
+                onClick={logout}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-navy-300 hover:text-white hover:bg-navy-800"
+              >
+                <Logout /> Sign out
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 bg-black/50" onClick={() => setMenuOpen(false)} />
+        </div>
+      )}
+
+      {/* Main content */}
+      <main className="flex-1 min-w-0 lg:ml-64 max-w-[1400px] w-full px-4 sm:px-6 py-4 sm:py-6">
+        {children}
+      </main>
     </div>
   );
 }

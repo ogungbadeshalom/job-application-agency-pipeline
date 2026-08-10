@@ -68,15 +68,15 @@ export default function DashboardLayout({
                   <Link
                     key={n.href}
                     href={n.href}
-                    className={`px-3 py-1.5 rounded-md text-sm flex items-center gap-2 transition-colors ${
+                    className={`px-3 py-1.5 rounded-md text-sm flex items-center gap-2 font-medium transition-colors ${
                       isActive
-                        ? 'bg-navy-800 text-navy-100'
-                        : 'text-navy-400 hover:text-navy-200 hover:bg-navy-850'
+                        ? 'bg-brand-green text-navy-950 hover:bg-emerald-400'
+                        : 'text-navy-300 hover:text-white hover:bg-brand-green/30'
                     }`}
                   >
                     {n.label}
                     {typeof n.badge === 'number' && n.badge > 0 && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-brand-green/20 text-brand-green">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-navy-900/70 text-brand-green">
                         {n.badge}
                       </span>
                     )}
@@ -124,15 +124,15 @@ export default function DashboardLayout({
                     key={n.href}
                     href={n.href}
                     onClick={() => setMenuOpen(false)}
-                    className={`block px-3 py-2.5 rounded-md text-sm flex items-center justify-between transition-colors ${
+                    className={`block px-3 py-2.5 rounded-md text-sm flex items-center justify-between font-medium transition-colors ${
                       isActive
-                        ? 'bg-navy-800 text-navy-100'
-                        : 'text-navy-300 hover:text-navy-100 hover:bg-navy-850'
+                        ? 'bg-brand-green text-navy-950'
+                        : 'text-navy-300 hover:text-white hover:bg-brand-green/30'
                     }`}
                   >
                     <span>{n.label}</span>
                     {typeof n.badge === 'number' && n.badge > 0 && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-brand-green/20 text-brand-green">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-navy-900/70 text-brand-green">
                         {n.badge}
                       </span>
                     )}

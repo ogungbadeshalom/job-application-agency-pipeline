@@ -32,6 +32,7 @@ export default async function WorkerQueuePage() {
 
   const nav = [
     { href: '/worker/queue', label: 'Queue', badge: jobs.filter((j) => j.status === 'saved').length },
+    { href: '/worker/history', label: 'History' },
   ];
 
   return (

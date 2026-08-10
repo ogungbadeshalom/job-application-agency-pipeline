@@ -155,6 +155,9 @@ export default function QueueClient({
         </div>
       </div>
 
+      {/* Weekly completion history */}
+      <WeeklyHistory jobs={jobs} />
+
       <JobTable
         jobs={jobs}
         profiles={profiles}
@@ -162,5 +165,73 @@ export default function QueueClient({
         onQuickAction={quickAction}
       />
     </DashboardLayout>
+  );
+}
+
+// ---- Weekly completion history -------------------------------------------
+// Groups the worker's APPLIED jobs by the week they were submitted and shows
+// each week's accomplished count plus the job titles, newest week first.
+function WeeklyHistory({ jobs }: { jobs: Job[] }) {
+  const applied = jobs.filter((j) => j.status === 'applied' && j.submitted_at);
+  if (applied.length === 0) {
+    return (
+      <div className="panel mb-4">
+        <div className="p-4">
+          <div className="th-uppercase mb-1">Weekly completion history</div>
+          <p className="text-sm text-navy-400">No applications done yet this week — your accomplished jobs will appear here.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Key each applied job by the Monday of its submission week.
+  const byWeek = new Map<string, Job[]>();
+  for (const j of applied) {
+    const d = new Date(j.submitted_at!);
+    const day = (d.getDay() + 6) % 7; // Mon=0
+    const mon = new Date(d);
+    mon.setDate(d.getDate() - day);
+    mon.setHours(0, 0, 0, 0);
+    const key = mon.toISOString().slice(0, 10);
+    if (!byWeek.has(key)) byWeek.set(key, []);
+    byWeek.get(key)!.push(j);
+  }
+  const weeks = Array.from(byWeek.entries()).sort((a, b) => (a[0] < b[0] ? 1 : -1));
+
+  return (
+    <div className="panel mb-4">
+      <div className="p-4 border-b border-navy-700">
+        <div className="th-uppercase">Weekly completion history</div>
+        <p className="text-xs text-navy-500 mt-0.5">Jobs marked Applied, grouped by the week they were completed.</p>
+      </div>
+      <div className="divide-y divide-navy-800">
+        {weeks.map(([key, list]) => {
+          const mon = new Date(key + 'T00:00:00');
+          const wkStart = mon.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+          const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+          const wkEnd = sun.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+          const isCurrent = new Date().getTime() - mon.getTime() >= 0 && new Date().getTime() < sun.getTime() + 86400000;
+          return (
+            <div key={key} className="px-4 py-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm flex items-center gap-2">
+                  <span className="text-navy-200 font-medium">{wkStart}</span>
+                  <span className="text-navy-500 text-xs">{wkStart} – {wkEnd}</span>
+                  {isCurrent && <span className="text-[10px] px-1.5 py-0.5 rounded bg-brand-green/20 text-brand-green">Current</span>}
+                </div>
+                <span className="text-sm font-semibold text-navy-100">{list.length} applied</span>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {list.map((j) => (
+                  <span key={j.id} className="text-xs px-2 py-0.5 rounded bg-navy-800 text-navy-300 truncate max-w-[220px]">
+                    {j.company ? `${j.company} · ` : ''}{j.title}
+                  </span>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }

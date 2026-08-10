@@ -130,7 +130,7 @@ export default function QueueClient({
             Switch between the <span className="text-navy-200 font-medium">Queue</span> and{' '}
             <span className="text-navy-200 font-medium">History</span> tabs in the top nav. Use{' '}
             <span className="text-navy-200">Queue</span> to apply to jobs, and{' '}
-            <span className="text-navy-200">History</span> to see everything you've completed, grouped by week.
+            <span className="text-navy-200">History</span> to see everything you have completed, grouped by week.
           </p>
         </div>
       </div>

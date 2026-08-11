@@ -113,11 +113,15 @@ export default function JobTable({
       out = out.filter((j) => j.profile_id === clientFilter);
     if (search.trim()) {
       const q = search.toLowerCase();
+      const boardLabel = (b: string) => (BOARD_LABELS[b] ?? b ?? '').toLowerCase();
       out = out.filter(
         (j) =>
           (j.title || '').toLowerCase().includes(q) ||
           (j.company || '').toLowerCase().includes(q) ||
-          (j.description || '').toLowerCase().includes(q)
+          (j.description || '').toLowerCase().includes(q) ||
+          boardLabel(j.board).includes(q) ||
+          (j.location || '').toLowerCase().includes(q) ||
+          (j.compensation_currency || '').toLowerCase().includes(q)
       );
     }
     return [...out].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
@@ -137,7 +141,7 @@ export default function JobTable({
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search jobs…"
+            placeholder="Search by title, company, board, or location…"
             className="w-full pl-8 pr-3 py-1.5 text-sm bg-navy-950 border border-navy-700 rounded-md text-navy-100 placeholder:text-navy-500 focus:outline-none focus:border-brand-blue"
           />
         </div>

@@ -203,10 +203,20 @@ async function callOpenAICompat(a: OpenAICompatArgs): Promise<string> {
 }
 
 // --- prompts ---------------------------------------------------------------
-export const RESUME_TAILOR_SYSTEM = `Rewrite a candidate's resume to match a job description.
-Do NOT fabricate experience, employers, dates, or titles. Reorder bullets by relevance to the role.
-Adjust the summary line to echo the job's keywords. Keep all dates, companies, and titles exact.
-Output plain text only — no markdown, no commentary.`;
+export const RESUME_TAILOR_SYSTEM = `You tailor a candidate's resume to match a job description, returning STRICT JSON ONLY.
+
+Rewrite the candidate's REAL experience to fit the role. Do NOT fabricate employers, titles, dates, or degrees — keep every company name, job title, and date range exactly as given. Reword bullets so the most relevant achievements for the target role come first, and echo the job's key technologies and responsibilities. Tighten the summary to align with the role.
+
+Rules:
+- Output ONLY a single JSON object. No markdown fences, no commentary, no prose before/after.
+- The "name", "title", "contact" fields: use the candidate's real details from the base resume (contact = email | linkedin | location).
+- "summary": array of 2-3 short paragraphs.
+- "experience": one entry per role on the resume, each with "role", "company", "dates" (keep exact range), and "bullets" (3-8 reworded, relevance-ordered bullets; NEVER change company/title/dates).
+- "skills": array of 4-8 concise lines, with the job's required tools first.
+- All fields required. Bullets and summary total must fit a ~1 page A4.
+
+JSON schema:
+{"name":string,"title":string,"contact":string,"summary":string[],"experience":[{"role":string,"company":string,"dates":string,"bullets":string[]}],"skills":string[]}`;
 
 export const QUESTION_HELPER_SYSTEM = `Help a candidate answer application questions.
 Write in first person. Be specific and under 150 words. Use concrete examples drawn from the resume.

@@ -14,6 +14,7 @@ export default function TailorPanel({
   onSaved?: (tailored: string) => void;
 }) {
   const [output, setOutput] = useState(job.tailored_resume ?? '');
+  const [pdfUrl, setPdfUrl] = useState<string | null>(job.tailored_resume_pdf_url ?? null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -29,19 +30,16 @@ export default function TailorPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobId: job.id }),
       });
-      // Check res.ok BEFORE res.json() so an HTML error page doesn't throw
-      // "Unexpected token '<'" instead of surfacing the real error.
       if (!res.ok) {
         const d = await res.json().catch(() => null);
         throw new Error(d?.error || 'Tailor failed');
       }
-      // Parse defensively so an HTML/oddly-empty body can't throw
-      // "Unexpected token '<'".
       const data = (await res.json().catch(() => null)) ?? {};
       if (typeof data.tailored_resume !== 'string') {
         throw new Error('Tailor returned no resume text. Please try again.');
       }
       setOutput(data.tailored_resume);
+      setPdfUrl(data.tailored_resume_pdf_url ?? null);
       onSaved?.(data.tailored_resume);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error');
@@ -72,27 +70,17 @@ export default function TailorPanel({
     }
   }
 
-  async function downloadPdf() {
+  function downloadPdf() {
     setError(null);
+    if (!pdfUrl) {
+      setError('No formatted PDF yet — click Tailor first to generate one.');
+      return;
+    }
     try {
-      const safeTitle = job.title || 'job';
-      const safeCompany = job.company || 'resume';
-      const res = await fetch('/api/pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: output, filename: `${safeCompany}-${safeTitle}-resume.txt` }),
-      });
-      if (!res.ok) {
-        const d = await res.json().catch(() => null);
-        throw new Error(d?.error || 'PDF generation failed');
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = `${safeCompany}-tailored.pdf`;
+      a.href = `/api/files/${pdfUrl}`;
+      a.download = `${job.company || 'tailored'}-${job.title || 'resume'}.pdf`.replace(/[^\w\-.]/g, '_');
       a.click();
-      URL.revokeObjectURL(url);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error');
     }
@@ -140,7 +128,8 @@ export default function TailorPanel({
             </button>
             <button
               onClick={downloadPdf}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md bg-navy-800 text-navy-200 hover:bg-navy-750"
+              disabled={!pdfUrl}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md bg-navy-800 text-navy-200 hover:bg-navy-750 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Download size={14} /> PDF
             </button>

@@ -21,6 +21,26 @@ export default function SettingsTab({ users, scrapeRuns }: { users: User[]; scra
         <div className="p-3 border-b border-navy-700">
           <h3 className="text-sm font-semibold text-navy-200">Team</h3>
         </div>
+        {/* Mobile cards */}
+        <div className="md:hidden divide-y divide-navy-800">
+          {users.map((u) => (
+            <div key={u.id} className="p-3.5 flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <div className="font-medium text-navy-100">{u.full_name}</div>
+                <div className="text-sm text-navy-400 truncate">{u.email}</div>
+                <div className="text-xs capitalize text-navy-500">{u.role}</div>
+              </div>
+              <button
+                onClick={() => setResetTarget(u)}
+                className="shrink-0 px-2.5 py-1 text-xs rounded-md bg-navy-800 text-navy-200 hover:bg-navy-750"
+              >
+                Reset password
+              </button>
+            </div>
+          ))}
+        </div>
+        {/* Desktop table */}
+        <div className="hidden md:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-navy-700">
@@ -47,12 +67,40 @@ export default function SettingsTab({ users, scrapeRuns }: { users: User[]; scra
             ))}
           </tbody>
         </table>
+        </div>
       </section>
 
       <section className="panel overflow-hidden">
         <div className="p-3 border-b border-navy-700">
           <h3 className="text-sm font-semibold text-navy-200">Scrape Run History</h3>
         </div>
+        {/* Mobile cards */}
+        <div className="md:hidden divide-y divide-navy-800">
+          {scrapeRuns.length === 0 && <p className="p-4 text-center text-navy-500 text-sm">No runs yet.</p>}
+          {scrapeRuns.map((r) => (
+            <div key={r.id} className="p-3.5 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className={`text-xs px-2 py-0.5 rounded capitalize ${
+                  r.status === 'completed' ? 'bg-emerald-500/15 text-brand-green'
+                  : r.status === 'running' ? 'bg-amber-500/15 text-amber-200'
+                  : r.status === 'failed' ? 'bg-red-500/15 text-brand-red'
+                  : 'bg-navy-800 text-navy-400'
+                }`}>{r.status}</span>
+                <span className="text-xs text-navy-400">
+                  {new Date(r.started_at || Date.now()).toLocaleDateString()}
+                </span>
+              </div>
+              <div className="text-xs text-navy-400 truncate">
+                {(r.sites || []).join(', ') || '—'} · {(r.search_terms || []).join(', ')}
+              </div>
+              <div className="text-xs text-navy-300">
+                {r.jobs_found ?? 0} found · {r.jobs_added ?? 0} added
+              </div>
+            </div>
+          ))}
+        </div>
+        {/* Desktop table */}
+        <div className="hidden md:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-navy-700">
@@ -86,6 +134,7 @@ export default function SettingsTab({ users, scrapeRuns }: { users: User[]; scra
             ))}
           </tbody>
         </table>
+        </div>
       </section>
 
       {resetTarget && (

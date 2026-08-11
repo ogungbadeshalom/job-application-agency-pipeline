@@ -57,6 +57,41 @@ export default function ProfilesTab({
           <h3 className="text-sm font-semibold text-navy-200">Workers</h3>
           <span className="text-xs text-navy-500">{workers.length} total</span>
         </div>
+        {/* Mobile cards */}
+        <div className="md:hidden divide-y divide-navy-800">
+          {workers.length === 0 && <p className="p-4 text-center text-navy-500 text-sm">No workers yet.</p>}
+          {workers.map((w) => {
+            const client = assignedClientOf(w.id);
+            return (
+              <div key={w.id} className="p-3.5 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-medium text-navy-100">{w.full_name || '—'}</div>
+                    <div className="text-sm text-navy-400 truncate">{w.email}</div>
+                  </div>
+                  {w.disabled_at ? (
+                    <span className="shrink-0 inline-flex rounded-full px-2 py-0.5 text-xs bg-red-500/15 text-brand-red">Disabled</span>
+                  ) : (
+                    <span className="shrink-0 inline-flex rounded-full px-2 py-0.5 text-xs bg-emerald-500/15 text-brand-green">Active</span>
+                  )}
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-navy-300">
+                    {client?.name ?? <span className="text-navy-500">unassigned</span>}
+                  </span>
+                  <button
+                    onClick={() => setEditTarget({ user: w })}
+                    className="px-2.5 py-1 text-xs rounded-md bg-navy-800 text-navy-200 hover:bg-navy-750"
+                  >
+                    Edit
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {/* Desktop table */}
+        <div className="hidden md:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-navy-700">
@@ -98,6 +133,7 @@ export default function ProfilesTab({
             })}
           </tbody>
         </table>
+        </div>
         {unlinkedWorkers.length > 0 && (
           <p className="p-3 text-xs text-navy-500 border-t border-navy-800">
             {unlinkedWorkers.length} worker(s) unassigned. Use &quot;Add Client&quot; to assign them.
@@ -111,6 +147,43 @@ export default function ProfilesTab({
           <h3 className="text-sm font-semibold text-navy-200">Clients</h3>
           <span className="text-xs text-navy-500">{profiles.length} total</span>
         </div>
+        {/* Mobile cards */}
+        <div className="md:hidden divide-y divide-navy-800">
+          {profiles.length === 0 && <p className="p-4 text-center text-navy-500 text-sm">No clients yet.</p>}
+          {profiles.map((p) => {
+            const clientUser = clientUsers.find((u) => u.profile_id === p.id);
+            const worker = workers.find((w) => w.id === p.assigned_worker_id);
+            return (
+              <div key={p.id} className="p-3.5 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-medium text-navy-100">{p.name}</div>
+                    <div className="text-sm text-navy-400 truncate">{p.email}</div>
+                  </div>
+                  <span className="shrink-0 text-xs text-navy-300">{appliedCount(p.id)} applied</span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-navy-300 min-w-0 truncate">
+                    {worker?.full_name ?? <span className="text-navy-500">unassigned</span>}
+                    {p.scrape_search_terms?.length ? ` · ${p.scrape_search_terms.join(', ')}` : ''}
+                  </span>
+                  {clientUser ? (
+                    <button
+                      onClick={() => setEditTarget({ user: clientUser, jobsPerWeek: p.jobs_per_week })}
+                      className="shrink-0 px-2.5 py-1 text-xs rounded-md bg-navy-800 text-navy-200 hover:bg-navy-750"
+                    >
+                      Edit
+                    </button>
+                  ) : (
+                    <span className="shrink-0 text-xs text-navy-500">no login</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {/* Desktop table */}
+        <div className="hidden md:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-navy-700">
@@ -159,6 +232,7 @@ export default function ProfilesTab({
             })}
           </tbody>
         </table>
+        </div>
       </section>
 
       <AddWorkerModal

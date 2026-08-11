@@ -18,6 +18,16 @@ export interface User {
   created_at: string;
 }
 
+export interface ProfilePreset {
+  id: string;
+  name: string;
+  search_terms: string[];
+  sites: string[];
+  location: string | null;
+  remote_only: boolean;
+  results_wanted: number;
+}
+
 export interface Profile {
   id: string;
   name: string;
@@ -30,6 +40,7 @@ export interface Profile {
   scrape_sites: string[];
   scrape_results_wanted: number;
   scrape_hours_old: number;
+  presets: ProfilePreset[];
   jobs_per_week: number;
   deleted_at: string | null;
   created_at: string;

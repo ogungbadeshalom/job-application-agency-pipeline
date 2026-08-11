@@ -17,6 +17,7 @@ import type {
   JobStatus,
   ListJobsFilter,
   Profile,
+  ProfilePreset,
   QuestionSnippet,
   ScrapeRun,
   User,
@@ -48,6 +49,7 @@ function mapProfile(r: Record<string, unknown>): Profile {
     scrape_sites: r.scrape_sites as unknown as string[],
     scrape_results_wanted: r.scrape_results_wanted as number,
     scrape_hours_old: r.scrape_hours_old as number,
+    presets: (r.presets as unknown as ProfilePreset[]) ?? [],
     jobs_per_week: r.jobs_per_week as number ?? 20,
     deleted_at: r.deleted_at ? (r.deleted_at as Date).toISOString() : null,
     created_at: (r.created_at as Date).toISOString(),
@@ -252,6 +254,12 @@ export const db = {
   async getProfile(id: string): Promise<Profile | null> {
     const row = await one('select * from profiles where id = $1', [id]);
     return row ? mapProfile(row) : null;
+  },
+  async setProfilePresets(id: string, presets: ProfilePreset[]): Promise<void> {
+    await query(
+      'update profiles set presets = $2::jsonb, updated_at = now() where id = $1',
+      [id, JSON.stringify(presets)]
+    );
   },
   async getProfileByWorker(workerId: string): Promise<Profile | null> {
     const row = await one(

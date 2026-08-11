@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Modal from './Modal';
 import { Spinner } from './Icon';
-import type { Profile } from '@/lib/types';
+import type { Profile, ProfilePreset } from '@/lib/types';
 
 // Client-side cap for the /api/scrape round-trip. JobSpy can legitimately take
 // a couple of minutes, but if the proxy/backend hangs and never responds we
@@ -21,7 +21,7 @@ export const SITE_OPTIONS: { name: string; site: string; disabled?: boolean; not
   { name: 'BuiltIn', site: 'builtin' },
   { name: 'Greenhouse', site: 'greenhouse' },
   { name: 'SmartRecruiters', site: 'smart_recruiters' },
-  { name: 'WeWorkRemotely', site: 'weworkremotely' },
+  { name: 'WeWorkRemotely', site: 'weworkremotely', disabled: true, note: 'disabled for now' },
   { name: 'Remotive', site: 'remotive' },
   { name: 'WorkingNomads', site: 'workingnomads' },
   { name: 'Glassdoor', site: 'glassdoor', disabled: true, note: 'currently unavailable' },
@@ -39,7 +39,7 @@ export default function RefillJobsModal({
   profiles: Profile[];
   onDone?: (result: { jobs_added: number }) => void;
 }) {
-  const [sites, setSites] = useState<string[]>(['indeed', 'linkedin', 'remoteok', 'greenhouse', 'smart_recruiters', 'weworkremotely', 'remotive', 'workingnomads']);
+  const [sites, setSites] = useState<string[]>(['indeed', 'linkedin', 'remoteok', 'greenhouse', 'smart_recruiters', 'builtin', 'remotive', 'workingnomads']);
   const [searchTerms, setSearchTerms] = useState('');
   const [location, setLocation] = useState('United States');
   const [remoteOnly, setRemoteOnly] = useState(true); // most clients want remote
@@ -68,7 +68,7 @@ export default function RefillJobsModal({
       // can't land on the freshly reset form.
       abortRef.current?.abort();
       abortRef.current = null;
-      setSites(['indeed', 'linkedin', 'remoteok', 'greenhouse', 'smart_recruiters', 'weworkremotely', 'remotive', 'workingnomads']);
+      setSites(['indeed', 'linkedin', 'remoteok', 'greenhouse', 'smart_recruiters', 'builtin', 'remotive', 'workingnomads']);
       setSearchTerms('');
       setLocation('United States');
       setRemoteOnly(true);
@@ -88,6 +88,17 @@ export default function RefillJobsModal({
   function toggle(list: string[], set: (v: string[]) => void, value: string, enabled = true) {
     if (!enabled) return; // grayed-out sources can't be toggled
     set(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
+  }
+
+  // Load a named preset for a profile into the form (search terms + sites +
+  // remote/location + results). Lets admins refill a profile with one click.
+  function applyPreset(preset: ProfilePreset | undefined | null) {
+    if (!preset) return;
+    setSearchTerms(preset.search_terms.join(', '));
+    if (Array.isArray(preset.sites) && preset.sites.length) setSites(preset.sites);
+    setLocation(preset.location ?? 'United States');
+    setRemoteOnly(preset.remote_only ?? true);
+    if (preset.results_wanted) setResultsWanted(String(preset.results_wanted));
   }
 
   async function submit() {
@@ -244,6 +255,27 @@ export default function RefillJobsModal({
                 );
               })}
             </div>
+          </Field>
+
+          <Field label="Presets (one-click refill)">
+            <p className="text-xs text-navy-500 mb-2">Click a preset to auto-fill this profile&apos;s search terms, sites, and remote filter. Leave blank to type manually or use saved search terms.</p>
+            {profiles.flatMap((p) =>
+              (p.presets ?? []).map((pr) => (
+                <button
+                  key={pr.id}
+                  type="button"
+                  disabled={loading}
+                  onClick={() => {
+                    if (!profileIds.includes(p.id)) setProfileIds((ids) => [...ids, p.id]);
+                    applyPreset(pr);
+                  }}
+                  title={`${p.name}: ${pr.search_terms.length} terms`}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md bg-navy-800 text-navy-200 hover:bg-brand-green/30 hover:text-white mr-2 mb-2"
+                >
+                  <span className="text-brand-green">●</span> {p.name}: {pr.name}
+                </button>
+              ))
+            )}
           </Field>
 
           <Field label="Search terms (comma-separated)">

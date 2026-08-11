@@ -11,6 +11,13 @@ import { parseMultipart } from '@/lib/multipart';
 //
 // Uses a manual multipart parser (lib/multipart.ts) instead of req.formData(),
 // which can hang on some Node/undici + Next.js `next start` combinations.
+//
+// Rejects oversized bodies before buffering into memory: `req.arrayBuffer()`
+// reads the whole request into RAM with no ceiling, so a huge upload (or an
+// attacker) could exhaust memory on the self-hosted VPS. We cap by the
+// declared Content-Length up front and fall back to a post-read check.
+const MAX_RESUME_BYTES = 20 * 1024 * 1024; // 20MB — plenty for PDF/DOCX resumes
+
 export async function POST(req: Request) {
   const ctype = req.headers.get('content-type') || '';
   const boundary = ctype.match(/boundary="?([^";]+)"?/)?.[1];
@@ -18,7 +25,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Bad multipart body' }, { status: 400 });
   }
 
+  const declared = Number(req.headers.get('content-length') || 0);
+  if (declared > MAX_RESUME_BYTES) {
+    return NextResponse.json(
+      { error: `Resume too large (max ${Math.round(MAX_RESUME_BYTES / 1024 / 1024)}MB).` },
+      { status: 413 }
+    );
+  }
+
   const raw = Buffer.from(await req.arrayBuffer());
+  if (raw.length > MAX_RESUME_BYTES) {
+    return NextResponse.json(
+      { error: `Resume too large (max ${Math.round(MAX_RESUME_BYTES / 1024 / 1024)}MB).` },
+      { status: 413 }
+    );
+  }
   const parsed = parseMultipart(raw, boundary);
   const file = parsed.file;
   const profileId = parsed.fields.profile_id;

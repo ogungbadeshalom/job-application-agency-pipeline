@@ -49,6 +49,25 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  // Collapsible desktop sidebar. Persisted across sessions so each user keeps
+  // their preferred width. Starts expanded unless the user previously collapsed it.
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return localStorage.getItem('jb.sidebar.collapsed') === '1';
+    } catch {
+      return false;
+    }
+  });
+  function toggleCollapsed() {
+    setCollapsed((c) => {
+      const next = !c;
+      try {
+        localStorage.setItem('jb.sidebar.collapsed', next ? '1' : '0');
+      } catch {}
+      return next;
+    });
+  }
 
   async function logout() {
     await signOut({ redirect: false });
@@ -63,7 +82,7 @@ export default function DashboardLayout({
   };
 
   const NavLinks = ({ onNavigate }: { onNavigate?: () => void }) => (
-    <nav className="flex-1 space-y-1 overflow-y-auto" aria-label="Primary">
+    <nav className={`flex-1 space-y-1 overflow-y-auto ${collapsed ? 'flex flex-col items-center' : ''}`} aria-label="Primary">
       {nav.map((n) => {
         const isActive = active === n.href;
         return (
@@ -71,14 +90,15 @@ export default function DashboardLayout({
             key={n.href}
             href={n.href}
             onClick={onNavigate}
+            title={collapsed ? n.label : undefined}
             aria-current={isActive ? 'page' : undefined}
-            className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+            className={`flex items-center gap-2 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
               isActive
                 ? 'bg-brand-green text-navy-950 hover:bg-emerald-400'
                 : 'text-navy-300 hover:text-white hover:bg-brand-green/30'
-            }`}
+            } ${collapsed ? 'justify-center w-10' : 'w-full'}`}
           >
-            <span className="flex-1 truncate">{n.label}</span>
+            <span className={`flex-1 truncate ${collapsed ? 'hidden' : ''}`}>{n.label}</span>
             {typeof n.badge === 'number' && n.badge > 0 && (
               <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-navy-900/70 text-brand-green">
                 {n.badge}
@@ -108,29 +128,53 @@ export default function DashboardLayout({
 
       <div className="flex-1 lg:flex">
         {/* Desktop sidebar (fixed left) */}
-        <aside className="hidden lg:flex flex-col fixed left-0 bottom-0 top-0 w-64 border-r border-navy-700 bg-navy-900">
-        <div className="px-3 py-4 border-b border-navy-700 flex items-center justify-between">
-          <Logo onNavigate={() => setMenuOpen(false)} />
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-navy-800 text-navy-400 uppercase">
-            {roleLabel[user.role]}
-          </span>
+        <aside className={`hidden lg:flex flex-col fixed left-0 bottom-0 top-0 border-r border-navy-700 bg-navy-900 transition-[width] duration-200 ${collapsed ? 'w-16' : 'w-64'}`}>
+        <div className={`px-3 py-4 border-b border-navy-700 flex items-center ${collapsed ? 'justify-center' : 'justify-between'} gap-2`}>
+          {!collapsed && <Logo onNavigate={() => setMenuOpen(false)} />}
+          {collapsed && (
+            <span className="text-brand-green text-lg" title="Job Bidder">●</span>
+          )}
+          <button
+            onClick={toggleCollapsed}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className={`shrink-0 p-1.5 rounded-md text-navy-400 hover:text-navy-100 hover:bg-navy-800 ${collapsed ? '' : ''}`}
+          >
+            {collapsed ? <span className="text-base leading-none">»</span> : <span className="text-base leading-none">«</span>}
+          </button>
+          {!collapsed && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-navy-800 text-navy-400 uppercase">
+              {roleLabel[user.role]}
+            </span>
+          )}
         </div>
-        {actions && (
+        {actions && !collapsed && (
           <div className="p-3 border-b border-navy-700">{actions}</div>
         )}
-        <div className="p-3 flex-1 flex flex-col">
+        {actions && collapsed && (
+          <div className="py-2 flex justify-center border-b border-navy-700">{actions}</div>
+        )}
+        <div className={`p-3 flex-1 flex flex-col ${collapsed ? 'items-center px-1' : ''}`}>
           <NavLinks />
         </div>
         <div className="p-3 border-t border-navy-800">
-          <div className="px-2 pb-2 text-right">
-            <div className="text-sm text-navy-200 truncate">{user.full_name}</div>
-            <div className="text-xs text-navy-500 truncate">{user.email}</div>
-          </div>
+          {collapsed ? (
+            <div className="flex justify-center pb-2">
+              <span className="w-8 h-8 rounded-full bg-navy-800 flex items-center justify-center text-navy-200 text-xs font-semibold" title={user.full_name}>
+                {user.full_name?.charAt(0) || '?'}
+              </span>
+            </div>
+          ) : (
+            <div className="px-2 pb-2 text-right">
+              <div className="text-sm text-navy-200 truncate">{user.full_name}</div>
+              <div className="text-xs text-navy-500 truncate">{user.email}</div>
+            </div>
+          )}
           <button
             onClick={logout}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-navy-300 hover:text-white hover:bg-navy-800"
+            className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-navy-300 hover:text-white hover:bg-navy-800 ${collapsed ? 'justify-center w-10 mx-auto' : ''}`}
           >
-            <Logout /> Sign out
+            <Logout /> {!collapsed && <span>Sign out</span>}
           </button>
         </div>
       </aside>
@@ -195,7 +239,7 @@ export default function DashboardLayout({
       )}
 
       {/* Main content */}
-      <main className="flex-1 min-w-0 lg:ml-64 max-w-[1400px] w-full px-4 sm:px-6 py-4 sm:py-6">
+      <main className={`flex-1 min-w-0 ${collapsed ? 'lg:ml-16' : 'lg:ml-64'} max-w-[1400px] w-full px-4 sm:px-6 py-4 sm:py-6`}>
         {children}
       </main>
       </div>

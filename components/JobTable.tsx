@@ -47,6 +47,7 @@ const COLUMNS: Record<JobTableMode, Column[]> = {
     { key: 'board', label: 'Board' },
     { key: 'comp', label: 'Compensation' },
     { key: 'status', label: 'Status' },
+    { key: 'date', label: 'Added' },
     { key: 'actions', label: 'Actions' },
   ],
   client: [
@@ -275,6 +276,13 @@ export default function JobTable({
                   <Cell>
                     <StatusBadge status={job.status} />
                   </Cell>
+                  {mode === 'worker' && (
+                    <Cell className="text-navy-500 text-xs whitespace-nowrap">
+                      <span title={job.created_at ? new Date(job.created_at).toLocaleString() : ''}>
+                        {fmtDate(job.created_at)}
+                      </span>
+                    </Cell>
+                  )}
 
                   {mode === 'admin' && (
                     <>
@@ -431,6 +439,7 @@ function MobileJobCard({
         <span className="capitalize">{BOARD_LABELS[job.board] ?? job.board ?? '—'}</span>
         {money ? <span className="text-navy-200">{money}</span> : null}
         {job.location ? <span>{job.location}</span> : null}
+        {mode === 'worker' && <span>Added {fmtDate(job.created_at)}</span>}
       </div>
 
       {mode === 'admin' && profileName(job.profile_id) !== '—' && (

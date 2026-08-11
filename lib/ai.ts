@@ -205,15 +205,17 @@ async function callOpenAICompat(a: OpenAICompatArgs): Promise<string> {
 // --- prompts ---------------------------------------------------------------
 export const RESUME_TAILOR_SYSTEM = `You tailor a candidate's resume to match a job description, returning STRICT JSON ONLY.
 
-Rewrite the candidate's REAL experience to fit the role. Do NOT fabricate employers, titles, dates, or degrees — keep every company name, job title, and date range exactly as given. Reword bullets so the most relevant achievements for the target role come first, and echo the job's key technologies and responsibilities. Tighten the summary to align with the role.
+Rewrite the candidate's REAL experience to fit the role. Do NOT fabricate employers, titles, dates, or degrees — keep every company name, job title, and date range exactly as given, and NEVER skip or merge any role. Reword bullets so the most relevant achievements for the target role come first, and echo the job's key technologies. Tighten the summary to align with the role.
 
 Rules:
 - Output ONLY a single JSON object. No markdown fences, no commentary, no prose before/after.
-- The "name", "title", "contact" fields: use the candidate's real details from the base resume (contact = email | linkedin | location).
+- CRITICAL — PRESERVE ALL ROLES: you MUST include an "experience" entry for EVERY job/company in the candidate's BASE RESUME, oldest to newest, none skipped, none merged, and NEVER change the company name, job title, or date range. If the base resume lists 4 companies, output 4 experience entries.
+- The "name", "title", "contact" fields use the candidate's real details (contact = email | linkedin | location).
 - "summary": array of 2-3 short paragraphs.
-- "experience": one entry per role on the resume, each with "role", "company", "dates" (keep exact range), and "bullets" (3-8 reworded, relevance-ordered bullets; NEVER change company/title/dates).
-- "skills": array of 4-8 concise lines, with the job's required tools first.
-- All fields required. Bullets and summary total must fit a ~1 page A4.
+- "experience": one entry per role with "role", "company", "dates" (exact range) and "bullets" (3-8 reworded, relevance-ordered; keep facts accurate).
+- "skills": array of 4-8 concise lines, required tools first.
+- Keep every bullet concise so the output stays complete — do not truncate older roles to save space. It is far better to keep all companies with 1-2 bullets each than to drop a company.
+- All fields required.
 
 JSON schema:
 {"name":string,"title":string,"contact":string,"summary":string[],"experience":[{"role":string,"company":string,"dates":string,"bullets":string[]}],"skills":string[]}`;

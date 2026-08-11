@@ -130,6 +130,8 @@ export interface AppConfig {
   ai_model: string;
   ai_base_url: string | null;
   ai_api_key: string | null;
+  maintenance_message: string;
+  maintenance_enabled: boolean;
   updated_at: string;
 }
 

@@ -261,14 +261,43 @@ for r in all_jobs:
         if exclude_kw and any(k in hay for k in exclude_kw):
             continue  # description must NOT contain any excluded keyword
 
-    # Remove easy-apply listings (LinkedIn's one-click apply etc.) when enabled.
+    # Remove easy-apply + non-direct-apply listings when enabled.
+    #
+    # Two signals matter:
+    #  - easy_apply (bool): JobSpy tags LinkedIn/GH one-click-apply jobs. 
+    #    Falling back to string grep on title/description/url for boards that
+    #    don't set the flag (e.g. Indeed "Quick Apply").
+    #  - job_url_direct: where JobSpy gives us a dedicated direct-apply URL, we
+    #    keep the posting; where the ONLY url is a dead-end / lazy-redirect page
+    #    (LinkedIn job/view, lnkd.in, a careers-search page, a JS apply wall),
+    #    skip it because the worker can't get to an application form directly.
     if remove_easy_apply:
         _t = r.get("title")
         _d = r.get("description")
-        _u = r.get("job_url")
-        _all = f"{_t if isinstance(_t, str) else ''} {_d if isinstance(_d, str) else ''} {_u if isinstance(_u, str) else ''}".lower()
-        if any(m in _all for m in ("easy apply", "easy-apply", "easyapply", "quick apply", "quick-apply")):
+        _u = str(r.get("job_url") or "")
+        _direct = str(r.get("job_url_direct") or "")
+        _all = f"{_t if isinstance(_t, str) else ''} {_d if isinstance(_d, str) else ''} {_u}".lower()
+        # 1) native easy-apply flag OR text match
+        if r.get("easy_apply") is True:
             continue
+        if any(m in _all for m in ("easy apply", "easy-apply", "easyapply", "quick apply", "quick-apply", "one click apply", "one-click apply", "one click to apply")):
+            continue
+        # 2) Non-direct-apply URLs. This must be CONSERVATIVE: LinkedIn posts a
+        #    login-walled /jobs/view page with an in-app "Easy Apply" button that
+        #    no worker can reach directly, so drop those. Board posting URLs like
+        #    Stripe's stripe.com/jobs/search?gh_jid=… and careers.* career pages
+        #    ARE direct apply pages with a form, so they are kept. Never block a
+        #    posting that has a job_url_direct (that field is the real apply link).
+        _ut = str(_direct or _u).strip()
+        if _ut:
+            _ul = _ut.lower()
+            if (
+                _ul.startswith("https://www.linkedin.com/jobs/view")
+                or _ul.startswith("http://www.linkedin.com/jobs/view")
+                or "rin.linkedin.com/jobs/view" in _ul
+                or "lnkd.in/" in _ul
+            ) and not _direct:
+                continue
 
     # Cross-board dedup by job URL.
     # job_url can be a numpy/float NaN (truthy) rather than a string; coerce so

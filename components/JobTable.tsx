@@ -174,8 +174,18 @@ export default function JobTable({
         <div className="ml-auto text-xs text-navy-500">{filtered.length} jobs</div>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto">
+      {/* Mobile: compact card list (replaces the dense table on phones) */}
+      <div className="md:hidden divide-y divide-navy-800">
+        {filtered.length === 0 && (
+          <div className="p-6 text-center text-navy-500 text-sm">No jobs found.</div>
+        )}
+        {filtered.map((job, i) => (
+          <MobileJobCard key={job.id} job={job} index={i} mode={mode} profileName={profileName} onQuickAction={onQuickAction} />
+        ))}
+      </div>
+
+      {/* Table (desktop+) */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-navy-700">
@@ -362,5 +372,105 @@ function NewBadge() {
     <span className="inline-flex items-center rounded bg-brand-green/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-green">
       New
     </span>
+  );
+}
+
+// Compact, tappable job card for phones — replaces the dense table columns on
+// small screens. Mode-aware: shows the fields that matter for each role.
+function MobileJobCard({
+  job,
+  index,
+  mode,
+  profileName,
+  onQuickAction,
+}: {
+  job: Job;
+  index: number;
+  mode: JobTableMode;
+  profileName: (id: string) => string;
+  onQuickAction?: (job: Job, action: 'applied' | 'skipped' | 'saved') => void;
+}) {
+  const money = (() => {
+    const { compensation_min, compensation_max } = job;
+    if (!compensation_min && !compensation_max) return null;
+    const f = (n: number) => `$${(n / 1000).toFixed(0)}k`;
+    return compensation_min && compensation_max ? `${f(compensation_min)}–${f(compensation_max)}` : f((compensation_min || compensation_max)!);
+  })();
+
+  return (
+    <div className="p-3.5 space-y-2">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5">
+            {mode === 'worker' ? (
+              <a
+                href={`/worker/job/${job.id}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  // Forward to next page; mobile uses normal link so keep default except avoid full reload
+                  location.href = `/worker/job/${job.id}`;
+                }}
+                className="font-medium text-navy-100 text-[15px] leading-snug truncate"
+              >
+                {job.title || 'Untitled'}
+              </a>
+            ) : (
+              <span className="font-medium text-navy-100 text-[15px] leading-snug">{job.title || 'Untitled'}</span>
+            )}
+            {job.is_new && <NewBadge />}
+          </div>
+          <div className="text-sm text-navy-400 truncate">
+            {job.company || '—'}
+            {mode === 'admin' && job.profile_id && <span className="text-navy-500"> · #{index + 1}</span>}
+          </div>
+        </div>
+        <StatusBadge status={job.status} />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-navy-400">
+        <span className="capitalize">{BOARD_LABELS[job.board] ?? job.board ?? '—'}</span>
+        {money ? <span className="text-navy-200">{money}</span> : null}
+        {job.location ? <span>{job.location}</span> : null}
+      </div>
+
+      {mode === 'admin' && profileName(job.profile_id) !== '—' && (
+        <div className="text-xs text-navy-300">{profileName(job.profile_id)}</div>
+      )}
+
+      {mode === 'worker' && (
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <a
+            href={`/worker/job/${job.id}`}
+            onClick={(e) => { e.preventDefault(); location.href = `/worker/job/${job.id}`; }}
+            className="px-2.5 py-1 text-xs rounded-md bg-navy-800 text-navy-200 hover:bg-navy-750"
+          >
+            Tailor
+          </a>
+          {STATUS_ORDER[job.status] < STATUS_ORDER.applied && (
+            <button
+              onClick={() => onQuickAction?.(job, 'applied')}
+              className="px-2.5 py-1 text-xs rounded-md bg-emerald-600/20 text-brand-green hover:bg-emerald-600/30"
+            >
+              Mark Applied
+            </button>
+          )}
+          {job.status === 'skipped' ? (
+            <button
+              onClick={() => onQuickAction?.(job, 'saved')}
+              className="px-2 py-1 text-xs rounded-md bg-emerald-600/20 text-brand-green hover:bg-emerald-600/30"
+            >
+              Unskip
+            </button>
+          ) : (
+            <button
+              onClick={() => onQuickAction?.(job, 'skipped')}
+              className="px-2 py-1 text-xs rounded-md text-navy-400 hover:bg-navy-800"
+            >
+              Skip
+            </button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

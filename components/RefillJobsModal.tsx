@@ -59,6 +59,70 @@ export default function RefillJobsModal({
   // timeout) can cancel the request instead of leaving a dangling promise that
   // resolves later and pops a stale result/error onto the freshly reset form.
   const abortRef = useRef<AbortController | null>(null);
+  // Creative presets — local overrides on top of the server-fetched profiles so
+  // created/edited/deleted presets show immediately without a page fetch.
+  const [presetName, setPresetName] = useState('');
+  const [presetTargetId, setPresetTargetId] = useState<string>('');
+  const [localPresets, setLocalPresets] = useState<Record<string, ProfilePreset[]>>({});
+  const [presetSaving, setPresetSaving] = useState(false);
+  const [presetError, setPresetError] = useState<string | null>(null);
+
+  // Effective presets for a profile: local (edited this session) wins over server.
+  function presetsFor(p: Profile): ProfilePreset[] {
+    return localPresets[p.id] ?? p.presets ?? [];
+  }
+
+  async function savePresetTo(targetId: string, name: string) {
+    if (!name.trim() || !targetId) return;
+    const target = profiles.find((p) => p.id === targetId);
+    if (!target) return;
+    const existing = presetsFor(target);
+    const next: ProfilePreset[] = [...existing];
+    const idx = next.findIndex((x) => x.name.toLowerCase() === name.trim().toLowerCase());
+    const newPreset: ProfilePreset = {
+      id: idx >= 0 ? next[idx].id : (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)),
+      name: name.trim(),
+      search_terms: searchTerms.split(',').map((s) => s.trim()).filter(Boolean),
+      sites: sites.filter((s) => !SITE_OPTIONS.find((o) => o.site === s)?.disabled),
+      location: remoteOnly ? 'Remote' : location,
+      remote_only: remoteOnly,
+      results_wanted: Number(resultsWanted) || 100,
+    };
+    if (idx >= 0) next[idx] = newPreset; else next.push(newPreset);
+    setPresetSaving(true);
+    setPresetError(null);
+    try {
+      const res = await fetch(`/api/presets/${targetId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ presets: next }),
+      });
+      if (!res.ok) throw new Error('Failed to save preset');
+      setLocalPresets((m) => ({ ...m, [targetId]: next }));
+      setPresetName('');
+    } catch (e) {
+      setPresetError(e instanceof Error ? e.message : 'Failed to save preset');
+    } finally {
+      setPresetSaving(false);
+    }
+  }
+
+  async function deletePreset(targetId: string, presetId: string) {
+    const target = profiles.find((p) => p.id === targetId);
+    if (!target) return;
+    const next = presetsFor(target).filter((x) => x.id !== presetId);
+    try {
+      const res = await fetch(`/api/presets/${targetId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ presets: next }),
+      });
+      if (!res.ok) throw new Error('Failed to delete preset');
+      setLocalPresets((m) => ({ ...m, [targetId]: next }));
+    } catch (e) {
+      setPresetError(e instanceof Error ? e.message : 'Failed to delete preset');
+    }
+  }
 
   // Reset the form to defaults every time the modal is opened, so a fresh
   // Refill pops up clean (no stale sites/terms/result from the last run).
@@ -258,24 +322,70 @@ export default function RefillJobsModal({
           </Field>
 
           <Field label="Presets (one-click refill)">
-            <p className="text-xs text-navy-500 mb-2">Click a preset to auto-fill this profile&apos;s search terms, sites, and remote filter. Leave blank to type manually or use saved search terms.</p>
+            <p className="text-xs text-navy-500 mb-2">
+              Click a preset to auto-fill this profile&apos;s search terms, sites, and remote filter. Save the current form as a preset below so you can reuse it later.
+            </p>
             {profiles.flatMap((p) =>
-              (p.presets ?? []).map((pr) => (
-                <button
-                  key={pr.id}
-                  type="button"
-                  disabled={loading}
-                  onClick={() => {
-                    if (!profileIds.includes(p.id)) setProfileIds((ids) => [...ids, p.id]);
-                    applyPreset(pr);
-                  }}
-                  title={`${p.name}: ${pr.search_terms.length} terms`}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md bg-navy-800 text-navy-200 hover:bg-brand-green/30 hover:text-white mr-2 mb-2"
-                >
-                  <span className="text-brand-green">●</span> {p.name}: {pr.name}
-                </button>
+              presetsFor(p).map((pr) => (
+                <span key={pr.id} className="inline-flex items-center gap-1.5 mr-2 mb-2">
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() => {
+                      if (!profileIds.includes(p.id)) setProfileIds((ids) => [...ids, p.id]);
+                      applyPreset(pr);
+                    }}
+                    title={`${p.name}: ${pr.search_terms.length} terms`}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md bg-navy-800 text-navy-200 hover:bg-brand-green/30 hover:text-white"
+                  >
+                    <span className="text-brand-green">●</span> {p.name}: {pr.name}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deletePreset(p.id, pr.id)}
+                    title={`Delete preset ${pr.name}`}
+                    aria-label={`Delete preset ${pr.name}`}
+                    className="p-1 rounded text-navy-500 hover:text-red-400 hover:bg-red-500/10"
+                  >
+                    ×
+                  </button>
+                </span>
               ))
             )}
+            {/* Create / save a preset from the current form */}
+            <div className="mt-3 pt-3 border-t border-navy-800 flex flex-wrap items-end gap-2">
+              <div className="min-w-[150px] flex-1">
+                <label className="text-xs text-navy-500 block mb-1">Save current form as a preset</label>
+                <select
+                  value={presetTargetId}
+                  onChange={(e) => setPresetTargetId(e.target.value)}
+                  disabled={presetSaving}
+                  className="w-full bg-navy-950 border border-navy-700 rounded-md px-2.5 py-2 text-sm text-navy-100 focus:outline-none focus:border-brand-blue"
+                >
+                  <option value="">For which profile…</option>
+                  {profiles.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+              <input
+                value={presetName}
+                onChange={(e) => setPresetName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); savePresetTo(presetTargetId, presetName); } }}
+                placeholder="Name (e.g. Backend remote)"
+                disabled={presetSaving}
+                className="flex-1 min-w-[140px] bg-navy-950 border border-navy-700 rounded-md px-2.5 py-2 text-sm text-navy-100 focus:outline-none focus:border-brand-green"
+              />
+              <button
+                type="button"
+                disabled={presetSaving || !presetTargetId || !presetName.trim()}
+                onClick={() => savePresetTo(presetTargetId, presetName)}
+                className="px-3 py-2 text-sm rounded-md bg-brand-green text-navy-950 font-medium hover:bg-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {presetSaving ? 'Saving…' : 'Save preset'}
+              </button>
+            </div>
+            {presetError && <p className="text-xs text-red-400 mt-2">{presetError}</p>}
           </Field>
 
           <Field label="Search terms (comma-separated)">

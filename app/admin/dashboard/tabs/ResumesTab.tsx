@@ -23,6 +23,43 @@ export default function ResumesTab({ profiles, jobs }: { profiles: Profile[]; jo
         <h2 className="text-lg font-semibold text-navy-100">Resumes</h2>
       </div>
       <div className="panel overflow-hidden">
+        {/* Mobile cards */}
+        <div className="md:hidden divide-y divide-navy-800">
+          {profiles.length === 0 && <p className="p-4 text-center text-navy-500 text-sm">No clients yet.</p>}
+          {profiles.map((p) => (
+            <div key={p.id} className="p-3.5 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="font-medium text-navy-100 min-w-0">{p.name}</div>
+                <button
+                  onClick={() => setUploadFor(p)}
+                  className="shrink-0 px-2.5 py-1 text-xs rounded-md bg-navy-800 text-navy-200 hover:bg-navy-750"
+                >
+                  {p.base_resume_url ? 'Replace' : 'Upload'}
+                </button>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-navy-400">
+                {p.base_resume_url ? (
+                  <a
+                    href={`/api/files/${p.base_resume_url.split('/').filter(Boolean).join('/')}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 text-brand-blue hover:underline"
+                  >
+                    <Doc size={14} /> {p.base_resume_url.split('/').pop()}
+                  </a>
+                ) : (
+                  <span className="text-navy-500">No resume</span>
+                )}
+                <span>
+                  {p.base_resume_text ? p.base_resume_text.length.toLocaleString() : '—'} chars
+                </span>
+                <span>Tailored: {lastTailored(p.id)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+        {/* Desktop table */}
+        <div className="hidden md:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-navy-700">
@@ -67,6 +104,7 @@ export default function ResumesTab({ profiles, jobs }: { profiles: Profile[]; jo
             ))}
           </tbody>
         </table>
+        </div>
       </div>
       {uploadFor && (
         <UploadModal profile={uploadFor} onClose={() => setUploadFor(null)} />

@@ -59,5 +59,8 @@ export async function statStorage(rel: string): Promise<{ size: number; mtime: D
 // Generate a unique relative path for a new file under a logical folder.
 export function newStoragePath(folder: string, ext: string): string {
   const name = crypto.randomBytes(8).toString('hex');
-  return `${folder}/${name}${ext}`;
+  // Ensure the extension is separated by a dot so downstream code (file serving,
+  // MIME detection) can read it: pass 'pdf' or 'resume.csv' or '.pdf'.
+  const dot = ext.startsWith('.') ? '' : '.';
+  return `${folder}/${name}${dot}${ext}`;
 }

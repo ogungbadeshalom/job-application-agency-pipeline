@@ -26,6 +26,7 @@ export async function GET(_req: Request, { params }: { params: { path: string[] 
   const owner = profiles.find((p) => p.base_resume_url === rel);
 
   let ownerProfileId: string | null = owner?.id ?? null;
+  let owningJob: { company?: string | null; title?: string | null } | null = null;
 
   if (!ownerProfileId) {
     // Search jobs for a tailored-resume or proof match.
@@ -34,6 +35,7 @@ export async function GET(_req: Request, { params }: { params: { path: string[] 
       jobs.find((j) => j.tailored_resume_pdf_url === rel) ||
       jobs.find((j) => j.proof_of_submission === rel);
     ownerProfileId = job?.profile_id ?? null;
+    owningJob = job ?? null;
   }
 
   if (!ownerProfileId) {
@@ -73,12 +75,19 @@ export async function GET(_req: Request, { params }: { params: { path: string[] 
     : 'application/octet-stream';
 
   const isImage = contentType.startsWith('image/');
+  // Derive a friendly download filename from the owning job when available
+  // (tailored PDFs), so the browser saves something readable and a proper .pdf.
+  let fname = rel.split('/').pop() || 'file';
+  if (!isImage && owningJob) {
+    const base = `${owningJob.company || 'job'}-${owningJob.title || 'resume'}`.replace(/[^\w\-.]/g, '_').slice(0, 90);
+    fname = `${base}.pdf`;
+  }
   return new NextResponse(data, {
     status: 200,
     headers: {
       'Content-Type': contentType,
       'Content-Length': String(meta.size),
-      'Content-Disposition': `${isImage ? 'inline' : 'attachment'}; filename="${rel.split('/').pop()}"`,
+      'Content-Disposition': `${isImage ? 'inline' : 'attachment'}; filename="${fname}"`,
     },
   });
 }

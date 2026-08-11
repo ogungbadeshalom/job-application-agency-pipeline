@@ -56,7 +56,7 @@ export async function POST(req: Request) {
 
   let raw: string;
   try {
-    raw = await callAI(RESUME_TAILOR_SYSTEM, user, { maxTokens: 1800, temperature: 0.4 });
+    raw = await callAI(RESUME_TAILOR_SYSTEM, user, { maxTokens: 3000, temperature: 0.4 });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ error: `AI call failed: ${msg}` }, { status: 502 });

@@ -48,6 +48,7 @@ create table if not exists profiles (
   scrape_sites          text[] not null default '{}',
   scrape_results_wanted int  not null default 100,
   scrape_hours_old      int  not null default 72,
+  presets               jsonb not null default '[]'::jsonb, -- named reusable refill configs
   jobs_per_week        int  not null default 20,   -- worker's weekly quota for this client
   deleted_at            timestamptz,              -- soft-delete: hidden from lists, data kept
   created_at            timestamptz not null default now(),

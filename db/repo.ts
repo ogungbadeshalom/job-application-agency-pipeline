@@ -541,8 +541,23 @@ export const db = {
       ai_model: (row.ai_model as string) ?? 'claude-sonnet-5',
       ai_base_url: (row.ai_base_url as string) ?? null,
       ai_api_key: apiKey,
+      maintenance_message: (row.maintenance_message as string) ?? '',
+      maintenance_enabled: Boolean(row.maintenance_enabled),
       updated_at: (row.updated_at as Date).toISOString(),
     };
+  },
+  async setMaintenance(message: string, enabled: boolean): Promise<AppConfig> {
+    await one(
+      `insert into app_config (id, maintenance_message, maintenance_enabled, updated_at)
+       values (1, $1, $2, now())
+       on conflict (id) do update set
+         maintenance_message = excluded.maintenance_message,
+         maintenance_enabled = excluded.maintenance_enabled,
+         updated_at = now()
+       returning *`,
+      [message, enabled]
+    );
+    return (await this.getAppConfig())!;
   },
   async setAppConfig(input: {
     provider: AppConfig['ai_provider'];

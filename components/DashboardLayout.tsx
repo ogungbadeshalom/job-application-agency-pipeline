@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Logout, Menu, Close } from './Icon';
 import type { Role } from '@/lib/types';
 import { APP_VERSION } from '@/lib/version';
@@ -12,6 +12,25 @@ interface NavItem {
   href: string;
   label: string;
   badge?: number;
+}
+
+// Maintenance / announcement banner fetched once per mount. Rendered above the
+// content on every page when enabled, so admins can share downtime/issues.
+function MaintenanceBanner() {
+  const [msg, setMsg] = useState<{ enabled: boolean; message: string } | null>(null);
+  useEffect(() => {
+    fetch('/api/config/maintenance')
+      .then((r) => r.json().catch(() => null))
+      .then((d) => d && setMsg(d))
+      .catch(() => {});
+  }, []);
+  if (!msg || !msg.enabled || !msg.message.trim()) return null;
+  return (
+    <div className="bg-amber-500/15 border-b border-amber-500/40 text-amber-100 px-4 py-2.5 text-sm">
+      <span className="font-semibold mr-2">Notice:</span>
+      {msg.message}
+    </div>
+  );
 }
 
 export default function DashboardLayout({
@@ -82,6 +101,7 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen lg:flex">
+      <MaintenanceBanner />
       {/* Desktop sidebar (fixed left) */}
       <aside className="hidden lg:flex flex-col fixed inset-y-0 left-0 w-64 border-r border-navy-700 bg-navy-900">
         <div className="px-3 py-4 border-b border-navy-700 flex items-center justify-between">

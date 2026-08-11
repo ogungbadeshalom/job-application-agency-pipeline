@@ -19,7 +19,10 @@ export default function ClientJobsClient({
 }) {
   const [selected, setSelected] = useState<Job | null>(null);
 
-  const nav = [{ href: '/client/jobs', label: 'My Applications', badge: jobs.length }];
+  const nav = [
+    { href: '/client/jobs', label: 'My Applications', badge: jobs.length },
+    { href: '/client/history', label: 'History' },
+  ];
 
   // Proof of submission can be a stored image path (proof/<profileId>/x.png) —
   // render that as an image served via /api/files. Fall back to plain text for

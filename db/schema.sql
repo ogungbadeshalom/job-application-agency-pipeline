@@ -130,6 +130,8 @@ create table if not exists app_config (
   ai_base_url          text,
   ai_api_key_encrypted text,
   ai_api_key_nonce     text,
+  maintenance_message  text not null default '',
+  maintenance_enabled  boolean not null default false,
   updated_at           timestamptz not null default now(),
   check (id = 1)
 );

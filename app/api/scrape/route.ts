@@ -232,6 +232,7 @@ async function dedupeAndMap(
     scrape_run_id: scrapeRunId,
     created_at: now,
     updated_at: now,
+    last_viewed_at: null,
   }));
 }
 

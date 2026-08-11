@@ -97,6 +97,7 @@ create table if not exists jobs (
   proof_of_submission      text,
   notes                    text,
   scrape_run_id            uuid references scrape_runs(id) on delete set null,
+  last_viewed_at           timestamptz,
   created_at               timestamptz not null default now(),
   updated_at               timestamptz not null default now()
 );

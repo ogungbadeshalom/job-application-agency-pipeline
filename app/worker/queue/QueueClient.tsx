@@ -171,6 +171,8 @@ export default function QueueClient({
         </div>
       </div>
 
+      <ContinueBanner jobs={jobs} />
+
       <JobTable
         jobs={jobs}
         profiles={profiles}
@@ -178,5 +180,56 @@ export default function QueueClient({
         onQuickAction={quickAction}
       />
     </DashboardLayout>
+  );
+}
+
+// ---- Continue where I left off -------------------------------------------
+// The worker's most-recently-viewed (saved) job. A "Jump to my spot" button
+// scrolls the queue table to that row. Because the table renders asynchronously,
+// scrolling to the row element (not a raw offset) retries until the row exists.
+function ContinueBanner({ jobs }: { jobs: Job[] }) {
+  const viewed = jobs
+    .filter((j) => j.last_viewed_at && !['applied', 'skipped'].includes(j.status))
+    .sort((a, b) => Date.parse(b.last_viewed_at!) - Date.parse(a.last_viewed_at!));
+  const last = viewed[0];
+
+  function jump() {
+    if (!last) return;
+    const id = `job-row-${last.id}`;
+    // The table mounts asynchronously; retry until the row element exists.
+    let tries = 0;
+    const tick = () => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('ring-2', 'ring-brand-green/60');
+        setTimeout(() => el.classList.remove('ring-2', 'ring-brand-green/60'), 2200);
+      } else if (tries < 30) {
+        tries += 1;
+        requestAnimationFrame(tick);
+      }
+    };
+    tick();
+  }
+
+  if (!last) return null;
+  return (
+    <div className="panel mb-4 p-3 flex flex-wrap items-center justify-between gap-2 border-brand-green/30">
+      <div className="text-sm text-navy-200 flex items-center gap-2">
+        <span className="text-brand-green">▶</span>
+        <span>
+          Continue where you left off:{' '}
+          <span className="text-navy-100 font-medium">
+            {last.title || 'Untitled'}{last.company ? ` — ${last.company}` : ''}
+          </span>
+        </span>
+      </div>
+      <button
+        onClick={jump}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md bg-brand-green/20 text-brand-green hover:bg-brand-green/30"
+      >
+        Jump to my spot
+      </button>
+    </div>
   );
 }

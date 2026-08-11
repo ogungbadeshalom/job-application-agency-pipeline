@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import StatusBadge from '@/components/StatusBadge';
@@ -26,6 +26,13 @@ export default function JobDetailClient({
   const router = useRouter();
   const [job, setJob] = useState(initialJob);
   const [tab, setTab] = useState<Tab>('tailor');
+
+  // Mark this job as "last viewed" so the worker's queue can point them back
+  // here ("Continue where I left off"). Fire-and-forget.
+  useEffect(() => {
+    if (!initialJob.id || initialJob.status === 'applied' || initialJob.status === 'skipped') return;
+    fetch(`/api/jobs/${initialJob.id}/view`, { method: 'POST' }).catch(() => {});
+  }, [initialJob.id, initialJob.status]);
 
   // Update local state AND refresh the server tree so the queue reflect changes
   // immediately (no hard reload needed).

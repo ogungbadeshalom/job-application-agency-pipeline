@@ -152,7 +152,11 @@ export default function JobDetailClient({
           </div>
 
           {tab === 'tailor' && (
-            <TailorPanel job={job} profile={profile} onSaved={() => updateJob({ tailored_resume: 'saved' })} />
+            <TailorPanel
+              job={job}
+              profile={profile}
+              onSaved={(tailored) => updateJob({ tailored_resume: tailored })}
+            />
           )}
           {tab === 'question' && <QuestionPanel profileId={profile.id} jobId={job.id} />}
           {tab === 'submission' && (

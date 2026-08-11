@@ -285,8 +285,8 @@ async function runJobSpy(args: JobSpyArgs): Promise<ScrapeResultJob[]> {
       // indefinitely (8+ boards sequentially can exceed default limits).
       timer = setTimeout(() => {
         child.kill('SIGKILL');
-        finish(new Error(`JobSpy timed out after 150s. ${stderr.slice(0, 300)}`.trim()));
-      }, 150_000);
+        finish(new Error(`JobSpy timed out after 300s. ${stderr.slice(0, 300)}`.trim()));
+      }, 300_000);
       child.on('close', (code, signal) => {
         if (code === 0) {
           finish(null);

@@ -115,6 +115,9 @@ export default function DashboardLayout({
             {roleLabel[user.role]}
           </span>
         </div>
+        {actions && (
+          <div className="p-3 border-b border-navy-700">{actions}</div>
+        )}
         <div className="p-3 flex-1 flex flex-col">
           <NavLinks />
         </div>
@@ -137,7 +140,6 @@ export default function DashboardLayout({
         <div className="px-4 h-14 flex items-center justify-between gap-2">
           <Logo onNavigate={() => setMenuOpen(false)} />
           <div className="flex items-center gap-1.5">
-            {actions && <div className="hidden sm:block">{actions}</div>}
             <button
               onClick={logout}
               title="Sign out"
@@ -174,6 +176,9 @@ export default function DashboardLayout({
                 <Close />
               </button>
             </div>
+            {actions && (
+              <div className="p-3 border-b border-navy-700">{actions}</div>
+            )}
             <NavLinks onNavigate={() => setMenuOpen(false)} />
             <div className="p-3 border-t border-navy-800">
               <div className="px-2 py-2 text-sm text-navy-400 truncate">{user.full_name}</div>

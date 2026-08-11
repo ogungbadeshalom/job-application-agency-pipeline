@@ -14,24 +14,20 @@ interface NavItem {
   badge?: number;
 }
 
-// Maintenance / announcement banner. Rendered as a full-width fixed strip at the
-// very top (respecting the desktop sidebar + mobile header). Calls onActive with
-// whether it's showing so the layout can offset the sidebar/header below it.
-function MaintenanceBanner({ onActive }: { onActive?: (active: boolean) => void }) {
+// Maintenance / announcement banner. Rendered in normal flow at the very top of
+// the page (above the sidebar/top-bar), so everything naturally flows below it
+// with NO overlap and NO layout-shift offsets — it just pushes content down.
+function MaintenanceBanner() {
   const [msg, setMsg] = useState<{ enabled: boolean; message: string } | null>(null);
-  const active = !!msg && msg.enabled && !!msg.message.trim();
   useEffect(() => {
     fetch('/api/config/maintenance')
       .then((r) => r.json().catch(() => null))
       .then((d) => d && setMsg(d))
       .catch(() => {});
   }, []);
-  useEffect(() => {
-    onActive?.(active);
-  }, [active, onActive]);
-  if (!active) return null;
+  if (!msg || !msg.enabled || !msg.message.trim()) return null;
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500/15 border-b border-amber-500/40 text-amber-100 px-4 py-2.5 text-sm text-center">
+    <div className="w-full bg-amber-500/15 border-b border-amber-500/40 text-amber-100 px-4 py-2.5 text-sm text-center">
       <span className="font-semibold mr-2">Notice:</span>
       {msg.message}
     </div>
@@ -53,7 +49,6 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [bannerActive, setBannerActive] = useState(false);
 
   async function logout() {
     await signOut({ redirect: false });
@@ -106,10 +101,14 @@ export default function DashboardLayout({
   );
 
   return (
-    <div className="min-h-screen lg:flex">
-      <MaintenanceBanner onActive={setBannerActive} />
-      {/* Desktop sidebar (fixed left) */}
-      <aside className={`hidden lg:flex flex-col fixed left-0 bottom-0 w-64 border-r border-navy-700 bg-navy-900 ${bannerActive ? 'top-[42px]' : 'top-0'}`}>
+    <div className="min-h-screen flex flex-col">
+      {/* Full-width maintenance banner ABOVE everything — in normal flow, so it
+          simply pushes the sidebar/header/content down (no overlap, no shift). */}
+      <MaintenanceBanner />
+
+      <div className="flex-1 lg:flex">
+        {/* Desktop sidebar (fixed left) */}
+        <aside className="hidden lg:flex flex-col fixed left-0 bottom-0 top-0 w-64 border-r border-navy-700 bg-navy-900">
         <div className="px-3 py-4 border-b border-navy-700 flex items-center justify-between">
           <Logo onNavigate={() => setMenuOpen(false)} />
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-navy-800 text-navy-400 uppercase">
@@ -134,7 +133,7 @@ export default function DashboardLayout({
       </aside>
 
       {/* Mobile top bar */}
-      <header className={`lg:hidden sticky z-40 border-b border-navy-700 bg-navy-900/95 backdrop-blur ${bannerActive ? 'top-[42px]' : 'top-0'}`}>
+      <header className="lg:hidden sticky top-0 z-40 border-b border-navy-700 bg-navy-900/95 backdrop-blur">
         <div className="px-4 h-14 flex items-center justify-between gap-2">
           <Logo onNavigate={() => setMenuOpen(false)} />
           <div className="flex items-center gap-1.5">
@@ -191,9 +190,10 @@ export default function DashboardLayout({
       )}
 
       {/* Main content */}
-      <main className={`flex-1 min-w-0 lg:ml-64 max-w-[1400px] w-full px-4 sm:px-6 ${bannerActive ? 'pt-[42px] lg:pt-2' : 'pt-0'} py-4 sm:py-6`}>
+      <main className="flex-1 min-w-0 lg:ml-64 max-w-[1400px] w-full px-4 sm:px-6 py-4 sm:py-6">
         {children}
       </main>
+      </div>
     </div>
   );
 }

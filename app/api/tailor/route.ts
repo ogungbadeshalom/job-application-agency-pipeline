@@ -35,24 +35,24 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
-
-  // Trim long text so the free inference endpoint doesn't drop the request.
-  const MAX = 4000;
-  function clip(s: string): string {
-    if (!s) return s;
-    return s.length > MAX ? s.slice(0, MAX) + '\n…' : s;
+  // Build the prompt. The BASE RESUME is the critical input — it must not be
+  // truncated or the model will drop/invent employers. So the JD is clipped if
+  // needed, but the resume is always sent whole. (The AI call has retries, so a
+  // slightly larger payload is acceptable; a truncated resume causes HALLUCINATED
+  // company names — far worse.)
+  function cap(s: string, n: number): string {
+    return s && s.length > n ? s.slice(0, n) + '\n…' : s;
   }
-  const user = clip(
-    [
-      'JOB DESCRIPTION:',
-      job.description || '(no description available)',
-      '',
-      'TITLE:', job.title,
-      '',
-      'BASE RESUME:',
-      profile.base_resume_text,
-    ].join('\n')
-  );
+  const jdInline = cap(job.description || '(no description available)', 4000);
+  const user = [
+    'JOB DESCRIPTION:',
+    jdInline,
+    '',
+    'TITLE:', job.title,
+    '',
+    'BASE RESUME:',
+    profile.base_resume_text,
+  ].join('\n');
 
   let raw: string;
   try {

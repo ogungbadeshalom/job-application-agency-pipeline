@@ -102,6 +102,7 @@ function mapJob(r: Record<string, unknown>): Job {
     scrape_run_id: (r.scrape_run_id as string) ?? null,
     created_at: (r.created_at as Date).toISOString(),
     updated_at: (r.updated_at as Date).toISOString(),
+    last_viewed_at: r.last_viewed_at ? (r.last_viewed_at as Date).toISOString() : null,
     is_new: isNewJob(r.created_at),
   };
 }
@@ -384,6 +385,7 @@ export const db = {
       submitted_at: 'submitted_at',
       proof_of_submission: 'proof_of_submission',
       notes: 'notes',
+      last_viewed_at: 'last_viewed_at',
     };
     const sets: string[] = [];
     const params: unknown[] = [];
@@ -405,6 +407,9 @@ export const db = {
       params
     );
     return row ? mapJob(row) : null;
+  },
+  async markJobViewed(id: string): Promise<void> {
+    await query('update jobs set last_viewed_at = now() where id = $1', [id]);
   },
   async createJobs(input: Job[]): Promise<Job[]> {
     const created: Job[] = [];

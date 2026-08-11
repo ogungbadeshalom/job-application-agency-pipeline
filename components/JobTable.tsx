@@ -200,7 +200,7 @@ export default function JobTable({
             {filtered.map((job, i) => {
               const jobHref = mode === 'worker' ? `/worker/job/${job.id}` : undefined;
               return (
-                <tr key={job.id} className="border-b border-navy-800 row-hover">
+                <tr key={job.id} id={`job-row-${job.id}`} className="border-b border-navy-800 row-hover">
                   <Cell>{i + 1}</Cell>
                   {mode === 'admin' && (
                     <Cell>

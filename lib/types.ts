@@ -57,6 +57,7 @@ export interface Job {
   scrape_run_id: string | null;
   created_at: string;
   updated_at: string;
+  last_viewed_at: string | null;
   is_new?: boolean;
 }
 

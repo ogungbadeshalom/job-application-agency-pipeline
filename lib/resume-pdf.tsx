@@ -29,7 +29,7 @@ export interface ResumeData {
 const styles = StyleSheet.create({
   page: { paddingTop: 36, paddingBottom: 36, paddingLeft: 40, paddingRight: 40, fontFamily: 'Helvetica', fontSize: 10, lineHeight: 1.4 },
   header: { textAlign: 'center', marginBottom: 16 },
-  name: { fontSize: 24, textAlign: 'center', fontFamily: 'Helvetica-Bold', marginBottom: 2 },
+  name: { fontSize: 24, textAlign: 'center', fontFamily: 'Helvetica-Bold', marginBottom: 6, lineHeight: 1.1 },
   title: { fontSize: 13, textAlign: 'center', color: '#2a5f8f', marginBottom: 5, fontFamily: 'Helvetica-Bold' },
   contact: { fontSize: 9, textAlign: 'center', color: '#444', marginBottom: 0 },
   headerRule: { borderBottomWidth: 1.5, borderBottomColor: '#2a5f8f', marginTop: 14, marginBottom: 14 },

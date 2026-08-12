@@ -398,6 +398,15 @@ function MobileJobCard({
   profileName: (id: string) => string;
   onQuickAction?: (job: Job, action: 'applied' | 'skipped' | 'saved') => void;
 }) {
+  const router = useRouter();
+  // Soft client-side navigation (same as the desktop table) so tapping a job
+  // on mobile doesn't trigger a full page reload. A reload defeats the queue's
+  // scroll-preservation (sessionStorage restore) and re-fetches the whole app
+  // shell — slow over the tunnel. scroll:false keeps the queue's scroll
+  // position so a Back returns where the worker left off.
+  function openJob(href: string) {
+    router.push(href, { scroll: false });
+  }
   const money = (() => {
     const { compensation_min, compensation_max } = job;
     if (!compensation_min && !compensation_max) return null;
@@ -415,8 +424,7 @@ function MobileJobCard({
                 href={`/worker/job/${job.id}`}
                 onClick={(e) => {
                   e.preventDefault();
-                  // Forward to next page; mobile uses normal link so keep default except avoid full reload
-                  location.href = `/worker/job/${job.id}`;
+                  openJob(`/worker/job/${job.id}`);
                 }}
                 className="font-medium text-navy-100 text-[15px] leading-snug truncate"
               >
@@ -450,7 +458,7 @@ function MobileJobCard({
         <div className="flex flex-wrap items-center gap-2 pt-1">
           <a
             href={`/worker/job/${job.id}`}
-            onClick={(e) => { e.preventDefault(); location.href = `/worker/job/${job.id}`; }}
+            onClick={(e) => { e.preventDefault(); openJob(`/worker/job/${job.id}`); }}
             className="px-2.5 py-1 text-xs rounded-md bg-navy-800 text-navy-200 hover:bg-navy-750"
           >
             Tailor

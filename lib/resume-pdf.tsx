@@ -27,36 +27,41 @@ export interface ResumeData {
 }
 
 const styles = StyleSheet.create({
-  page: { padding: 32, fontFamily: 'Helvetica', fontSize: 10, lineHeight: 1.35 },
-  name: { fontSize: 22, textAlign: 'center', fontFamily: 'Helvetica-Bold', marginBottom: 3 },
-  title: { fontSize: 12, textAlign: 'center', color: '#2a5f8f', marginBottom: 2, fontFamily: 'Helvetica-Bold' },
-  contact: { fontSize: 8.5, textAlign: 'center', color: '#666', marginBottom: 14 },
+  page: { paddingTop: 36, paddingBottom: 36, paddingLeft: 40, paddingRight: 40, fontFamily: 'Helvetica', fontSize: 10, lineHeight: 1.4 },
+  header: { textAlign: 'center', marginBottom: 16 },
+  name: { fontSize: 24, textAlign: 'center', fontFamily: 'Helvetica-Bold', marginBottom: 2 },
+  title: { fontSize: 13, textAlign: 'center', color: '#2a5f8f', marginBottom: 5, fontFamily: 'Helvetica-Bold' },
+  contact: { fontSize: 9, textAlign: 'center', color: '#444', marginBottom: 0 },
+  headerRule: { borderBottomWidth: 1.5, borderBottomColor: '#2a5f8f', marginTop: 14, marginBottom: 14 },
   sectionT: {
     fontSize: 11, color: '#2a5f8f', fontWeight: 'bold',
     borderBottomWidth: 1, borderBottomColor: '#cbd5e1',
-    marginBottom: 6, paddingBottom: 3, marginTop: 8,
+    marginBottom: 7, paddingBottom: 3, marginTop: 12,
   },
-  summary: { fontSize: 10, marginBottom: 6, textAlign: 'justify' },
+  summary: { fontSize: 10, marginBottom: 7, textAlign: 'left', lineHeight: 1.4 },
+  expBlock: { marginBottom: 12 },
   roleRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 1 },
   roleText: { fontSize: 11, fontWeight: 'bold' },
   company: { fontSize: 10, color: '#333', fontStyle: 'italic', fontWeight: 'bold' },
   dates: { fontSize: 9, color: '#666' },
-  bullet: { flexDirection: 'row', marginBottom: 3 },
-  bulletDot: { width: 11, fontSize: 10 },
+  bullet: { flexDirection: 'row', marginBottom: 3, paddingLeft: 11 },
+  bulletDot: { width: 8, fontSize: 10, marginLeft: -11 },
   bulletText: { flex: 1, fontSize: 9.6, textAlign: 'justify' },
-  expBlock: { marginBottom: 9 },
-  skillRow: { flexDirection: 'row', marginBottom: 2 },
-  skillDot: { width: 11, fontSize: 10 },
-  skills: { fontSize: 9.6 },
+  skillRow: { flexDirection: 'row', marginBottom: 3, paddingLeft: 11 },
+  skillDot: { width: 8, fontSize: 10, marginLeft: -11 },
+  skills: { flex: 1, fontSize: 9.6 },
 });
 
 function ResumeDoc({ d }: { d: ResumeData }) {
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        <Text style={styles.name}>{d.name || ''}</Text>
-        <Text style={styles.title}>{d.title || ''}</Text>
-        <Text style={styles.contact}>{d.contact || ''}</Text>
+        <View style={styles.header}>
+          <Text style={styles.name}>{d.name || ''}</Text>
+          <Text style={styles.title}>{d.title || ''}</Text>
+          <Text style={styles.contact}>{d.contact || ''}</Text>
+        </View>
+        <View style={styles.headerRule} />
 
         <Text style={styles.sectionT}>Summary</Text>
         {(d.summary || []).map((p, i) => (

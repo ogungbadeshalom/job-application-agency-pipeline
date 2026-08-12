@@ -117,6 +117,13 @@ for term in search_terms:
         continue
     term_ok = 0
     for site in sites:
+        # Hard-skip boards that are unusable from this server at the transport
+        # level. zip_recruiter's TLS cert is invalid here (x509 unknown
+        # authority) which, even inside the per-site try/except, can surface as
+        # a fatal "JobSpy exited 1 ... jobs_found=0" and abort the whole batch.
+        if site in ("zip_recruiter",):
+            print(f"[warn] {term} / {site}: board blacklisted (TLS unusable)", file=sys.stderr)
+            continue
         def _deadline(_signum, _frame):
             raise TimeoutError(f"site '{site}' exceeded {SITE_TIMEOUT_S}s")
         _has_alarm = hasattr(_signal, "SIGALRM") and hasattr(_signal, "setitimer")

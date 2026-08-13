@@ -374,10 +374,12 @@ function Cell({ children, className = '' }: { children: React.ReactNode; classNa
   return <td className={`px-3 py-2.5 align-middle ${className}`}>{children}</td>;
 }
 
-// Small green "NEW" pill next to freshly-scraped job titles.
+// Small green "NEW" pill next to freshly-scraped job titles (with a live accent
+// dot on first appearance, per DESIGN.md).
 function NewBadge() {
   return (
-    <span className="inline-flex items-center rounded bg-brand-green/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-green">
+    <span className="inline-flex items-center gap-1 rounded-full border border-brand-green/30 bg-brand-green/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-green">
+      <span className="new-pulse h-1.5 w-1.5 rounded-full bg-brand-green" aria-hidden="true" />
       New
     </span>
   );

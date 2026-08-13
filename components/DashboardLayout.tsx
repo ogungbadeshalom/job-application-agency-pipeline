@@ -92,10 +92,10 @@ export default function DashboardLayout({
             onClick={onNavigate}
             title={collapsed ? n.label : undefined}
             aria-current={isActive ? 'page' : undefined}
-            className={`flex items-center gap-2 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+            className={`flex items-center gap-2 px-3 py-2.5 rounded-md text-sm font-medium transition-colors border-l-2 ${
               isActive
-                ? 'bg-brand-green text-navy-950 hover:bg-emerald-400'
-                : 'text-navy-300 hover:text-white hover:bg-brand-green/30'
+                ? 'bg-brand-green/10 text-white border-brand-green'
+                : 'border-transparent text-navy-300 hover:text-white hover:bg-brand-green/5'
             } ${collapsed ? 'justify-center w-10' : 'w-full'}`}
           >
             <span className={`flex-1 truncate ${collapsed ? 'hidden' : ''}`}>{n.label}</span>

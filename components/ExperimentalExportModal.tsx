@@ -13,6 +13,7 @@ export const EXP_SITES = [
   { name: 'RemoteOK', site: 'remoteok' },
   { name: 'Indeed', site: 'indeed' },
   { name: 'LinkedIn', site: 'linkedin' },
+  { name: 'HiringCafe', site: 'hiringcafe' },
   { name: 'Jobicy', site: 'jobicy' },
 ];
 
@@ -36,7 +37,10 @@ export default function ExperimentalExportModal({
   onClose: () => void;
   profiles: Profile[];
 }) {
-  const [sites, setSites] = useState<string[]>(EXP_SITES.map((s) => s.site));
+  // hiringcafe stays opt-in (not default) — it launches a heavy headless browser
+  const [sites, setSites] = useState<string[]>(
+    EXP_SITES.filter((s) => s.site !== 'hiringcafe').map((s) => s.site)
+  );
   const [searchTerms, setSearchTerms] = useState('');
   const [remoteOnly, setRemoteOnly] = useState(true);
   const [results, setResults] = useState('50');

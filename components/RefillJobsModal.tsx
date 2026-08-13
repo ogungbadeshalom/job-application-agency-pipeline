@@ -25,7 +25,7 @@ export const SITE_OPTIONS: { name: string; site: string; disabled?: boolean; not
   { name: 'Remotive', site: 'remotive' },
   { name: 'WorkingNomads', site: 'workingnomads' },
   { name: 'Jobicy', site: 'jobicy', note: 'remote-only aggregator' },
-  { name: 'HiringCafe', site: 'hiringcafe', disabled: true, note: 'needs headless browser' },
+  { name: 'HiringCafe', site: 'hiringcafe', note: 'opt-in, uses headless browser (slow)' },
   { name: 'Glassdoor', site: 'glassdoor', disabled: true, note: 'currently unavailable' },
   { name: 'ZipRecruiter', site: 'zip_recruiter', disabled: true, note: 'currently unavailable' },
 ];

@@ -13,6 +13,7 @@ import json
 import sys
 import datetime
 import urllib.request
+import os as _os
 
 _TIMEOUT = 12
 _UA = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124 Safari/537.36"}
@@ -67,11 +68,60 @@ def scrape_jobicy(term: str, old_days: int) -> list:
 
 
 def scrape_hiringcafe(term: str, old_days: int) -> list:
-    """HiringCafe stores its feed behind client-side JS / a protected API — no
-    clean server-accessible JSON. Refuse politely so the caller treats it as 0
-    jobs rather than a broken scrape."""
-    print("[warn] hiringcafe: unsupported (Next.js client-side feed; needs headless browser)", file=sys.stderr)
-    return []
+    """HiringCafe is a client-side Next.js feed with no public API — the only way
+    to scrape it is a real (headless) browser. Drive the system Chromium via the
+    dedicated Playwright scraper as an ISOLATED subprocess so the heavy ~400MB
+    browser never blocks or OOMs the main HTTP pipeline. Runs only when the user
+    explicitly selects 'hiringcafe' as a site (it's opt-in, not in defaults)."""
+    import subprocess as _sp
+    script = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)),
+                           "scrape_hiringcafe_scraper.py")
+    if not _os.path.exists(script):
+        print("[warn] hiringcafe: scraper script missing", file=sys.stderr)
+        return []
+    try:
+        r = _sp.run(
+            ["python3", script, term, "--remote-only", "--max", "15"],
+            capture_output=True, text=True, timeout=150,
+            cwd=_os.path.dirname(_os.path.abspath(__file__)),
+        )
+    except Exception as e:
+        print(f"[warn] hiringcafe: {e}", file=sys.stderr)
+        return []
+    # parse JSON array from the script's stdout (it prints a JSON array then a
+    # [debug] line on stderr)
+    import json as _json
+    txt = r.stdout
+    start = txt.find("[")
+    end = txt.rfind("]")
+    if start == -1 or end == -1 or end <= start:
+        print(f"[warn] hiringcafe: no parseable output ({r.returncode})", file=sys.stderr)
+        return []
+    try:
+        jobs = _json.loads(txt[start:end + 1])
+    except Exception as e:
+        print(f"[warn] hiringcafe: json err {e}", file=sys.stderr)
+        return []
+    # normalize + skip the stray header entry
+    records = []
+    for j in jobs:
+        title = (j.get("title") or "").strip()
+        if title.lower() in ("hiringcafe", "remote role", "full time") or not title:
+            continue
+        records.append({
+            "title": title,
+            "company": (j.get("company") or "").strip(),
+            "site": "hiringcafe",
+            "job_url": "",
+            "location": (j.get("location") or "").strip() or "Remote",
+            "description": (j.get("description") or "").strip()[:4000],
+            "date_posted": None,
+            "is_remote": bool(j.get("is_remote")),
+            "is_expired": False,
+            "is_easy_apply": False,
+        })
+    print(f"[ok] hiringcafe: {len(records)} remote jobs for '{term}'", file=sys.stderr)
+    return records
 
 
 BOARDS = {"jobicy": scrape_jobicy, "hiringcafe": scrape_hiringcafe}

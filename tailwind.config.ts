@@ -35,8 +35,15 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ['system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
-        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+        sans: ['var(--font-geist-sans)', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-geist-mono)', 'ui-monospace', 'Menlo', 'monospace'],
+      },
+      boxShadow: {
+        panel: '0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.24)',
+        'panel-accent': '0 8px 28px -8px rgba(63,185,80,0.18)',
+      },
+      transitionTimingFunction: {
+        'out-quart': 'cubic-bezier(0.25, 1, 0.5, 1)',
       },
     },
   },

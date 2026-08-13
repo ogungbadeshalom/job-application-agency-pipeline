@@ -12,6 +12,7 @@ export const EXP_SITES = [
   { name: 'WorkingNomads', site: 'workingnomads' },
   { name: 'RemoteOK', site: 'remoteok' },
   { name: 'Indeed', site: 'indeed' },
+  { name: 'LinkedIn', site: 'linkedin' },
   { name: 'Jobicy', site: 'jobicy' },
 ];
 

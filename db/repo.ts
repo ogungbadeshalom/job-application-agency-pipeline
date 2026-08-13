@@ -392,6 +392,28 @@ export const db = {
       skipped: (row?.skipped as number) ?? 0,
     };
   },
+  // Per-client weekly stats for a worker's assigned profiles (current ISO
+  // week Mon-Sun). Returns a map keyed by profile_id so the queue's client
+  // switcher can show each client's own applied/skipped for the week.
+  async getWorkerWeeklyStatsByClient(
+    profileIds: string[],
+    weekStart: Date
+  ): Promise<Record<string, { applied: number; skipped: number }>> {
+    const rows = await all(
+      `select profile_id,
+              count(*) filter (where status = 'applied') ::int as applied,
+              count(*) filter (where status = 'skipped') ::int as skipped
+         from jobs
+        where profile_id = ANY($1::uuid[]) and updated_at >= $2
+        group by profile_id`,
+      [profileIds, weekStart.toISOString()]
+    );
+    const out: Record<string, { applied: number; skipped: number }> = {};
+    for (const r of rows as { profile_id: string; applied: number; skipped: number }[]) {
+      out[r.profile_id] = { applied: r.applied ?? 0, skipped: r.skipped ?? 0 };
+    }
+    return out;
+  },
   async createProfile(input: Partial<Profile>): Promise<Profile> {
     const row = await one(
       `insert into profiles

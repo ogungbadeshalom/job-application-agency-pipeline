@@ -17,6 +17,7 @@ export default function QueueClient({
   quota,
   weeklyApplied,
   weeklySkipped,
+  clientStats,
 }: {
   user: User;
   nav: { href: string; label: string; badge?: number }[];
@@ -26,6 +27,9 @@ export default function QueueClient({
   quota: number;
   weeklyApplied: number;
   weeklySkipped: number;
+  /** Per-client weekly stats (applied/skipped/quota) so the switcher can show
+   *  the selected client's numbers. Optional for backward compat. */
+  clientStats?: Record<string, { applied: number; skipped: number; quota: number }>;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -38,6 +42,17 @@ export default function QueueClient({
   function requestJump(jobId: string) {
     setPendingJump({ id: jobId, n: Date.now() });
   }
+
+  const filteredJobs = clientId === 'all'
+    ? jobs
+    : jobs.filter((j) => j.profile_id === clientId);
+
+  // Weekly cards follow the switcher: 'all' shows the aggregate, a specific
+  // client shows that client's own applied/skipped/quota for the week.
+  const selected = clientStats?.[clientId];
+  const cardQuota = selected ? selected.quota : quota;
+  const cardApplied = selected ? selected.applied : weeklyApplied;
+  const cardSkipped = selected ? selected.skipped : weeklySkipped;
 
   // ---- Scroll preservation across queue <-> job navigation ----
   // Next.js App Router resets scroll to top on navigation BEFORE the queue
@@ -128,10 +143,6 @@ export default function QueueClient({
     router.refresh();
   }
 
-  const filteredJobs = clientId === 'all'
-    ? jobs
-    : jobs.filter((j) => j.profile_id === clientId);
-
   return (
     <DashboardLayout user={user} nav={nav} active="/worker/queue">
       <div className="mb-4">
@@ -183,33 +194,36 @@ export default function QueueClient({
         </div>
       </div>
 
-      {/* Weekly quota banner */}
+      {/* Weekly quota banner — reflects the selected client (or all) */}
       <div className="panel p-4 mb-4 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <div>
-          <div className="th-uppercase">Applied this week</div>
-          <div className={`text-2xl font-semibold ${weeklyApplied >= quota ? 'text-brand-green' : 'text-navy-100'}`}>
-            {weeklyApplied}
+          <div className="th-uppercase">
+            Applied this week
+            {clientId !== 'all' && <span className="text-navy-500"> · {clientProfiles?.find((p) => p.id === clientId)?.name}</span>}
+          </div>
+          <div className={`text-2xl font-semibold ${cardApplied >= cardQuota ? 'text-brand-green' : 'text-navy-100'}`}>
+            {cardApplied}
           </div>
         </div>
         <div>
           <div className="th-uppercase">Weekly quota</div>
-          <div className="text-2xl font-semibold text-navy-100">{quota}</div>
+          <div className="text-2xl font-semibold text-navy-100">{cardQuota}</div>
         </div>
         <div>
           <div className="th-uppercase">Skipped this week</div>
-          <div className="text-2xl font-semibold text-navy-300">{weeklySkipped}</div>
+          <div className="text-2xl font-semibold text-navy-300">{cardSkipped}</div>
         </div>
         <div className="col-span-3">
           <div className="h-2 rounded-full bg-navy-800 overflow-hidden">
             <div
               className={`h-full transition-all ${
-                weeklyApplied >= quota ? 'bg-brand-green' : 'bg-brand-blue'
+                cardApplied >= cardQuota ? 'bg-brand-green' : 'bg-brand-blue'
               }`}
-              style={{ width: `${Math.min(100, (weeklyApplied / Math.max(1, quota)) * 100)}%` }}
+              style={{ width: `${Math.min(100, (cardApplied / Math.max(1, cardQuota)) * 100)}%` }}
             />
           </div>
           <p className="text-xs text-navy-500 mt-1">
-            {weeklyApplied} of {quota} this week (Mon–Sun)
+            {cardApplied} of {cardQuota} this week (Mon–Sun)
           </p>
         </div>
       </div>

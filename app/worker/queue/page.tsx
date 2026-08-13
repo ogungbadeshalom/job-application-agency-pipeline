@@ -28,8 +28,17 @@ export default async function WorkerQueuePage() {
   const profileIds = profiles.map((p) => p.id);
   const jobs = await db.listJobs({ profile_ids: profileIds });
   const allProfiles = await db.listProfiles();
-  // weekly stats across ALL the worker's clients
-  const weeklyStats = await db.getWorkerWeeklyStats(profileIds, weekStart());
+  // weekly stats across ALL the worker's clients + broken down per client, so
+  // the queue's client switcher can show each client's own applied/skipped.
+  const wkStart = weekStart();
+  const weeklyStats = await db.getWorkerWeeklyStats(profileIds, wkStart);
+  const byClient = await db.getWorkerWeeklyStatsByClient(profileIds, wkStart);
+  const clientStats: Record<string, { applied: number; skipped: number; quota: number }> = {};
+  for (const p of profiles) {
+    const s = byClient[p.id] ?? { applied: 0, skipped: 0 };
+    clientStats[p.id] = { applied: s.applied, skipped: s.skipped, quota: p.jobs_per_week || 20 };
+  }
+  const allQuota = profiles.reduce((sum, p) => sum + (p.jobs_per_week || 20), 0);
 
   const nav = [
     { href: '/worker/queue', label: 'Queue', badge: jobs.filter((j) => j.status === 'saved').length },
@@ -43,9 +52,10 @@ export default async function WorkerQueuePage() {
       jobs={jobs}
       profiles={allProfiles}
       clientProfiles={profiles}
-      quota={profiles.reduce((sum, p) => sum + (p.jobs_per_week || 20), 0)}
+      quota={allQuota}
       weeklyApplied={weeklyStats.applied}
       weeklySkipped={weeklyStats.skipped}
+      clientStats={clientStats}
     />
   );
 }

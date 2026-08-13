@@ -86,10 +86,10 @@ export default function DashboardLayout({
 
   const Logo = ({ onNavigate }: { onNavigate?: () => void }) => (
     <Link href={active} onClick={onNavigate} className="flex items-center gap-2 px-2 min-w-0">
-      <span className="text-brand-green text-lg">●</span>
-      <span className="font-semibold tracking-tight truncate">Job Bidder</span>
-      <span className="text-xs px-1.5 py-0.5 rounded bg-brand-blue/15 text-brand-blue font-mono">
-        v{APP_VERSION}
+      <span className="text-brand-green text-lg shrink-0">●</span>
+      <span className="min-w-0 leading-tight">
+        <span className="font-semibold tracking-tight block leading-snug">Job Bidder</span>
+        <span className="block text-[10px] font-mono text-brand-blue/80">v{APP_VERSION}</span>
       </span>
     </Link>
   );

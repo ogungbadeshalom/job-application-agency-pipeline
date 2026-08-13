@@ -4,6 +4,7 @@ import { useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import JobTable from '@/components/JobTable';
 import RefillJobsModal from '@/components/RefillJobsModal';
+import ExperimentalExportModal from '@/components/ExperimentalExportModal';
 import { Refresh } from '@/components/Icon';
 import type { Job, Profile, ScrapeRun, User } from '@/lib/types';
 import { useJobs } from './hooks/useJobs';
@@ -30,6 +31,7 @@ export default function DashboardClient({
 }) {
   const [tab, setTab] = useState<Tab>('applications');
   const [refillOpen, setRefillOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const { jobs, refresh } = useJobs(initialJobs);
 
   const tabs: { key: Tab; label: string; count?: number }[] = [
@@ -45,12 +47,21 @@ export default function DashboardClient({
       nav={nav}
       active="/admin/dashboard"
       actions={
-        <button
-          onClick={() => setRefillOpen(true)}
-          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md bg-brand-greenDark text-white hover:bg-emerald-700"
-        >
-          <Refresh size={15} /> Refill Jobs
-        </button>
+        <>
+          <button
+            onClick={() => setRefillOpen(true)}
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md bg-brand-greenDark text-white hover:bg-emerald-700"
+          >
+            <Refresh size={15} /> Refill Jobs
+          </button>
+          <button
+            onClick={() => setExportOpen(true)}
+            title="Experimental — scrape jobs to a spreadsheet (no queue changes)"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md bg-amber-500/15 text-amber-200 border border-amber-500/30 hover:bg-amber-500/25"
+          >
+            ⬇ Experimental
+          </button>
+        </>
       }
     >
       {/* Tabs */}
@@ -91,6 +102,12 @@ export default function DashboardClient({
         onClose={() => setRefillOpen(false)}
         profiles={profiles}
         onDone={refresh}
+      />
+
+      <ExperimentalExportModal
+        open={exportOpen}
+        onClose={() => setExportOpen(false)}
+        profiles={profiles}
       />
     </DashboardLayout>
   );

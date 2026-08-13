@@ -6,8 +6,9 @@ async function assertWorkerOwns(
   workerId: string,
   profileId: string
 ): Promise<boolean> {
-  const profile = await db.getProfileByWorker(workerId);
-  return !!profile && profile.id === profileId;
+  // Multi-client: a worker may access snippets for ANY client in their
+  // assigned set (worker_clients), not just the primary profile.
+  return db.workerHasClient(workerId, profileId);
 }
 
 // GET /api/snippets?profile_id=…  (worker/admin only — clients have no access)

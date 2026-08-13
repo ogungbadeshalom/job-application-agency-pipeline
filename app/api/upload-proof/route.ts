@@ -15,6 +15,13 @@ import { parseMultipart } from '@/lib/multipart';
 const MAX_PROOF_BYTES = 15 * 1024 * 1024; // 15MB — screenshots are small
 
 export async function POST(req: Request) {
+  // Authorize BEFORE parsing/buffering the body (prevents an unauthenticated
+  // memory DoS). The job-scoped worker check stays below once we know job_id.
+  const session = await getSession();
+  if (!session || !['admin', 'worker'].includes(session.user.role)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const ctype = req.headers.get('content-type') || '';
   const boundary = ctype.match(/boundary="?([^";]+)"?/)?.[1];
   if (!boundary) {
@@ -64,11 +71,6 @@ export async function POST(req: Request) {
   };
   const normType = file.type.toLowerCase();
   const ext = IMAGE_EXT[normType] ?? 'png'; // unknown image/* falls back to png
-
-  const session = await getSession();
-  if (!session || !['admin', 'worker'].includes(session.user.role)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
 
   const job = await db.getJob(jobId);
   if (!job) return NextResponse.json({ error: 'Job not found' }, { status: 404 });

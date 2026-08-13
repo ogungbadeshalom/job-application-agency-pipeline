@@ -40,3 +40,6 @@ Thumbs.db
 
 # uploaded files / local storage
 /data/
+
+# hermes internal (plans / scratch)
+/.hermes/

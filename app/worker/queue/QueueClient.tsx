@@ -30,6 +30,14 @@ export default function QueueClient({
   const router = useRouter();
   const pathname = usePathname();
   const [clientId, setClientId] = useState('all');
+  // Pagination-aware "Jump to my spot": {id, nonce} handed to JobTable, which
+  // navigates to the job's page and scrolls to the row. A fresh nonce per click
+  // ensures repeat clicks on the same job re-trigger the effect.
+  const [pendingJump, setPendingJump] = useState<{ id: string; n: number } | null>(null);
+
+  function requestJump(jobId: string) {
+    setPendingJump({ id: jobId, n: Date.now() });
+  }
 
   // ---- Scroll preservation across queue <-> job navigation ----
   // Next.js App Router resets scroll to top on navigation BEFORE the queue
@@ -206,13 +214,15 @@ export default function QueueClient({
         </div>
       </div>
 
-      <ContinueBanner jobs={jobs} />
+      <ContinueBanner jobs={filteredJobs} onJump={requestJump} />
 
       <JobTable
-        jobs={jobs}
+        jobs={filteredJobs}
         profiles={profiles}
         mode="worker"
         onQuickAction={quickAction}
+        gotoJobId={pendingJump?.id}
+        gotoJobNonce={pendingJump?.n ?? 0}
       />
     </DashboardLayout>
   );
@@ -220,32 +230,13 @@ export default function QueueClient({
 
 // ---- Continue where I left off -------------------------------------------
 // The worker's most-recently-viewed (saved) job. A "Jump to my spot" button
-// scrolls the queue table to that row. Because the table renders asynchronously,
-// scrolling to the row element (not a raw offset) retries until the row exists.
-function ContinueBanner({ jobs }: { jobs: Job[] }) {
+// tells the parent + JobTable to scroll the queue to that row — JobTable owns
+// the scroll because pagination may need to flip to the job's page first.
+function ContinueBanner({ jobs, onJump }: { jobs: Job[]; onJump: (jobId: string) => void }) {
   const viewed = jobs
     .filter((j) => j.last_viewed_at && !['applied', 'skipped'].includes(j.status))
     .sort((a, b) => Date.parse(b.last_viewed_at!) - Date.parse(a.last_viewed_at!));
   const last = viewed[0];
-
-  function jump() {
-    if (!last) return;
-    const id = `job-row-${last.id}`;
-    // The table mounts asynchronously; retry until the row element exists.
-    let tries = 0;
-    const tick = () => {
-      const el = document.getElementById(id);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        el.classList.add('ring-2', 'ring-brand-green/60');
-        setTimeout(() => el.classList.remove('ring-2', 'ring-brand-green/60'), 2200);
-      } else if (tries < 30) {
-        tries += 1;
-        requestAnimationFrame(tick);
-      }
-    };
-    tick();
-  }
 
   if (!last) return null;
   return (
@@ -260,7 +251,7 @@ function ContinueBanner({ jobs }: { jobs: Job[] }) {
         </span>
       </div>
       <button
-        onClick={jump}
+        onClick={() => onJump(last.id)}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md bg-brand-green/20 text-brand-green hover:bg-brand-green/30"
       >
         Jump to my spot

@@ -27,11 +27,21 @@ export async function getSession(): Promise<{ user: User } | null> {
 }
 
 // Hydrate a full user record (role + profile) from the session.
+// This is the single chokepoint every page guard (requireRole) and API guard
+// (getSession) resolves the JWT through. Because Auth.js uses stateless JWT
+// sessions, a disabled user's cookie stays valid even after an admin soft-
+// disables them — so we must null the user HERE the moment `disabled_at` is
+// set. Otherwise a disabled user keeps full access (role rides on the JWT)
+// until the cookie expires, defeating the soft-disable.
 export async function currentUser(): Promise<User | null> {
   const session = await auth();
   const sessionUser = session?.user as { id?: string } | undefined;
   if (!sessionUser?.id) return null;
-  return db.getUser(sessionUser.id);
+  const user = await db.getUser(sessionUser.id);
+  // A disabled user is treated as signed out: force a fresh login. This makes
+  // soft-disable take effect immediately across every page + API route.
+  if (user?.disabled_at) return null;
+  return user;
 }
 
 // Gate a server component / route. Returns the hydrated user on success.

@@ -13,7 +13,11 @@ function weekStart(): Date {
   return monday;
 }
 
-export default async function WorkerQueuePage() {
+export default async function WorkerQueuePage({
+  searchParams,
+}: {
+  searchParams?: { [key: string]: string | string[] | undefined };
+}) {
   const user = await requireRole('worker').catch(() => null);
   if (!user) redirect('/login');
 
@@ -25,6 +29,11 @@ export default async function WorkerQueuePage() {
       </div>
     );
   }
+  // Resolve the ?client= query param (if present and valid) so the queue opens
+  // on that client — e.g. coming back from a job's "Back to queue". Falls back
+  // to 'all' for a missing/unknown id.
+  const rawClient = typeof searchParams?.client === 'string' ? searchParams.client : '';
+  const initialClientId = profiles.some((p) => p.id === rawClient) ? rawClient : 'all';
   const profileIds = profiles.map((p) => p.id);
   const jobs = await db.listJobs({ profile_ids: profileIds });
   const allProfiles = await db.listProfiles();
@@ -52,6 +61,7 @@ export default async function WorkerQueuePage() {
       jobs={jobs}
       profiles={allProfiles}
       clientProfiles={profiles}
+      initialClientId={initialClientId}
       quota={allQuota}
       weeklyApplied={weeklyStats.applied}
       weeklySkipped={weeklyStats.skipped}

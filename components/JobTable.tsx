@@ -27,17 +27,12 @@ interface Column {
 
 const COLUMNS: Record<JobTableMode, Column[]> = {
   admin: [
-    { key: 'num', label: '#' },
     { key: 'title', label: 'Job Title' },
     { key: 'client', label: 'Client' },
     { key: 'company', label: 'Company' },
     { key: 'board', label: 'Board' },
-    { key: 'link', label: 'Link' },
-    { key: 'comp', label: 'Compensation' },
+    { key: 'progress', label: 'Progress' },
     { key: 'status', label: 'Status' },
-    { key: 'resume', label: 'Resume' },
-    { key: 'jd', label: 'JD' },
-    { key: 'proof', label: 'Proof' },
     { key: 'dates', label: 'Added' },
   ],
   worker: [
@@ -212,11 +207,25 @@ export default function JobTable({
               const jobHref = mode === 'worker' ? `/worker/job/${job.id}` : undefined;
               return (
                 <tr key={job.id} id={`job-row-${job.id}`} className="border-b border-navy-800 row-hover">
-                  <Cell>{i + 1}</Cell>
+                  {mode !== 'admin' && <Cell>{i + 1}</Cell>}
                   {mode === 'admin' && (
-                    <Cell>
+                    <Cell className="min-w-[260px] max-w-[380px]">
                       <span className="text-navy-100 flex items-center gap-1.5">
-                        {job.title || 'Untitled'}
+                        {job.url ? (
+                          <a
+                            href={job.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            title={job.title || 'Untitled'}
+                            className="truncate font-medium text-navy-100 hover:text-brand-blue hover:underline"
+                          >
+                            {job.title || 'Untitled'}
+                          </a>
+                        ) : (
+                          <span className="truncate font-medium" title={job.title || 'Untitled'}>
+                            {job.title || 'Untitled'}
+                          </span>
+                        )}
                         {job.is_new && <NewBadge />}
                       </span>
                     </Cell>
@@ -256,7 +265,7 @@ export default function JobTable({
                       {BOARD_LABELS[job.board] ?? job.board ?? '—'}
                     </span>
                   </Cell>
-                  {(mode === 'admin' || mode === 'client') && (
+                  {mode === 'client' && (
                     <Cell>
                       {job.url ? (
                         <a
@@ -272,7 +281,20 @@ export default function JobTable({
                       )}
                     </Cell>
                   )}
-                  <Cell className="text-right font-mono text-sm text-navy-200 whitespace-nowrap">{fmtMoney(job.compensation_min, job.compensation_max)}</Cell>
+                  {/* Admin: compact progress dots (resume / JD / proof) in place of
+                      three separate check columns — reduces column sprawl. */}
+                  {mode === 'admin' && (
+                    <Cell>
+                      <div className="flex items-center gap-1.5">
+                        <Dot ok={!!job.tailored_resume} title="Resume tailored" />
+                        <Dot ok={!!job.description} title="Job description" />
+                        <Dot ok={!!job.proof_of_submission} title="Application proof" />
+                      </div>
+                    </Cell>
+                  )}
+                  {mode !== 'admin' && (
+                    <Cell className="text-right font-mono text-sm text-navy-200 whitespace-nowrap">{fmtMoney(job.compensation_min, job.compensation_max)}</Cell>
+                  )}
                   <Cell>
                     <StatusBadge status={job.status} />
                   </Cell>
@@ -285,38 +307,9 @@ export default function JobTable({
                   )}
 
                   {mode === 'admin' && (
-                    <>
-                      <Cell>
-                        {job.tailored_resume ? (
-                          <span className="text-brand-green" title="Resume tailored">
-                            ✓
-                          </span>
-                        ) : (
-                          <span className="text-navy-600">—</span>
-                        )}
-                      </Cell>
-                      <Cell>
-                        {job.description ? (
-                          <span className="text-navy-400" title="JD available">
-                            ✓
-                          </span>
-                        ) : (
-                          <span className="text-navy-600">—</span>
-                        )}
-                      </Cell>
-                      <Cell>
-                        {job.proof_of_submission ? (
-                          <span className="text-navy-300" title={job.proof_of_submission}>
-                            ✓
-                          </span>
-                        ) : (
-                          <span className="text-navy-600">—</span>
-                        )}
-                      </Cell>
-                      <Cell className="text-navy-500 text-xs whitespace-nowrap">
-                        {fmtDate(job.created_at)}
-                      </Cell>
-                    </>
+                    <Cell className="text-navy-500 text-xs whitespace-nowrap">
+                      {fmtDate(job.created_at)}
+                    </Cell>
                   )}
 
                   {mode === 'worker' && (
@@ -372,6 +365,17 @@ export default function JobTable({
 
 function Cell({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return <td className={`px-4 py-3 align-middle ${className}`}>{children}</td>;
+}
+
+// Compact progress dot for the admin "Progress" column (resume / JD / proof).
+function Dot({ ok, title }: { ok: boolean; title: string }) {
+  return (
+    <span
+      title={title}
+      aria-label={title}
+      className={`inline-block h-2 w-2 rounded-full ${ok ? 'bg-brand-green' : 'bg-navy-700'}`}
+    />
+  );
 }
 
 // Small green "NEW" pill next to freshly-scraped job titles (with a live accent

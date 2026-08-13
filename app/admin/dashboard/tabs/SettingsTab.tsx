@@ -11,6 +11,32 @@ import MaintenancePanel from './MaintenancePanel';
 
 export default function SettingsTab({ users, scrapeRuns }: { users: User[]; scrapeRuns: ScrapeRun[] }) {
   const [resetTarget, setResetTarget] = useState<User | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const router = useRouter();
+
+  async function deleteRun(r: ScrapeRun) {
+    const label =
+      `${(r.sites || []).join(', ') || 'no sites'} · ${(r.search_terms || []).join(', ')}`.trim() ||
+      r.id;
+    if (!window.confirm(`Delete this scrape run?\n\n${label}\n\nJobs added by it stay in the queue — only the history entry is removed.`)) {
+      return;
+    }
+    setDeletingId(r.id);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/scrape-runs/${r.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const d = await res.json().catch(() => null);
+        throw new Error(d?.error || `Delete failed (${res.status})`);
+      }
+      router.refresh();
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : 'Delete failed');
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -74,6 +100,11 @@ export default function SettingsTab({ users, scrapeRuns }: { users: User[]; scra
         <div className="p-3 border-b border-navy-700">
           <h3 className="text-sm font-semibold text-navy-200">Scrape Run History</h3>
         </div>
+        {deleteError && (
+          <div className="mx-3 mt-3 text-sm text-brand-red bg-red-500/10 border border-red-500/30 rounded-md px-3 py-2">
+            {deleteError}
+          </div>
+        )}
         {/* Mobile cards */}
         <div className="md:hidden divide-y divide-navy-800">
           {scrapeRuns.length === 0 && <p className="p-4 text-center text-navy-500 text-sm">No runs yet.</p>}
@@ -93,8 +124,17 @@ export default function SettingsTab({ users, scrapeRuns }: { users: User[]; scra
               <div className="text-xs text-navy-400 truncate">
                 {(r.sites || []).join(', ') || '—'} · {(r.search_terms || []).join(', ')}
               </div>
-              <div className="text-xs text-navy-300">
-                {r.jobs_found ?? 0} found · {r.jobs_added ?? 0} added
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-xs text-navy-300">
+                  {r.jobs_found ?? 0} found · {r.jobs_added ?? 0} added
+                </div>
+                <button
+                  onClick={() => deleteRun(r)}
+                  disabled={deletingId === r.id}
+                  className="shrink-0 px-2 py-1 text-xs rounded-md text-navy-500 hover:text-brand-red hover:bg-red-500/10 disabled:opacity-40"
+                >
+                  {deletingId === r.id ? 'Deleting…' : 'Delete'}
+                </button>
               </div>
             </div>
           ))}
@@ -110,12 +150,13 @@ export default function SettingsTab({ users, scrapeRuns }: { users: User[]; scra
               <th className="th-uppercase text-left px-3 py-2">Found</th>
               <th className="th-uppercase text-left px-3 py-2">Added</th>
               <th className="th-uppercase text-left px-3 py-2">Date</th>
+              <th className="th-uppercase text-right px-3 py-2">Actions</th>
             </tr>
           </thead>
           <tbody>
             {scrapeRuns.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-navy-500">No scrape runs yet.</td>
+                <td colSpan={7} className="px-3 py-6 text-center text-navy-500">No scrape runs yet.</td>
               </tr>
             )}
             {scrapeRuns.map((r) => (
@@ -129,6 +170,15 @@ export default function SettingsTab({ users, scrapeRuns }: { users: User[]; scra
                 <td className="px-3 py-2.5 text-brand-green">{r.jobs_added}</td>
                 <td className="px-3 py-2.5 text-navy-500 text-xs">
                   {r.created_at ? new Date(r.created_at).toLocaleString() : '—'}
+                </td>
+                <td className="px-3 py-2.5 text-right">
+                  <button
+                    onClick={() => deleteRun(r)}
+                    disabled={deletingId === r.id}
+                    className="px-2.5 py-1 text-xs rounded-md text-navy-500 hover:text-brand-red hover:bg-red-500/10 disabled:opacity-40"
+                  >
+                    {deletingId === r.id ? 'Deleting…' : 'Delete'}
+                  </button>
                 </td>
               </tr>
             ))}

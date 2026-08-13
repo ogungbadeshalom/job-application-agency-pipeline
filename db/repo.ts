@@ -654,6 +654,13 @@ export const db = {
     );
     return row ? mapScrapeRun(row) : null;
   },
+  // Delete a scrape-run history record. Jobs created by that run keep their
+  // rows — `jobs.scrape_run_id` is `on delete set null`, so they're merely
+  // unhooked, never removed. Returns true if a row was deleted.
+  async deleteScrapeRun(id: string): Promise<boolean> {
+    const res = await query('delete from scrape_runs where id = $1', [id]);
+    return Number(res?.rowCount ?? 0) > 0;
+  },
 
   // snippets
   async listSnippets(profileId: string): Promise<QuestionSnippet[]> {

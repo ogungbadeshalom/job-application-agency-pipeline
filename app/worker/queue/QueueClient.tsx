@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import JobTable from '@/components/JobTable';
@@ -13,6 +13,7 @@ export default function QueueClient({
   nav,
   jobs,
   profiles,
+  clientProfiles,
   quota,
   weeklyApplied,
   weeklySkipped,
@@ -21,12 +22,14 @@ export default function QueueClient({
   nav: { href: string; label: string; badge?: number }[];
   jobs: Job[];
   profiles: Profile[];
+  clientProfiles?: Profile[];
   quota: number;
   weeklyApplied: number;
   weeklySkipped: number;
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const [clientId, setClientId] = useState('all');
 
   // ---- Scroll preservation across queue <-> job navigation ----
   // Next.js App Router resets scroll to top on navigation BEFORE the queue
@@ -117,14 +120,46 @@ export default function QueueClient({
     router.refresh();
   }
 
+  const filteredJobs = clientId === 'all'
+    ? jobs
+    : jobs.filter((j) => j.profile_id === clientId);
+
   return (
     <DashboardLayout user={user} nav={nav} active="/worker/queue">
       <div className="mb-4">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-semibold text-navy-100">My Queue</h1>
+          {/* Client switcher — shown only when this worker handles >1 client */}
+          {(clientProfiles ?? []).length > 1 && (
+            <div className="flex items-center gap-1 rounded-md border border-navy-700 p-0.5">
+              <button
+                onClick={() => setClientId('all')}
+                className={`px-2.5 py-1 text-xs font-medium rounded ${
+                  clientId === 'all' ? 'bg-brand-green/15 text-brand-green' : 'text-navy-400 hover:text-navy-200'
+                }`}
+              >
+                All
+              </button>
+              {(clientProfiles ?? []).map((cp) => (
+                <button
+                  key={cp.id}
+                  onClick={() => setClientId(cp.id)}
+                  className={`px-2.5 py-1 text-xs font-medium rounded ${
+                    clientId === cp.id ? 'bg-brand-green/15 text-brand-green' : 'text-navy-400 hover:text-navy-200'
+                  }`}
+                >
+                  {cp.name}
+                </button>
+              ))}
+            </div>
+          )}
           <p className="text-sm text-navy-400">
-            {jobs.length} jobs for{' '}
-            <span className="text-navy-200">{profiles.find((p) => p.assigned_worker_id === user.id)?.name}</span>
+            {filteredJobs.length} jobs
+            {clientId !== 'all' && (
+              <span className="text-navy-300">
+                {' '}for <span className="text-navy-200">{clientProfiles?.find((p) => p.id === clientId)?.name}</span>
+              </span>
+            )}
           </p>
         </div>
         <div className="mt-2 flex items-center gap-2">

@@ -42,6 +42,7 @@ export default async function WorkerQueuePage() {
       nav={nav}
       jobs={jobs}
       profiles={allProfiles}
+      clientProfiles={profiles}
       quota={profiles.reduce((sum, p) => sum + (p.jobs_per_week || 20), 0)}
       weeklyApplied={weeklyStats.applied}
       weeklySkipped={weeklyStats.skipped}

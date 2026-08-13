@@ -46,24 +46,31 @@ export default function DashboardClient({
       user={user}
       nav={nav}
       active="/admin/dashboard"
-      actions={
-        <>
-          <button
-            onClick={() => setRefillOpen(true)}
-            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md bg-brand-greenDark text-white hover:bg-emerald-700"
-          >
-            <Refresh size={15} /> Refill Jobs
-          </button>
+      actions={undefined}
+    >
+      {/* Page header with title + primary actions (kept out of the narrow
+          sidebar where the compact rail has no room for buttons) */}
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <h1 className="text-xl font-semibold tracking-tight text-navy-100 hidden sm:block">
+          Job Applications
+        </h1>
+        <div className="flex items-center gap-2 sm:ml-auto">
           <button
             onClick={() => setExportOpen(true)}
             title="Experimental — scrape jobs to a spreadsheet (no queue changes)"
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-md bg-amber-500/15 text-amber-200 border border-amber-500/30 hover:bg-amber-500/25"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-amber-500/15 text-amber-200 border border-amber-500/30 hover:bg-amber-500/25 transition-colors"
           >
             ⬇ Experimental
           </button>
-        </>
-      }
-    >
+          <button
+            onClick={() => setRefillOpen(true)}
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium rounded-md bg-brand-green text-navy-950 hover:bg-emerald-400 shadow-[0_4px_14px_-4px_rgba(63,185,80,0.4)] transition-colors"
+          >
+            <Refresh size={15} /> Refill Jobs
+          </button>
+        </div>
+      </div>
+
       {/* Tabs */}
       <div
         role="tablist"

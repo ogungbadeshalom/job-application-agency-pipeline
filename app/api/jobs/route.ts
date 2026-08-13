@@ -18,9 +18,9 @@ export async function GET(req: Request) {
   if (session.user.role === 'admin') {
     // sees everything
   } else if (session.user.role === 'worker') {
-    const profile = await db.getProfileByWorker(session.user.id);
-    if (!profile) return NextResponse.json({ jobs: [] });
-    filter.profile_id = profile.id;
+    const profiles = await db.listProfilesByWorker(session.user.id);
+    if (!profiles.length) return NextResponse.json({ jobs: [] });
+    filter.profile_ids = profiles.map((p) => p.id);
   } else {
     // client: own profile, only client-visible statuses
     if (!session.user.profile_id) return NextResponse.json({ jobs: [] });

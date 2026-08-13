@@ -277,11 +277,86 @@ export const db = {
     );
   },
   async getProfileByWorker(workerId: string): Promise<Profile | null> {
+    // Primary client (kept for landing/avatar routing). Full set is in
+    // listProfilesByWorker.
     const row = await one(
-      'select * from profiles where assigned_worker_id = $1 and deleted_at is null',
+      `select p.* from worker_clients wc
+         join profiles p on p.id = wc.profile_id
+        where wc.worker_user_id = $1 and wc.is_primary and p.deleted_at is null
+        limit 1`,
       [workerId]
     );
     return row ? mapProfile(row) : null;
+  },
+  // ALL client profiles a worker currently handles (Option B join table).
+  async listProfilesByWorker(workerId: string): Promise<Profile[]> {
+    const rows = await all(
+      `select p.* from worker_clients wc
+         join profiles p on p.id = wc.profile_id
+        where wc.worker_user_id = $1 and p.deleted_at is null
+        order by wc.is_primary desc, p.name asc`,
+      [workerId]
+    );
+    return rows.map(mapProfile);
+  },
+  // True if this profile is in the worker's assigned client set.
+  async workerHasClient(workerId: string, profileId: string): Promise<boolean> {
+    const row = await one(
+      'select 1 from worker_clients where worker_user_id = $1 and profile_id = $2',
+      [workerId, profileId]
+    );
+    return !!row;
+  },
+  // Assign (or import) a client to a worker. If first assignment, make primary.
+  async assignClient(workerId: string, profileId: string): Promise<void> {
+    await query(
+      `insert into worker_clients (worker_user_id, profile_id, is_primary)
+       values ($1, $2, (select not exists(
+         select 1 from worker_clients where worker_user_id = $1)))
+       on conflict (worker_user_id, profile_id)
+       do nothing`,
+      [workerId, profileId]
+    );
+    // Mirror the primary onto profiles.assigned_worker_id for the first/primary.
+    await query(
+      `update profiles set assigned_worker_id = $1
+        where id = $2 and (assigned_worker_id is null or assigned_worker_id = $1)`,
+      [workerId, profileId]
+    );
+  },
+  // Remove a client from a worker (swap = unassign A, assign B). Clears the
+  // primary pointer if it pointed at the removed client.
+  async unassignClient(workerId: string, profileId: string): Promise<void> {
+    const row = await one(
+      'select is_primary from worker_clients where worker_user_id = $1 and profile_id = $2',
+      [workerId, profileId]
+    );
+    await query(
+      'delete from worker_clients where worker_user_id = $1 and profile_id = $2',
+      [workerId, profileId]
+    );
+    if (row && row.is_primary) {
+      await query(
+        'update profiles set assigned_worker_id = null where id = $1 and assigned_worker_id = $2',
+        [profileId, workerId]
+      );
+    }
+  },
+  // All (worker_id -> profile_ids[]) assignments for the admin assign UI.
+  async listWorkerAssignments(): Promise<Record<string, string[]>> {
+    const rows = await all(
+      `select worker_user_id, profile_id
+         from worker_clients
+         where (worker_user_id, profile_id) in (
+           select wc.worker_user_id, wc.profile_id
+           from worker_clients wc join profiles p on p.id = wc.profile_id
+           where p.deleted_at is null)`
+    );
+    const out: Record<string, string[]> = {};
+    for (const r of rows as { worker_user_id: string; profile_id: string }[]) {
+      (out[r.worker_user_id] ||= []).push(r.profile_id);
+    }
+    return out;
   },
   // Soft-delete a client profile: hide from lists but keep jobs/history.
   async deleteProfile(id: string): Promise<Profile | null> {
@@ -299,17 +374,18 @@ export const db = {
   },
   // Weekly stats for a worker's assigned client (current ISO week Mon-Sun).
   // applied = jobs marked applied this week; skipped = jobs skipped this week.
-  async getWorkerWeeklyStats(profileId: string, weekStart: Date): Promise<{
+  async getWorkerWeeklyStats(profileId: string | string[], weekStart: Date): Promise<{
     applied: number;
     skipped: number;
   }> {
+    const ids = Array.isArray(profileId) ? profileId : [profileId];
     const row = await one(
       `select
          count(*) filter (where status = 'applied') ::int as applied,
          count(*) filter (where status = 'skipped') ::int as skipped
        from jobs
-       where profile_id = $1 and updated_at >= $2`,
-      [profileId, weekStart.toISOString()]
+       where profile_id = ANY($1::uuid[]) and updated_at >= $2`,
+      [ids, weekStart.toISOString()]
     );
     return {
       applied: (row?.applied as number) ?? 0,

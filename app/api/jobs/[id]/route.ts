@@ -19,8 +19,7 @@ async function canTouchJob(
   if (!job) return false;
   if (session.role === 'admin') return true;
   if (session.role === 'worker') {
-    const profile = await db.getProfileByWorker(session.id);
-    return !!profile && profile.id === job.profile_id;
+    return await db.workerHasClient(session.id ?? session.user?.id ?? '', job.profile_id);
   }
   return false; // clients never write
 }
@@ -35,8 +34,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   if (session.user.role === 'admin') {
     /* ok */
   } else if (session.user.role === 'worker') {
-    const profile = await db.getProfileByWorker(session.user.id);
-    if (!profile || profile.id !== job.profile_id)
+    if (!(await db.workerHasClient(session.user.id, job.profile_id)))
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   } else {
     // client: own profile + applied only

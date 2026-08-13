@@ -18,8 +18,8 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
   if (!job) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   if (session.user.role === 'worker') {
-    const profile = await db.getProfileByWorker(session.user.id);
-    if (!profile || profile.id !== job.profile_id) {
+    // Worker may mark any of their assigned clients' jobs as viewed.
+    if (!(await db.workerHasClient(session.user.id, job.profile_id))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
   }

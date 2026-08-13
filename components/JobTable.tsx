@@ -228,7 +228,7 @@ export default function JobTable({
                         {mode === 'client' && onRowClick ? (
                           <button
                             onClick={() => onRowClick(job)}
-                            className="text-left text-brand-blue hover:underline"
+                            className="text-left font-medium text-navy-100 hover:text-brand-blue hover:underline"
                           >
                             {job.title || 'Untitled'}
                           </button>
@@ -239,7 +239,7 @@ export default function JobTable({
                               e.preventDefault();
                               openJob(jobHref);
                             }}
-                            className="text-brand-blue hover:underline"
+                            className="font-medium text-navy-100 hover:text-brand-blue hover:underline"
                           >
                             {job.title || 'Untitled'}
                           </a>
@@ -250,7 +250,7 @@ export default function JobTable({
                       </span>
                     </Cell>
                   )}
-                  <Cell>{job.company || '—'}</Cell>
+                  <Cell className="text-navy-400">{job.company || '—'}</Cell>
                   <Cell>
                     <span className="capitalize text-navy-300">
                       {BOARD_LABELS[job.board] ?? job.board ?? '—'}
@@ -272,7 +272,7 @@ export default function JobTable({
                       )}
                     </Cell>
                   )}
-                  <Cell>{fmtMoney(job.compensation_min, job.compensation_max)}</Cell>
+                  <Cell className="text-right font-mono text-sm text-navy-200 whitespace-nowrap">{fmtMoney(job.compensation_min, job.compensation_max)}</Cell>
                   <Cell>
                     <StatusBadge status={job.status} />
                   </Cell>
@@ -371,7 +371,7 @@ export default function JobTable({
 }
 
 function Cell({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <td className={`px-3 py-2.5 align-middle ${className}`}>{children}</td>;
+  return <td className={`px-4 py-3 align-middle ${className}`}>{children}</td>;
 }
 
 // Small green "NEW" pill next to freshly-scraped job titles (with a live accent

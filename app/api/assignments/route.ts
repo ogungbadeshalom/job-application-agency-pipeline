@@ -16,9 +16,9 @@ export async function POST(req: Request) {
   try { body = await req.json(); } catch { /* ignore */ }
 
   const workerId = body.worker_user_id as string | undefined;
-  let profileIds: string[] = Array.isArray(body.profile_ids)
-    ? body.profile_ids.filter((x: unknown) => typeof x === 'string')
-    : [];
+  const profileIds: string[] = Array.isArray(body.profile_ids)
+      ? body.profile_ids.filter((x: unknown) => typeof x === 'string')
+      : [];
   if (!workerId) return NextResponse.json({ error: 'worker_user_id required' }, { status: 400 });
 
   // Current set for this worker.

@@ -19,7 +19,7 @@ async function canTouchJob(
   if (!job) return false;
   if (session.role === 'admin') return true;
   if (session.role === 'worker') {
-    return await db.workerHasClient(session.id ?? session.user?.id ?? '', job.profile_id);
+    return await db.workerHasClient(session.id ?? '', job.profile_id);
   }
   return false; // clients never write
 }

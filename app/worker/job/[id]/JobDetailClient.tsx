@@ -44,8 +44,11 @@ export default function JobDetailClient({
   // Navigate back to the queue WITHOUT auto-scrolling to top. The queue's
   // scroll-restore hook reads sessionStorage and puts the worker back where
   // they left off. Without scroll:false, Next resets to the top (job #1).
+  // We also include the job's client in the URL so the queue reopens on THAT
+  // client, not the "All" aggregate (the queue reads ?client= on mount).
   function backToQueue() {
-    router.push('/worker/queue', { scroll: false });
+    const qs = profile ? `?client=${profile.id}` : '';
+    router.push(`/worker/queue${qs}`, { scroll: false });
   }
 
   // Guard against malformed dates: a throw from toLocaleDateString on an

@@ -14,6 +14,15 @@ export const EXP_SITES = [
   { name: 'Indeed', site: 'indeed' },
 ];
 
+// Only exclude clear ON-SITE markers — never a role/stack whitelist, so the
+// user's own search terms drive results. The remote_only backend filter handles
+// location; this just vetoes obvious office-only words in job descriptions.
+function expExclude(remoteOnly: boolean): string[] {
+  return remoteOnly
+    ? ['onsite', 'on-site', 'office-based', 'in-office', 'must work in-office', 'hybrid']
+    : [];
+}
+
 // EXPERIMENTAL — run a scrape and export the raw results to a spreadsheet for
 // inspection. Does NOT insert into the queue. May be removed later.
 export default function ExperimentalExportModal({
@@ -60,8 +69,8 @@ export default function ExperimentalExportModal({
           remote_only: remoteOnly,
           results_wanted: Number(results) || 50,
           hours_old: 168,
-          include_kw: ['data', 'engineer', 'pipeline', 'etl', 'snowflake', 'analytics', 'spark', 'cloud'],
-          exclude_kw: ['onsite', 'intern', 'junior', 'admin', 'clerk', 'marketing', 'sales', 'support', 'accountant', 'estimator'],
+          include_kw: [],
+          exclude_kw: expExclude(remoteOnly),
           remove_easy_apply: true,
         }),
       });

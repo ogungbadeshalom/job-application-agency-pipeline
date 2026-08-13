@@ -374,6 +374,8 @@ export const db = {
   },
   // Weekly stats for a worker's assigned client (current ISO week Mon-Sun).
   // applied = jobs marked applied this week; skipped = jobs skipped this week.
+  // Anchored on `status_changed_at` (set only when status changes) so a mere
+  // view or a late notes/proof edit can't roll a job into the current week.
   async getWorkerWeeklyStats(profileId: string | string[], weekStart: Date): Promise<{
     applied: number;
     skipped: number;
@@ -384,7 +386,7 @@ export const db = {
          count(*) filter (where status = 'applied') ::int as applied,
          count(*) filter (where status = 'skipped') ::int as skipped
        from jobs
-       where profile_id = ANY($1::uuid[]) and updated_at >= $2`,
+       where profile_id = ANY($1::uuid[]) and status_changed_at >= $2`,
       [ids, weekStart.toISOString()]
     );
     return {
@@ -404,7 +406,7 @@ export const db = {
               count(*) filter (where status = 'applied') ::int as applied,
               count(*) filter (where status = 'skipped') ::int as skipped
          from jobs
-        where profile_id = ANY($1::uuid[]) and updated_at >= $2
+        where profile_id = ANY($1::uuid[]) and status_changed_at >= $2
         group by profile_id`,
       [profileIds, weekStart.toISOString()]
     );
@@ -539,6 +541,12 @@ export const db = {
     if (patch.status === 'applied' && !patch.submitted_at) {
       params.push(new Date().toISOString());
       sets.push(`submitted_at = $${params.length}`);
+    }
+    // Record when the status actually changed — this is the weekly-stats anchor
+    // (not `updated_at`, which the trigger re-bumps on a mere view/any edit).
+    if (patch.status) {
+      params.push(new Date().toISOString());
+      sets.push(`status_changed_at = $${params.length}`);
     }
     params.push(id);
     const row = await one(

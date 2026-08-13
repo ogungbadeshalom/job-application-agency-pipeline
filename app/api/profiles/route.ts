@@ -13,8 +13,8 @@ export async function GET() {
     return NextResponse.json({ profiles });
   }
   if (session.user.role === 'worker') {
-    const profile = await db.getProfileByWorker(session.user.id);
-    return NextResponse.json({ profiles: profile ? [profile] : [] });
+    const profiles = await db.listProfilesByWorker(session.user.id);
+    return NextResponse.json({ profiles });
   }
   if (session.user.profile_id) {
     const profile = await db.getProfile(session.user.profile_id);
@@ -41,20 +41,18 @@ export async function POST(req: Request) {
   return NextResponse.json({ profile });
 }
 
-// PATCH /api/profiles (admin) — update profile fields (e.g. resume text, settings).
+// PATCH /api/profiles (ADMIN only) — update profile fields (resume text, settings).
+// Workers never edit profile-level fields (their resume work is per-job via
+// /api/tailor); allowing worker PATCH here was the root of a cross-tenant file
+// IDOR (a worker could re-point their profile's base_resume_url at another
+// client's file) and lets them reassign ownership / rewrite contact data.
 export async function PATCH(req: Request) {
   const session = await getSession();
-  if (!session || !['admin', 'worker'].includes(session.user.role)) {
+  if (!session || session.user.role !== 'admin') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const body = (await req.json().catch(() => ({}))) as Partial<Profile> & { id: string };
   if (!body.id) return NextResponse.json({ error: 'id required' }, { status: 400 });
-
-  if (session.user.role === 'worker') {
-    const mine = await db.getProfileByWorker(session.user.id);
-    if (!mine || mine.id !== body.id)
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
 
   const patch: Partial<Profile> = {};
   for (const k of [

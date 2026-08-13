@@ -34,6 +34,7 @@ export default function QueueClient({
   const router = useRouter();
   const pathname = usePathname();
   const [clientId, setClientId] = useState('all');
+  const [actionError, setActionError] = useState<string | null>(null);
   // Pagination-aware "Jump to my spot": {id, nonce} handed to JobTable, which
   // navigates to the job's page and scrolls to the row. A fresh nonce per click
   // ensures repeat clicks on the same job re-trigger the effect.
@@ -123,6 +124,7 @@ export default function QueueClient({
   }, [pathname]);
 
   async function quickAction(job: Job, action: 'applied' | 'skipped' | 'saved') {
+    setActionError(null);
     try {
       const res = await fetch(`/api/jobs/${job.id}`, {
         method: 'PATCH',
@@ -136,9 +138,13 @@ export default function QueueClient({
         // Surface failures instead of silently refreshing into a stale list.
         const d = await res.json().catch(() => null);
         console.warn('Queue action failed', d?.error || res.status);
+        setActionError(d?.error || `Action failed (${res.status}) — please retry.`);
+        return; // don't refresh on failure — the row is unchanged
       }
     } catch (e) {
       console.warn('Queue action error', e);
+      setActionError('Action failed — network error. Please retry.');
+      return;
     }
     router.refresh();
   }
@@ -146,6 +152,11 @@ export default function QueueClient({
   return (
     <DashboardLayout user={user} nav={nav} active="/worker/queue">
       <div className="mb-4">
+        {actionError && (
+          <div className="mb-4 text-sm text-brand-red bg-red-500/10 border border-red-500/30 rounded-md px-3 py-2">
+            {actionError}
+          </div>
+        )}
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-semibold text-navy-100">My Queue</h1>
           {/* Client switcher — shown only when this worker handles >1 client */}

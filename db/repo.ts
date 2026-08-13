@@ -401,6 +401,17 @@ export const db = {
     const rows = await all(sql, params);
     return rows.map(mapJob);
   },
+  // Hard-delete jobs older than `days` days that are NOT applied (applied jobs
+  // are kept so client/worker history survives). Returns the number deleted.
+  async deleteExpiredJobs(days: number): Promise<number> {
+    const res = await query(
+      `delete from jobs
+        where created_at < now() - make_interval(days => $1::int)
+          and status <> 'applied'`,
+      [days]
+    );
+    return Number(res?.rowCount ?? 0);
+  },
   async getJob(id: string): Promise<Job | null> {
     const row = await one('select * from jobs where id = $1', [id]);
     return row ? mapJob(row) : null;

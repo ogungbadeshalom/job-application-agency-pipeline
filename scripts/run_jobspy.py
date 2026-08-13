@@ -250,13 +250,24 @@ for r in all_jobs:
         )
         if loc_remote:
             keep = True
-        elif loc_txt.strip() in {"", "us", "usa", "united states", "anywhere"}:
-            keep = True  # bare country/empty => treat as remote-capable
-        elif loc_txt.count(",") >= 2:
-            keep = False  # "City, State, Country" => on-site office posting
+        elif isinstance(_loc, str) and _loc.strip():
+            # A location that names a real city (2+ commas => "City, State,
+            # Country") is on-site — drop it.
+            if _loc.count(",") >= 2:
+                keep = False
+            elif _loc.strip().lower() in {"", "us", "usa", "united states", "anywhere"}:
+                # Bare country/empty is ambiguous. ONLY treat as remote if the
+                # row flag also says remote (BuiltIn reports many ON-SITE jobs
+                # with just "US" + is_remote=False — those must NOT keep through).
+                keep = row_remote
+            else:
+                # One comma = "MO, US" state-only, or a single name, or e.g.
+                # "Remote" variants already handled above. Trust is_remote only
+                # if the text doesn't name a concrete place (>=1 comma + not
+                # remote-capable). Conservative: require the remote row flag.
+                keep = row_remote and not _loc.count(",")  # no-city (single token) remote
         else:
-            # One comma = "MO, US" state-only, or a single name => no city, so
-            # trust the remote flag (remote jobs show as state/country only).
+            # empty/non-string location — keep only if the board flagged remote
             keep = row_remote
         if not keep:
             continue

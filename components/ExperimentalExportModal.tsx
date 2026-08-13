@@ -37,9 +37,9 @@ export default function ExperimentalExportModal({
   onClose: () => void;
   profiles: Profile[];
 }) {
-  // hiringcafe stays opt-in (not default) — it launches a heavy headless browser
+  // top 6 reliably-working boards ticked by default; hiringcafe/others opt-in
   const [sites, setSites] = useState<string[]>(
-    EXP_SITES.filter((s) => s.site !== 'hiringcafe').map((s) => s.site)
+    ['indeed', 'builtin', 'remoteok', 'jobicy', 'remotive', 'workingnomads']
   );
   const [searchTerms, setSearchTerms] = useState('');
   const [remoteOnly, setRemoteOnly] = useState(true);

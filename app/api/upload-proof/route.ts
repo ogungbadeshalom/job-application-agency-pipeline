@@ -75,8 +75,7 @@ export async function POST(req: Request) {
 
   // Worker may only add proof for their assigned client's job.
   if (session.user.role === 'worker') {
-    const profile = await db.getProfileByWorker(session.user.id);
-    if (!profile || profile.id !== job.profile_id) {
+    if (!(await db.workerHasClient(session.user.id, job.profile_id))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
   }

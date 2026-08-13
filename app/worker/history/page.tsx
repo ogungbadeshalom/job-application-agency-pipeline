@@ -7,8 +7,8 @@ export default async function WorkerHistoryPage() {
   const user = await requireRole('worker').catch(() => null);
   if (!user) redirect('/login');
 
-  const profile = await db.getProfileByWorker(user.id);
-  if (!profile) {
+  const profiles = await db.listProfilesByWorker(user.id);
+  if (!profiles.length) {
     return (
       <div className="min-h-screen flex items-center justify-center text-navy-400">
         No client assigned to you yet.
@@ -16,7 +16,7 @@ export default async function WorkerHistoryPage() {
     );
   }
 
-  const jobs = await db.listJobs({ profile_id: profile.id });
+  const jobs = await db.listJobs({ profile_ids: profiles.map((p) => p.id) });
 
   const nav = [
     { href: '/worker/queue', label: 'Queue', badge: jobs.filter((j) => j.status === 'saved').length },

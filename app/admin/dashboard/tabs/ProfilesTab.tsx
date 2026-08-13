@@ -7,6 +7,7 @@ import { Plus, Spinner } from '@/components/Icon';
 import type { Job, Profile, User } from '@/lib/types';
 import { LabeledInput } from './shared';
 import EditUserModal from './EditUserModal';
+import AssignWorkersModal from '@/components/AssignWorkersModal';
 
 export default function ProfilesTab({
   profiles,
@@ -21,6 +22,7 @@ export default function ProfilesTab({
   const [addClientOpen, setAddClientOpen] = useState(false);
   const [addWorkerOpen, setAddWorkerOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<{ user: User; jobsPerWeek?: number } | null>(null);
+  const [assignOpen, setAssignOpen] = useState(false);
 
   const appliedCount = (pid: string) =>
     jobs.filter((j) => j.profile_id === pid && j.status === 'applied').length;
@@ -36,6 +38,13 @@ export default function ProfilesTab({
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-navy-100">People &amp; Clients</h2>
         <div className="flex gap-2">
+          <button
+            onClick={() => setAssignOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md border border-brand-green/40 text-brand-green hover:bg-brand-green/10"
+            title="Assign which clients each worker handles (swap workers)"
+          >
+            Assign Workers
+          </button>
           <button
             onClick={() => setAddWorkerOpen(true)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md bg-navy-800 text-navy-200 hover:bg-navy-750"
@@ -253,6 +262,12 @@ export default function ProfilesTab({
           onQuotaChange={() => router.refresh()}
         />
       )}
+      <AssignWorkersModal
+        open={assignOpen}
+        onClose={() => setAssignOpen(false)}
+        profiles={profiles}
+        workers={workers}
+      />
     </div>
   );
 }

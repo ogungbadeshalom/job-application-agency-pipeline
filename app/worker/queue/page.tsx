@@ -17,18 +17,19 @@ export default async function WorkerQueuePage() {
   const user = await requireRole('worker').catch(() => null);
   if (!user) redirect('/login');
 
-  const profile = await db.getProfileByWorker(user.id);
-  if (!profile) {
+  const profiles = await db.listProfilesByWorker(user.id);
+  if (!profiles.length) {
     return (
       <div className="min-h-screen flex items-center justify-center text-navy-400">
         No client assigned to you yet.
       </div>
     );
   }
-
-  const jobs = await db.listJobs({ profile_id: profile.id });
+  const profileIds = profiles.map((p) => p.id);
+  const jobs = await db.listJobs({ profile_ids: profileIds });
   const allProfiles = await db.listProfiles();
-  const weeklyStats = await db.getWorkerWeeklyStats(profile.id, weekStart());
+  // weekly stats across ALL the worker's clients
+  const weeklyStats = await db.getWorkerWeeklyStats(profileIds, weekStart());
 
   const nav = [
     { href: '/worker/queue', label: 'Queue', badge: jobs.filter((j) => j.status === 'saved').length },
@@ -41,7 +42,7 @@ export default async function WorkerQueuePage() {
       nav={nav}
       jobs={jobs}
       profiles={allProfiles}
-      quota={profile.jobs_per_week}
+      quota={profiles.reduce((sum, p) => sum + (p.jobs_per_week || 20), 0)}
       weeklyApplied={weeklyStats.applied}
       weeklySkipped={weeklyStats.skipped}
     />

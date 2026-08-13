@@ -21,8 +21,7 @@ export async function POST(req: Request) {
   if (!job) return NextResponse.json({ error: 'Job not found' }, { status: 404 });
 
   if (session.user.role === 'worker') {
-    const profile = await db.getProfileByWorker(session.user.id);
-    if (!profile || profile.id !== job.profile_id) {
+    if (!(await db.workerHasClient(session.user.id, job.profile_id))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
   }

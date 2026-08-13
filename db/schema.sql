@@ -40,7 +40,7 @@ create table if not exists profiles (
   id                    uuid primary key default gen_random_uuid(),
   name                  text not null,
   email                 text not null,
-  assigned_worker_id    uuid references users(id) on delete set null, -- 1:1 worker
+  assigned_worker_id    uuid references users(id) on delete set null, -- PRIMARY worker (see worker_clients)
   base_resume_path      text,        -- local-disk relative path (resumes/p1/x.pdf)
   base_resume_text      text,        -- extracted text for AI tailoring
   scrape_search_terms   text[] not null default '{}',
@@ -53,6 +53,15 @@ create table if not exists profiles (
   deleted_at            timestamptz,              -- soft-delete: hidden from lists, data kept
   created_at            timestamptz not null default now(),
   updated_at            timestamptz not null default now()
+);
+
+-- A worker may handle MULTIPLE client profiles. assigned_worker_id above remains
+-- the "primary" client (for landing/avatar); this join holds the full set.
+create table if not exists worker_clients (
+  worker_user_id uuid references users(id) on delete cascade,
+  profile_id     uuid references profiles(id) on delete cascade,
+  is_primary     boolean not null default false,
+  primary key (worker_user_id, profile_id)
 );
 
 -- ============================================================================

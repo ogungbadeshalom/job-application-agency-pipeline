@@ -46,8 +46,8 @@ export async function GET(_req: Request, { params }: { params: { path: string[] 
   const u = session.user;
   if (u.role !== 'admin') {
     if (u.role === 'worker') {
-      const mine = await db.getProfileByWorker(u.id);
-      if (!mine || mine.id !== ownerProfileId) {
+      // Worker may access any client they're assigned to (Option B multi-client).
+      if (ownerProfileId == null || !(await db.workerHasClient(u.id, ownerProfileId))) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
     } else {

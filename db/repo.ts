@@ -23,6 +23,21 @@ import type {
   User,
 } from '../lib/types';
 
+// --- text sanitation -------------------------------------------------------
+// Postgres rejects NUL (0x00) bytes in text columns ("invalid byte sequence for
+// encoding UTF8", sqlstate 22021). Resume/PDF text extraction and scraped
+// HTML->text can leak NULs in (pdf-parse/mammoth/JobSpy). Verified empirically:
+// NUL is the ONLY byte PG rejects (all other C0 controls and lone surrogates
+// are accepted), and lone surrogates are safely encoded to U+FFFD by the pg
+// driver — so we strip NUL ONLY. Stripping more (e.g. surrogate-pair ranges)
+// would corrupt legitimate emoji/non-BMP text.
+const NUL_BYTE = /\u0000/g;
+
+function cleanText(value: unknown): unknown {
+  if (typeof value !== 'string' || !value.includes('\u0000')) return value;
+  return value.replace(NUL_BYTE, '');
+}
+
 // --- row -> domain mappers ------------------------------------------------
 function mapUser(r: Record<string, unknown>): User {
   return {
@@ -308,13 +323,13 @@ export const db = {
           scrape_search_terms, scrape_location, scrape_sites, scrape_results_wanted, scrape_hours_old)
        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) returning *`,
       [
-        input.name ?? 'Untitled',
-        input.email ?? '',
+        cleanText(input.name) ?? 'Untitled',
+        cleanText(input.email) ?? '',
         input.assigned_worker_id ?? null,
         input.base_resume_url ?? null,
-        input.base_resume_text ?? null,
-        input.scrape_search_terms ?? [],
-        input.scrape_location ?? null,
+        cleanText(input.base_resume_text) ?? null,
+        (input.scrape_search_terms ?? []).map(cleanText) as string[],
+        cleanText(input.scrape_location) ?? null,
         input.scrape_sites ?? [],
         input.scrape_results_wanted ?? 100,
         input.scrape_hours_old ?? 72,
@@ -340,7 +355,12 @@ export const db = {
     } as const;
     for (const [k, col] of Object.entries(allowed)) {
       if (k in patch) {
-        params.push((patch as Record<string, unknown>)[k]);
+        let v = (patch as Record<string, unknown>)[k];
+        // Clean free-form text destined for text columns so a NUL can never
+        // reach Postgres (sqlstate 22021). Arrays (search terms) map.
+        if (typeof v === 'string') v = cleanText(v);
+        else if (Array.isArray(v)) v = v.map(cleanText);
+        params.push(v);
         sets.push(`${col} = $${params.length}`);
       }
     }
@@ -399,7 +419,9 @@ export const db = {
     const params: unknown[] = [];
     for (const [k, col] of Object.entries(allowed)) {
       if (k in patch) {
-        params.push((patch as Record<string, unknown>)[k]);
+        let v = (patch as Record<string, unknown>)[k];
+        if (typeof v === 'string') v = cleanText(v);
+        params.push(v);
         sets.push(`${col} = $${params.length}`);
       }
     }
@@ -431,10 +453,23 @@ export const db = {
          values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
          returning *`,
         [
-          j.profile_id, j.title, j.company, j.board, j.url, j.description,
-          j.compensation_min, j.compensation_max, j.compensation_currency, j.location, j.status,
-          j.tailored_resume, j.tailored_resume_pdf_url, j.submitted_at, j.proof_of_submission,
-          j.notes, j.scrape_run_id,
+          j.profile_id,
+          cleanText(j.title),
+          cleanText(j.company),
+          cleanText(j.board),
+          cleanText(j.url),
+          cleanText(j.description) ?? null,
+          j.compensation_min,
+          j.compensation_max,
+          j.compensation_currency,
+          cleanText(j.location) ?? null,
+          j.status,
+          cleanText(j.tailored_resume) ?? null,
+          j.tailored_resume_pdf_url,
+          j.submitted_at,
+          j.proof_of_submission,
+          cleanText(j.notes) ?? null,
+          j.scrape_run_id,
         ]
       );
       created.push(mapJob(row!));
@@ -519,7 +554,7 @@ export const db = {
     const row = await one(
       `insert into question_snippets (profile_id, question, answer)
        values ($1,$2,$3) returning *`,
-      [input.profile_id, input.question, input.answer]
+      [input.profile_id, cleanText(input.question), cleanText(input.answer)]
     );
     return mapSnippet(row!);
   },

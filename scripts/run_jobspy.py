@@ -178,6 +178,12 @@ def _sanitize(value):
     if isinstance(value, bool):
         return value
     if isinstance(value, (int, str)):
+        # Strip NUL (0x00) — Postgres rejects it in text columns (sqlstate
+        # 22021). Scraped HTML→text can embed NULs; drop them before JSON so
+        # they never reach the DB insert (which strips them too). NUL is the
+        # only byte PG rejects, so don't strip anything else.
+        if isinstance(value, str) and "\x00" in value:
+            return value.replace("\x00", "")
         return value
     # datetime/date/timestamp -> ISO string (also handles pandas.Timestamp
     # because it is a subclass of datetime).

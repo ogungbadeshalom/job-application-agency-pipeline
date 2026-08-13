@@ -35,6 +35,10 @@ export async function POST(req: Request) {
     search_terms: searchTerms,
     location: body.remote_only ? 'Remote' : (body.location || 'United States'),
     remote_only: !!body.remote_only,
+    // run_jobspy.py reads `is_remote` (NOT `remote_only`) for its remote filter.
+    // Without this, the remote-only toggle was passed but never honored, so
+    // on-site jobs leaked into the exported spreadsheet.
+    is_remote: !!body.remote_only,
     job_type: body.job_type || 'full time',
     results_wanted: Number(body.results_wanted) || 50,
     hours_old: Number(body.hours_old) || 72,

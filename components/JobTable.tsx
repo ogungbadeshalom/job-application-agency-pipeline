@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import type { Job, JobStatus, Profile } from '@/lib/types';
 import { CLIENT_VISIBLE_STATUSES, STATUS_ORDER } from '@/lib/types';
 import StatusBadge, { STATUS_OPTIONS } from './StatusBadge';
@@ -76,12 +76,18 @@ export default function JobTable({
   mode,
   onQuickAction,
   onRowClick,
+  gotoJobId,
+  gotoJobNonce = 0,
 }: {
   jobs: Job[];
   profiles: Profile[];
   mode: JobTableMode;
   onQuickAction?: (job: Job, action: 'applied' | 'skipped' | 'saved') => void;
   onRowClick?: (job: Job) => void;
+  /** When set (id + a nonce that changes on each jump), scroll the table to
+   *  that job's row — navigating to its page first if pagination has it hidden. */
+  gotoJobId?: string;
+  gotoJobNonce?: number;
 }) {
   const router = useRouter();
   const [search, setSearch] = useState('');
@@ -122,6 +128,56 @@ export default function JobTable({
     }
     return [...out].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
   }, [jobs, search, statusFilter, clientFilter, mode]);
+
+  // Client-side pagination: render a fixed page size instead of every row, so
+  // large queues (1000+ jobs) stay fast — this is the main performance fix.
+  const PAGE = 50;
+  const [page, setPage] = useState(0);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE));
+  const safePage = Math.min(page, totalPages - 1);
+  const paginated = filtered.slice(safePage * PAGE, safePage * PAGE + PAGE);
+
+  // Reset to page 0 whenever the filtered set changes (new filter/search).
+  const prevFilterKey = useRef('');
+  const filterKey = `${statusFilter}|${clientFilter}|${search}|${jobs.length}`;
+  if (prevFilterKey.current !== filterKey) {
+    prevFilterKey.current = filterKey;
+    if (page !== 0) setPage(0);
+  }
+
+  // ---- "Jump to my spot" (pagination-aware) ------------------------------
+  // ContinueBanner lives outside this table, so it can't scroll to a row that
+  // pagination hasn't rendered. When a jump is requested, navigate to the page
+  // holding the job, then scroll to the row once it exists.
+  const pendingScrollRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!gotoJobId || gotoJobNonce === 0) return;
+    pendingScrollRef.current = gotoJobId;
+    const idx = filtered.findIndex((j) => j.id === gotoJobId);
+    if (idx >= 0) {
+      setPage(Math.floor(idx / PAGE)); // switch to the page that has the row
+    }
+    // fallthrough to the effect below once `paginated` re-renders with the row
+  }, [gotoJobId, gotoJobNonce]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const id = pendingScrollRef.current;
+    if (!id) return;
+    pendingScrollRef.current = null;
+    let tries = 0;
+    const tick = () => {
+      const el = document.getElementById(`job-row-${id}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('ring-2', 'ring-brand-green/60');
+        setTimeout(() => el.classList.remove('ring-2', 'ring-brand-green/60'), 2200);
+      } else if (tries < 40) {
+        tries += 1;
+        requestAnimationFrame(tick);
+      }
+    };
+    tick();
+  }, [paginated]);
 
   const cols = COLUMNS[mode];
 
@@ -175,7 +231,7 @@ export default function JobTable({
         {filtered.length === 0 && (
           <div className="p-6 text-center text-navy-500 text-sm">No jobs found.</div>
         )}
-        {filtered.map((job, i) => (
+        {paginated.map((job, i) => (
           <MobileJobCard key={job.id} job={job} index={i} mode={mode} profileName={profileName} onQuickAction={onQuickAction} />
         ))}
       </div>
@@ -203,7 +259,7 @@ export default function JobTable({
                 </td>
               </tr>
             )}
-            {filtered.map((job, i) => {
+            {paginated.map((job, i) => {
               const jobHref = mode === 'worker' ? `/worker/job/${job.id}` : undefined;
               return (
                 <tr key={job.id} id={`job-row-${job.id}`} className="border-b border-navy-800 row-hover">
@@ -359,6 +415,31 @@ export default function JobTable({
           </tbody>
         </table>
       </div>
+
+      {/* Pagination footer — shared by mobile + desktop views */}
+      {filtered.length > PAGE && (
+        <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-navy-700 text-sm">
+          <span className="text-navy-500">
+            {filtered.length} result{filtered.length === 1 ? '' : 's'} · page {safePage + 1} of {totalPages}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={safePage === 0}
+              className="px-3 py-1.5 rounded-md text-xs font-medium bg-navy-800 text-navy-200 hover:bg-navy-750 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              ← Prev
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={safePage >= totalPages - 1}
+              className="px-3 py-1.5 rounded-md text-xs font-medium bg-navy-800 text-navy-200 hover:bg-navy-750 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

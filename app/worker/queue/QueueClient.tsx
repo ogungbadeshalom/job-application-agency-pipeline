@@ -14,6 +14,7 @@ export default function QueueClient({
   jobs,
   profiles,
   clientProfiles,
+  initialClientId = 'all',
   quota,
   weeklyApplied,
   weeklySkipped,
@@ -24,6 +25,9 @@ export default function QueueClient({
   jobs: Job[];
   profiles: Profile[];
   clientProfiles?: Profile[];
+  /** Client to start on, from ?client= in the URL (validated server-side). Passed
+   *  down so the switcher survives a refresh / browser back. */
+  initialClientId?: string;
   quota: number;
   weeklyApplied: number;
   weeklySkipped: number;
@@ -33,7 +37,7 @@ export default function QueueClient({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [clientId, setClientId] = useState('all');
+  const [clientId, setClientId] = useState(initialClientId);
   const [actionError, setActionError] = useState<string | null>(null);
   // Pagination-aware "Jump to my spot": {id, nonce} handed to JobTable, which
   // navigates to the job's page and scrolls to the row. A fresh nonce per click
@@ -42,6 +46,14 @@ export default function QueueClient({
 
   function requestJump(jobId: string) {
     setPendingJump({ id: jobId, n: Date.now() });
+  }
+
+  // Switch the active client AND mirror it into the URL (?client=<id>) so the
+  // selection survives a refresh, browser back, or a later "Back to queue".
+  function switchClient(id: string) {
+    setClientId(id);
+    const qs = id === 'all' ? '' : `?client=${id}`;
+    router.replace(`/worker/queue${qs}`, { scroll: false });
   }
 
   const filteredJobs = clientId === 'all'
@@ -163,7 +175,7 @@ export default function QueueClient({
           {(clientProfiles ?? []).length > 1 && (
             <div className="flex items-center gap-1 rounded-md border border-navy-700 p-0.5">
               <button
-                onClick={() => setClientId('all')}
+                onClick={() => switchClient('all')}
                 className={`px-2.5 py-1 text-xs font-medium rounded ${
                   clientId === 'all' ? 'bg-brand-green/15 text-brand-green' : 'text-navy-400 hover:text-navy-200'
                 }`}
@@ -173,7 +185,7 @@ export default function QueueClient({
               {(clientProfiles ?? []).map((cp) => (
                 <button
                   key={cp.id}
-                  onClick={() => setClientId(cp.id)}
+                  onClick={() => switchClient(cp.id)}
                   className={`px-2.5 py-1 text-xs font-medium rounded ${
                     clientId === cp.id ? 'bg-brand-green/15 text-brand-green' : 'text-navy-400 hover:text-navy-200'
                   }`}

@@ -24,6 +24,8 @@ export const SITE_OPTIONS: { name: string; site: string; disabled?: boolean; not
   { name: 'WeWorkRemotely', site: 'weworkremotely', disabled: true, note: 'disabled for now' },
   { name: 'Remotive', site: 'remotive' },
   { name: 'WorkingNomads', site: 'workingnomads' },
+  { name: 'Jobicy', site: 'jobicy', note: 'remote-only aggregator' },
+  { name: 'HiringCafe', site: 'hiringcafe', disabled: true, note: 'needs headless browser' },
   { name: 'Glassdoor', site: 'glassdoor', disabled: true, note: 'currently unavailable' },
   { name: 'ZipRecruiter', site: 'zip_recruiter', disabled: true, note: 'currently unavailable' },
 ];
@@ -39,7 +41,7 @@ export default function RefillJobsModal({
   profiles: Profile[];
   onDone?: (result: { jobs_added: number }) => void;
 }) {
-  const [sites, setSites] = useState<string[]>(['indeed', 'linkedin', 'remoteok', 'greenhouse', 'smart_recruiters', 'builtin', 'remotive', 'workingnomads']);
+  const [sites, setSites] = useState<string[]>(['indeed', 'linkedin', 'remoteok', 'greenhouse', 'smart_recruiters', 'builtin', 'remotive', 'workingnomads', 'jobicy']);
   const [searchTerms, setSearchTerms] = useState('');
   const [location, setLocation] = useState('United States');
   const [remoteOnly, setRemoteOnly] = useState(true); // most clients want remote

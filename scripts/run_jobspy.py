@@ -44,6 +44,20 @@ except Exception as exc:
     )
     sys.exit(3)
 
+# Custom board scrapers (Jobicy, HiringCafe) that aren't in JobSpy's Site enum.
+# Import at module level but guard so run_jobspy.py still works even if this
+# file has an issue. Scripts live in the same scripts/ dir — add it to path so
+# the bare import resolves regardless of the caller's cwd.
+import os as _os
+try:
+    _sys_dir = _os.path.dirname(_os.path.abspath(__file__))
+    if _sys_dir not in sys.path:
+        sys.path.insert(0, _sys_dir)
+    from scrape_custom_boards import BOARDS as _CUSTOM_BOARDS
+except Exception:
+    _CUSTOM_BOARDS = {}
+
+
 sites = config.get("sites", ["indeed"])
 search_terms = config.get("search_terms", [])
 location = config.get("location", "United States")
@@ -123,6 +137,21 @@ for term in search_terms:
         # a fatal "JobSpy exited 1 ... jobs_found=0" and abort the whole batch.
         if site in ("zip_recruiter",):
             print(f"[warn] {term} / {site}: board blacklisted (TLS unusable)", file=sys.stderr)
+            continue
+        # Custom non-JobSpy boards (jobicy, hiringcafe) — fetch via their own
+        # module and merge into the same record stream. Not subject to the
+        # JobSpy signal-alarm path; they self-timeout.
+        if site in _CUSTOM_BOARDS:
+            try:
+                recs = _CUSTOM_BOARDS[site](term, hours_old)
+                if recs:
+                    all_jobs.extend(recs)
+                    term_ok += len(recs)
+                    print(f"[ok] {site}: {len(recs)} jobs for '{term}'", file=sys.stderr)
+            except Exception as exc:
+                msg = "".join(traceback.format_exception_only(type(exc), exc)).strip()
+                errors.append(f"{term} / {site}: {msg}")
+                print(f"[warn] {term} / {site}: {msg}", file=sys.stderr)
             continue
         def _deadline(_signum, _frame):
             raise TimeoutError(f"site '{site}' exceeded {SITE_TIMEOUT_S}s")

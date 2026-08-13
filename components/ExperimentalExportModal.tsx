@@ -12,6 +12,7 @@ export const EXP_SITES = [
   { name: 'WorkingNomads', site: 'workingnomads' },
   { name: 'RemoteOK', site: 'remoteok' },
   { name: 'Indeed', site: 'indeed' },
+  { name: 'Jobicy', site: 'jobicy' },
 ];
 
 // Only exclude clear ON-SITE markers — never a role/stack whitelist, so the

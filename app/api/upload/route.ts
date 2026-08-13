@@ -19,6 +19,15 @@ import { parseMultipart } from '@/lib/multipart';
 const MAX_RESUME_BYTES = 20 * 1024 * 1024; // 20MB — plenty for PDF/DOCX resumes
 
 export async function POST(req: Request) {
+  // Authorize BEFORE parsing/buffering the body — parsing runs unbounded
+  // allocation, so an unauthenticated caller could otherwise force a memory
+  // spike (memory DoS) on each hit. (Auth was previously checked only after
+  // req.arrayBuffer() + multipart parse.)
+  const session = await getSession();
+  if (!session || session.user.role !== 'admin') {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const ctype = req.headers.get('content-type') || '';
   const boundary = ctype.match(/boundary="?([^";]+)"?/)?.[1];
   if (!boundary) {
@@ -46,11 +55,6 @@ export async function POST(req: Request) {
 
   if (!file || !profileId) {
     return NextResponse.json({ error: 'file and profile_id required' }, { status: 400 });
-  }
-
-  const session = await getSession();
-  if (!session || session.user.role !== 'admin') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const buffer = file.buffer;

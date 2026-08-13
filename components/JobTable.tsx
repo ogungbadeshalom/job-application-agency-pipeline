@@ -137,9 +137,16 @@ export default function JobTable({
   const safePage = Math.min(page, totalPages - 1);
   const paginated = filtered.slice(safePage * PAGE, safePage * PAGE + PAGE);
 
-  // Reset to page 0 whenever the filtered set changes (new filter/search).
+  // Reset to page 0 whenever the filtered set changes (new filter/search or a
+  // different client's job list). Keys on the result-set IDENTITY, not just the
+  // count, so switching clients (or a refresh) to an equally-sized list still
+  // resets the page instead of staying on a stale page 3.
   const prevFilterKey = useRef('');
-  const filterKey = `${statusFilter}|${clientFilter}|${search}|${jobs.length}`;
+  const jobsSig = useMemo(
+    () => `${jobs.length}:${jobs[0]?.id ?? ''}:${jobs[jobs.length - 1]?.id ?? ''}`,
+    [jobs]
+  );
+  const filterKey = `${statusFilter}|${clientFilter}|${search}|${jobsSig}`;
   if (prevFilterKey.current !== filterKey) {
     prevFilterKey.current = filterKey;
     if (page !== 0) setPage(0);
@@ -157,27 +164,32 @@ export default function JobTable({
     if (idx >= 0) {
       setPage(Math.floor(idx / PAGE)); // switch to the page that has the row
     }
-    // fallthrough to the effect below once `paginated` re-renders with the row
+    // If idx < 0 the job is excluded by the current filter; leave the page as-is.
   }, [gotoJobId, gotoJobNonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const id = pendingScrollRef.current;
     if (!id) return;
-    pendingScrollRef.current = null;
     let tries = 0;
     const tick = () => {
       const el = document.getElementById(`job-row-${id}`);
       if (el) {
+        pendingScrollRef.current = null; // consumed
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         el.classList.add('ring-2', 'ring-brand-green/60');
         setTimeout(() => el.classList.remove('ring-2', 'ring-brand-green/60'), 2200);
       } else if (tries < 40) {
         tries += 1;
         requestAnimationFrame(tick);
+      } else {
+        pendingScrollRef.current = null; // gave up (target filtered out)
       }
     };
     tick();
-  }, [paginated]);
+    // Re-run when a new jump arrives (`gotoJobNonce`) or the visible page
+    // changes (`safePage`) — NOT on `paginated` (a fresh array every render,
+    // which would fire this effect on every keystroke).
+  }, [gotoJobNonce, safePage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const cols = COLUMNS[mode];
 
@@ -232,7 +244,7 @@ export default function JobTable({
           <div className="p-6 text-center text-navy-500 text-sm">No jobs found.</div>
         )}
         {paginated.map((job, i) => (
-          <MobileJobCard key={job.id} job={job} index={i} mode={mode} profileName={profileName} onQuickAction={onQuickAction} />
+          <MobileJobCard key={job.id} job={job} index={safePage * PAGE + i} mode={mode} profileName={profileName} onQuickAction={onQuickAction} />
         ))}
       </div>
 
@@ -261,9 +273,10 @@ export default function JobTable({
             )}
             {paginated.map((job, i) => {
               const jobHref = mode === 'worker' ? `/worker/job/${job.id}` : undefined;
+              const rowNum = safePage * PAGE + i + 1; // global row number (not per-page)
               return (
                 <tr key={job.id} id={`job-row-${job.id}`} className="border-b border-navy-800 row-hover">
-                  {mode !== 'admin' && <Cell>{i + 1}</Cell>}
+                  {mode !== 'admin' && <Cell>{rowNum}</Cell>}
                   {mode === 'admin' && (
                     <Cell className="min-w-[260px] max-w-[380px]">
                       <span className="text-navy-100 flex items-center gap-1.5">

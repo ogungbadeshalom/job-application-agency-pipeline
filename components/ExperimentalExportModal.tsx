@@ -37,9 +37,9 @@ export default function ExperimentalExportModal({
   onClose: () => void;
   profiles: Profile[];
 }) {
-  // top 6 reliably-working boards ticked by default; hiringcafe/others opt-in
+  // reliably-working boards ticked by default; flaky/heavy ones opt-in
   const [sites, setSites] = useState<string[]>(
-    ['indeed', 'builtin', 'remoteok', 'jobicy', 'remotive', 'workingnomads']
+    ['indeed', 'linkedin', 'builtin', 'greenhouse', 'weworkremotely', 'workingnomads', 'jobicy']
   );
   const [searchTerms, setSearchTerms] = useState('');
   const [remoteOnly, setRemoteOnly] = useState(true);

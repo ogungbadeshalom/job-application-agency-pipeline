@@ -20,8 +20,8 @@ export const SITE_OPTIONS: { name: string; site: string; disabled?: boolean; not
   { name: 'RemoteOK', site: 'remoteok' },
   { name: 'BuiltIn', site: 'builtin' },
   { name: 'Greenhouse', site: 'greenhouse' },
-  { name: 'SmartRecruiters', site: 'smart_recruiters' },
-  { name: 'WeWorkRemotely', site: 'weworkremotely', disabled: true, note: 'disabled for now' },
+  { name: 'SmartRecruiters', site: 'smart_recruiters', disabled: true, note: 'returning 0 from this server' },
+  { name: 'WeWorkRemotely', site: 'weworkremotely' },
   { name: 'Remotive', site: 'remotive' },
   { name: 'WorkingNomads', site: 'workingnomads' },
   { name: 'Jobicy', site: 'jobicy', note: 'remote-only aggregator' },
@@ -41,7 +41,7 @@ export default function RefillJobsModal({
   profiles: Profile[];
   onDone?: (result: { jobs_added: number }) => void;
 }) {
-  const [sites, setSites] = useState<string[]>(['indeed', 'builtin', 'remoteok', 'jobicy', 'remotive', 'workingnomads']);
+  const [sites, setSites] = useState<string[]>(['indeed','linkedin','builtin','greenhouse','weworkremotely','workingnomads','jobicy']);
   const [searchTerms, setSearchTerms] = useState('');
   const [location, setLocation] = useState('United States');
   const [remoteOnly, setRemoteOnly] = useState(true); // most clients want remote
@@ -134,7 +134,7 @@ export default function RefillJobsModal({
       // can't land on the freshly reset form.
       abortRef.current?.abort();
       abortRef.current = null;
-      setSites(['indeed', 'builtin', 'remoteok', 'jobicy', 'remotive', 'workingnomads']);
+      setSites(['indeed', 'linkedin', 'builtin', 'greenhouse', 'weworkremotely', 'workingnomads', 'jobicy']);
       setSearchTerms('');
       setLocation('United States');
       setRemoteOnly(true);

@@ -41,7 +41,7 @@ export default function RefillJobsModal({
   profiles: Profile[];
   onDone?: (result: { jobs_added: number }) => void;
 }) {
-  const [sites, setSites] = useState<string[]>(['indeed', 'linkedin', 'remoteok', 'greenhouse', 'smart_recruiters', 'builtin', 'remotive', 'workingnomads', 'jobicy']);
+  const [sites, setSites] = useState<string[]>(['indeed', 'builtin', 'remoteok', 'jobicy', 'remotive', 'workingnomads']);
   const [searchTerms, setSearchTerms] = useState('');
   const [location, setLocation] = useState('United States');
   const [remoteOnly, setRemoteOnly] = useState(true); // most clients want remote
@@ -134,7 +134,7 @@ export default function RefillJobsModal({
       // can't land on the freshly reset form.
       abortRef.current?.abort();
       abortRef.current = null;
-      setSites(['indeed', 'linkedin', 'remoteok', 'greenhouse', 'smart_recruiters', 'builtin', 'remotive', 'workingnomads']);
+      setSites(['indeed', 'builtin', 'remoteok', 'jobicy', 'remotive', 'workingnomads']);
       setSearchTerms('');
       setLocation('United States');
       setRemoteOnly(true);

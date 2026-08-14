@@ -213,7 +213,16 @@ for term in search_terms:
                     hours_old=hours_old,
                     is_remote=is_remote,
                     job_type=job_type_value,
-                    linkedin_fetch_description=True,
+                    # LinkedIn is the biggest budget-burner: with
+                    # linkedin_fetch_description=True it makes a SEPARATE
+                    # jobs/view/<id> request for EVERY job card. On a large
+                    # (or multi-term) refill that's 100+ sequential flaky
+                    # LinkedIn requests -> easily blows past the 300s outer cap
+                    # and SIGKILLs the whole subprocess. Only request full
+                    # descriptions on SMALL LinkedIn runs; large refills skip
+                    # them so the listing itself (fast) is what gets scraped
+                    # and the run completes. (Matches upstream default: False.)
+                    linkedin_fetch_description=results_wanted <= 40,
                     proxies=_proxy,
                     ca_cert=False if _proxy else None,
                 )

@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     assigned_worker_id: body.assigned_worker_id,
     scrape_search_terms: body.scrape_search_terms ?? [],
     scrape_location: body.scrape_location ?? 'United States',
-    scrape_sites: body.scrape_sites ?? ['indeed'],
+    scrape_sites: body.scrape_sites ?? ['linkedin', 'builtin', 'greenhouse', 'weworkremotely', 'workingnomads', 'jobicy'],
   });
   return NextResponse.json({ profile });
 }

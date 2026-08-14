@@ -19,7 +19,7 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as Partial<ScrapeConfig>;
   const config: ScrapeConfig = {
     profile_ids: body.profile_ids ?? [],
-    sites: body.sites ?? ['indeed'],
+    sites: body.sites ?? ['linkedin', 'builtin', 'greenhouse', 'weworkremotely', 'workingnomads', 'jobicy'],
     search_terms: body.search_terms ?? [],
     location: body.location ?? 'United States',
     results_wanted: Number(body.results_wanted) || 100,

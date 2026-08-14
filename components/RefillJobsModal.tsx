@@ -15,7 +15,7 @@ const SCRAPE_TIMEOUT_MS = 600_000; // 10 min
 // Scrape source options (map to jobspy Site names from the project fork).
 // `disabled: true` sites are grayed out — known-flaky on this deployment.
 export const SITE_OPTIONS: { name: string; site: string; disabled?: boolean; note?: string }[] = [
-  { name: 'Indeed', site: 'indeed' },
+  { name: 'Indeed', site: 'indeed', disabled: true, note: 'disabled — removed from using (blocking/anti-bot on this deployment)' },
   { name: 'LinkedIn', site: 'linkedin' },
   { name: 'RemoteOK', site: 'remoteok' },
   { name: 'BuiltIn', site: 'builtin' },
@@ -41,7 +41,7 @@ export default function RefillJobsModal({
   profiles: Profile[];
   onDone?: (result: { jobs_added: number }) => void;
 }) {
-  const [sites, setSites] = useState<string[]>(['indeed','linkedin','builtin','greenhouse','weworkremotely','workingnomads','jobicy']);
+  const [sites, setSites] = useState<string[]>(['linkedin','builtin','greenhouse','weworkremotely','workingnomads','jobicy']);
   const [searchTerms, setSearchTerms] = useState('');
   const [location, setLocation] = useState('United States');
   const [remoteOnly, setRemoteOnly] = useState(true); // most clients want remote
@@ -134,7 +134,7 @@ export default function RefillJobsModal({
       // can't land on the freshly reset form.
       abortRef.current?.abort();
       abortRef.current = null;
-      setSites(['indeed', 'linkedin', 'builtin', 'greenhouse', 'weworkremotely', 'workingnomads', 'jobicy']);
+      setSites(['linkedin', 'builtin', 'greenhouse', 'weworkremotely', 'workingnomads', 'jobicy']);
       setSearchTerms('');
       setLocation('United States');
       setRemoteOnly(true);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import JobTable from '@/components/JobTable';
@@ -39,14 +39,22 @@ export default function QueueClient({
   const pathname = usePathname();
   const [clientId, setClientId] = useState(initialClientId);
   const [actionError, setActionError] = useState<string | null>(null);
+  // Local copy of the jobs list used for OPTIMISTIC quick-actions: flipping a
+  // job's status re-renders instantly instead of waiting for a full
+  // server round-trip + router.refresh(). Re-seed whenever the server sends a
+  // fresh list (e.g. after a refresh reconciles weekly-stats on another action).
+  const [jobsState, setJobsState] = useState<Job[]>(jobs);
+  useEffect(() => {
+    setJobsState(jobs);
+  }, [jobs]);
   // Pagination-aware "Jump to my spot": {id, nonce} handed to JobTable, which
   // navigates to the job's page and scrolls to the row. A fresh nonce per click
   // ensures repeat clicks on the same job re-trigger the effect.
   const [pendingJump, setPendingJump] = useState<{ id: string; n: number } | null>(null);
 
-  function requestJump(jobId: string) {
+  const requestJump = useCallback((jobId: string) => {
     setPendingJump({ id: jobId, n: Date.now() });
-  }
+  }, []);
 
   // Switch the active client AND mirror it into the URL (?client=<id>) so the
   // selection survives a refresh, browser back, or a later "Back to queue".
@@ -57,8 +65,8 @@ export default function QueueClient({
   }
 
   const filteredJobs = clientId === 'all'
-    ? jobs
-    : jobs.filter((j) => j.profile_id === clientId);
+    ? jobsState
+    : jobsState.filter((j) => j.profile_id === clientId);
 
   // Weekly cards follow the switcher: 'all' shows the aggregate, a specific
   // client shows that client's own applied/skipped/quota for the week.
@@ -135,8 +143,23 @@ export default function QueueClient({
     }
   }, [pathname]);
 
-  async function quickAction(job: Job, action: 'applied' | 'skipped' | 'saved') {
+  const quickAction = useCallback(async (job: Job, action: 'applied' | 'skipped' | 'saved') => {
     setActionError(null);
+    const prevStatus = job.status;
+    const prevSubmitted = job.submitted_at;
+    // Optimistic flip: repaint the row NOW so the UI feels instant, then do the
+    // PATCH in the background. Revert + show the error if the server disagrees.
+    setJobsState((prev) =>
+      prev.map((j) =>
+        j.id === job.id
+          ? {
+              ...j,
+              status: action,
+              submitted_at: action === 'applied' ? (j.submitted_at ?? new Date().toISOString()) : j.submitted_at,
+            }
+          : j
+      )
+    );
     try {
       const res = await fetch(`/api/jobs/${job.id}`, {
         method: 'PATCH',
@@ -147,19 +170,32 @@ export default function QueueClient({
         }),
       });
       if (!res.ok) {
-        // Surface failures instead of silently refreshing into a stale list.
+        // Revert the optimistic change and surface the real error.
         const d = await res.json().catch(() => null);
         console.warn('Queue action failed', d?.error || res.status);
+        setJobsState((prev) =>
+          prev.map((j) =>
+            j.id === job.id
+              ? { ...j, status: prevStatus, submitted_at: prevSubmitted }
+              : j
+          )
+        );
         setActionError(d?.error || `Action failed (${res.status}) — please retry.`);
-        return; // don't refresh on failure — the row is unchanged
+        return; // don't refresh on failure — the row was reverted
       }
     } catch (e) {
       console.warn('Queue action error', e);
+      // Revert + surface the network error.
+      setJobsState((prev) =>
+        prev.map((j) => (j.id === job.id ? { ...j, status: prevStatus, submitted_at: prevSubmitted } : j))
+      );
       setActionError('Action failed — network error. Please retry.');
       return;
     }
+    // Success: reconcile in the background so the weekly-stat banner stays
+    // accurate, without blocking the row's already-instant repaint.
     router.refresh();
-  }
+  }, []);
 
   return (
     <DashboardLayout user={user} nav={nav} active="/worker/queue">

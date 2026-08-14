@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { newStoragePath, writeStorage } from '@/lib/storage';
 import { parseMultipart } from '@/lib/multipart';
+import { isUuid } from '@/lib/validate';
 
 // POST /api/upload-proof  multipart: file + job_id
 // Admin or the job's assigned worker. Stores the proof image on local disk and
@@ -49,6 +50,9 @@ export async function POST(req: Request) {
 
   if (!file || !jobId) {
     return NextResponse.json({ error: 'file and job_id required' }, { status: 400 });
+  }
+  if (!isUuid(jobId)) {
+    return NextResponse.json({ error: 'job_id must be a valid uuid' }, { status: 400 });
   }
   // Images only.
   if (!file.type.startsWith('image/')) {

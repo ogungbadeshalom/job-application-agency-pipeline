@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth';
 import { extractResumeText } from '@/lib/resume-text';
 import { newStoragePath, writeStorage } from '@/lib/storage';
 import { parseMultipart } from '@/lib/multipart';
+import { isUuid } from '@/lib/validate';
 
 // POST /api/upload  multipart: file + profile_id
 // Admin. Writes the raw file to local disk and stores its text for AI tailoring
@@ -55,6 +56,9 @@ export async function POST(req: Request) {
 
   if (!file || !profileId) {
     return NextResponse.json({ error: 'file and profile_id required' }, { status: 400 });
+  }
+  if (!isUuid(profileId)) {
+    return NextResponse.json({ error: 'profile_id must be a valid uuid' }, { status: 400 });
   }
 
   const buffer = file.buffer;

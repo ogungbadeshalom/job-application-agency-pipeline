@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { isUuid } from '@/lib/validate';
 
 // POST /api/users/[id]  { action: 'disable' | 'enable' }  (admin only)
 // Soft-disable/reactivate a user. Disabled users can't log in but their FK'd
@@ -9,6 +10,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const session = await getSession();
   if (!session || session.user.role !== 'admin') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  if (!isUuid(params.id)) {
+    return NextResponse.json({ error: 'Invalid user id' }, { status: 400 });
   }
 
   const { action } = await req.json().catch(() => ({} as { action?: string }));
@@ -32,6 +36,9 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   const session = await getSession();
   if (!session || session.user.role !== 'admin') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  if (!isUuid(params.id)) {
+    return NextResponse.json({ error: 'Invalid user id' }, { status: 400 });
   }
 
   // Don't allow deleting yourself.

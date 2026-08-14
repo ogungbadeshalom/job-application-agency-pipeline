@@ -3,6 +3,7 @@ import { hash } from 'bcryptjs';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import type { Role, Profile } from '@/lib/types';
+import { isUuid } from '@/lib/validate';
 
 // GET /api/users  (admin) — list accounts.
 export async function GET() {
@@ -43,6 +44,12 @@ export async function POST(req: Request) {
   }
   if (!['worker', 'client'].includes(body.role)) {
     return NextResponse.json({ error: 'role must be worker or client' }, { status: 400 });
+  }
+  if (body.profileId != null && !isUuid(body.profileId)) {
+    return NextResponse.json({ error: 'profileId must be a valid uuid' }, { status: 400 });
+  }
+  if (body.assigned_worker_id != null && !isUuid(body.assigned_worker_id)) {
+    return NextResponse.json({ error: 'assigned_worker_id must be a valid uuid' }, { status: 400 });
   }
 
   // Email uniqueness.
@@ -87,7 +94,7 @@ export async function PATCH(req: Request) {
     full_name?: string;
     email?: string;
   };
-  if (!body.id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+  if (!isUuid(body.id)) return NextResponse.json({ error: 'id must be a valid uuid' }, { status: 400 });
 
   const existing = await db.getUser(body.id);
   if (!existing) return NextResponse.json({ error: 'User not found' }, { status: 404 });

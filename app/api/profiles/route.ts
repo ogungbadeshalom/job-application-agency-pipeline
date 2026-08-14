@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import type { Profile } from '@/lib/types';
+import { isUuid } from '@/lib/validate';
 
 // GET /api/profiles  — admin: all. worker: own assigned client. client: own.
 export async function GET() {
@@ -30,6 +31,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const body = (await req.json().catch(() => ({}))) as Partial<Profile>;
+  if (body.assigned_worker_id != null && !isUuid(body.assigned_worker_id)) {
+    return NextResponse.json({ error: 'assigned_worker_id must be a valid uuid' }, { status: 400 });
+  }
   const profile = await db.createProfile({
     name: body.name,
     email: body.email,
@@ -52,7 +56,9 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const body = (await req.json().catch(() => ({}))) as Partial<Profile> & { id: string };
-  if (!body.id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+  if (!isUuid(body.id)) {
+    return NextResponse.json({ error: 'id must be a valid uuid' }, { status: 400 });
+  }
 
   const patch: Partial<Profile> = {};
   for (const k of [

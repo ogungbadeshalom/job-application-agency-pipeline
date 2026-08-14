@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { isUuid } from '@/lib/validate';
 
 // DELETE /api/scrape-runs/[id]  (admin only)
 // Delete a scrape-run history record. Jobs created by that run are NOT deleted
@@ -10,6 +11,9 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   const session = await getSession();
   if (!session || session.user.role !== 'admin') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  if (!isUuid(params.id)) {
+    return NextResponse.json({ error: 'Invalid scrape run id' }, { status: 400 });
   }
 
   const deleted = await db.deleteScrapeRun(params.id);

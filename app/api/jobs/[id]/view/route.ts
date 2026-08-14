@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { isUuid } from '@/lib/validate';
 
 // POST /api/jobs/[id]/view
 // Marks a job as "last viewed" (worker's continue-where-I-left-off cursor). No
@@ -12,6 +13,9 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
 
   if (!['admin', 'worker'].includes(session.user.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+  if (!isUuid(params.id)) {
+    return NextResponse.json({ error: 'Invalid job id' }, { status: 400 });
   }
 
   const job = await db.getJob(params.id);

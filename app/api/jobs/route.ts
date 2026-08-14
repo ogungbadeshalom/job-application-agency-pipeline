@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth';
 import { CLIENT_VISIBLE_STATUSES } from '@/lib/types';
 import type { JobStatus } from '@/lib/types';
 import type { ListJobsFilter } from '@/lib/db';
+import { isUuid } from '@/lib/validate';
 
 // GET /api/jobs  — scope by role (RLS-equivalent at the API layer).
 export async function GET(req: Request) {
@@ -32,7 +33,12 @@ export async function GET(req: Request) {
   if (statusParam)
     filter.status = (filter.status ?? []).length ? filter.status : ([statusParam] as JobStatus[]);
   const pid = url.searchParams.get('profile_id');
-  if (pid && session.user.role === 'admin') filter.profile_id = pid;
+  if (pid && session.user.role === 'admin') {
+    if (!isUuid(pid)) {
+      return NextResponse.json({ error: 'profile_id must be a valid uuid' }, { status: 400 });
+    }
+    filter.profile_id = pid;
+  }
 
   const jobs = await db.listJobs(filter);
   return NextResponse.json({ jobs });

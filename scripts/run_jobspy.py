@@ -124,13 +124,39 @@ def _proxy_alive():
 # hard cap keeps a slow/hung board (LinkedIn over proxies) from stalling the run.
 import signal as _signal
 SITE_TIMEOUT_S = 45
+# GLOBAL budget: Node's caller (app/api/scrape route's runJobSpy) SIGKILLs this
+# whole subprocess after 300s — at which point EVERYTHING is lost, even the
+# boards that finished. We stay safely under that by tracking an overall
+# deadline and STOPPING once we hit it, so a slow/multi-term batch (e.g. 10
+# terms x LinkedIn + HiringCafe browsers) returns the partial results it got
+# instead of aborting empty on the outer kill.
+import time as _time
+TOTAL_BUDGET_S = 225   # comfortably under Node's 300s kill
+_dead_total = _time.monotonic() + TOTAL_BUDGET_S
+
+def _over_budget() -> bool:
+    """True once the total wall-clock budget is spent (stops the term/site loop)."""
+    return _time.monotonic() > _dead_total
+
+# HiringCafe is a headless-Chromium scrape: heavy (~500MB) and slow (~15-30s
+# per launch). Running it once PER TERM is what blows the total budget on
+# multi-term refills. De-dupe: launch the browser at most ONCE for the whole
+# batch; later terms reuse the same fetch results. (Jobicy is cheap/fast and is
+# still called per term.)
+_hiringcafe_done = False
 
 for term in search_terms:
+    if _over_budget():
+        print("[warn] total time budget exceeded — returning partial results", file=sys.stderr)
+        break
     term = (term or "").strip()
     if not term:
         continue
     term_ok = 0
     for site in sites:
+        if _over_budget():
+            print("[warn] total time budget exceeded — stopping", file=sys.stderr)
+            break
         # Hard-skip boards that are unusable from this server at the transport
         # level. zip_recruiter's TLS cert is invalid here (x509 unknown
         # authority) which, even inside the per-site try/except, can surface as
@@ -143,6 +169,13 @@ for term in search_terms:
         # JobSpy signal-alarm path; they self-timeout.
         if site in _CUSTOM_BOARDS:
             try:
+                if site == "hiringcafe":
+                    # Run the heavy headless browser at most ONCE for the whole
+                    # batch; reuse its results for every later term.
+                    if _hiringcafe_done:
+                        print(f"[warn] {site}: skipped (already scraped this batch)", file=sys.stderr)
+                        continue
+                    _hiringcafe_done = True
                 recs = _CUSTOM_BOARDS[site](term, hours_old)
                 if recs:
                     all_jobs.extend(recs)

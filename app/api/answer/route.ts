@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { callAI, QUESTION_HELPER_SYSTEM } from '@/lib/ai';
+import { isUuid } from '@/lib/validate';
 
 // POST /api/answer  { jobId, question, context? }
 export async function POST(req: Request) {
@@ -13,7 +14,10 @@ export async function POST(req: Request) {
   const { jobId, question, context } = await req.json().catch(
     () => ({}) as { jobId?: string; question?: string; context?: string }
   );
-  if (!jobId || !question) {
+  if (!isUuid(jobId)) {
+    return NextResponse.json({ error: 'jobId must be a valid uuid' }, { status: 400 });
+  }
+  if (!question) {
     return NextResponse.json({ error: 'jobId and question required' }, { status: 400 });
   }
 

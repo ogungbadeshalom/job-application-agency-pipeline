@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth';
 import { callAI, RESUME_TAILOR_SYSTEM } from '@/lib/ai';
 import { renderResumePdf, type ResumeData } from '@/lib/resume-pdf';
 import { newStoragePath, writeStorage } from '@/lib/storage';
+import { isUuid } from '@/lib/validate';
 
 // POST /api/tailor  { jobId }
 // Worker/admin: tailor the client's base resume to the job's JD. The AI returns
@@ -16,7 +17,9 @@ export async function POST(req: Request) {
   }
 
   const { jobId } = await req.json().catch(() => ({} as { jobId?: string }));
-  if (!jobId) return NextResponse.json({ error: 'jobId required' }, { status: 400 });
+  if (!isUuid(jobId)) {
+    return NextResponse.json({ error: 'jobId must be a valid uuid' }, { status: 400 });
+  }
 
   const job = await db.getJob(jobId);
   if (!job) return NextResponse.json({ error: 'Job not found' }, { status: 404 });

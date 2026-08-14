@@ -6,6 +6,7 @@ import os from 'os';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import type { Job, ScrapeConfig, ScrapeResultJob } from '@/lib/types';
+import { isUuid } from '@/lib/validate';
 
 // POST /api/scrape
 // Admin-only. Runs JobSpy (Python subprocess), dedupes by URL, inserts jobs.
@@ -32,6 +33,13 @@ export async function POST(req: Request) {
 
   if (config.profile_ids.length === 0) {
     return NextResponse.json({ error: 'Select at least one profile.' }, { status: 400 });
+  }
+  // Reject the whole request if ANY profile id is a non-UUID — passing a
+  // truthy-but-invalid member into scrape_runs.profile_ids (uuid[]) would
+  // throw 22P02 on the INSERT (unhandled 500). Do NOT filter-and-continue:
+  // silently dropping a bad member would scrape a different set than asked for.
+  if (config.profile_ids.some((pid) => !isUuid(pid))) {
+    return NextResponse.json({ error: 'profile_ids must be valid uuids' }, { status: 400 });
   }
 
   const profiles = await db.listProfiles();

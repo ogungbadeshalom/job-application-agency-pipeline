@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { isUuid } from '@/lib/validate';
 
 async function assertWorkerOwns(
   workerId: string,
@@ -20,7 +21,9 @@ export async function GET(req: Request) {
   }
 
   const profileId = new URL(req.url).searchParams.get('profile_id');
-  if (!profileId) return NextResponse.json({ error: 'profile_id required' }, { status: 400 });
+  if (!isUuid(profileId)) {
+    return NextResponse.json({ error: 'profile_id must be a valid uuid' }, { status: 400 });
+  }
 
   if (session.user.role === 'worker') {
     if (!(await assertWorkerOwns(session.user.id, profileId)))
@@ -41,7 +44,10 @@ export async function POST(req: Request) {
   const { profile_id, question, answer } = await req.json().catch(
     () => ({}) as { profile_id?: string; question?: string; answer?: string }
   );
-  if (!profile_id || !question || !answer) {
+  if (!isUuid(profile_id)) {
+    return NextResponse.json({ error: 'profile_id must be a valid uuid' }, { status: 400 });
+  }
+  if (!question || !answer) {
     return NextResponse.json({ error: 'profile_id, question, answer required' }, { status: 400 });
   }
   if (session.user.role === 'worker') {

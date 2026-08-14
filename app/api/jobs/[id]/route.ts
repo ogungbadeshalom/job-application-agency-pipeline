@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import type { Job, JobStatus } from '@/lib/types';
+import { isUuid } from '@/lib/validate';
 
 const ALLOWED_PATCH = new Set([
   'status',
@@ -28,6 +29,9 @@ async function canTouchJob(
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!isUuid(params.id)) {
+    return NextResponse.json({ error: 'Invalid job id' }, { status: 400 });
+  }
   const job = await db.getJob(params.id);
   if (!job) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
@@ -49,6 +53,9 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!isUuid(params.id)) {
+    return NextResponse.json({ error: 'Invalid job id' }, { status: 400 });
+  }
 
   const job = await db.getJob(params.id);
   if (!(await canTouchJob(session.user, job))) {

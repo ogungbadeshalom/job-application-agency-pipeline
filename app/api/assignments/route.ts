@@ -1,13 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
-
-// UUID format for Postgres `uuid` columns. Passing anything else (empty string,
-// whitespace, a non-UUID string) to a parameterized query throws sqlstate 22P02
-// ("invalid input syntax for type uuid") and 500s the request AFTER possibly
-// mutating prior rows — so we reject malformed IDs up front, before any DB write.
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const isUuid = (s: unknown): s is string => typeof s === 'string' && UUID_RE.test(s);
+import { isUuid } from '@/lib/validate';
 
 // POST /api/assignments  (admin)
 // Body: { worker_user_id, profile_ids: string[] }

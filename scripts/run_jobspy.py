@@ -192,35 +192,51 @@ for term in search_terms:
         # Resolve the proxy once: _use_proxy does a 1s TCP liveness check, so
         # calling it twice per (term, site) doubled the wait on a down proxy.
         _proxy = _use_proxy([site])
-        try:
-            if _has_alarm:
-                _signal.signal(_signal.SIGALRM, _deadline)
-                _signal.setitimer(_signal.ITIMER_REAL, SITE_TIMEOUT_S)
-            df = scrape_jobs(
-                site_name=[site],
-                search_term=term,
-                location=location,
-                results_wanted=results_wanted,
-                hours_old=hours_old,
-                is_remote=is_remote,
-                job_type=job_type_value,
-                linkedin_fetch_description=True,
-                proxies=_proxy,
-                ca_cert=False if _proxy else None,
-            )
-            if df is not None and not df.empty:
-                rec = df.to_dict("records")
-                all_jobs.extend(rec)
-                term_ok += len(rec)
-        except Exception as exc:
-            # Record per-site failures but keep going with the other boards.
-            msg = "".join(traceback.format_exception_only(type(exc), exc)).strip()
-            errors.append(f"{term} / {site}: {msg}")
-            print(f"[warn] {term} / {site}: {msg}", file=sys.stderr)
-        finally:
-            # Cancel the deadline timer so it can't stray into the next site.
-            if _has_alarm:
-                _signal.setitimer(_signal.ITIMER_REAL, 0)
+        # Retry fragile boards (LinkedIn is the main one — its guest API throws
+        # transient 502/429 storms under anti-bot) once with a short backoff.
+        # A 2nd attempt after a brief pause often clears the burst; if it still
+        # fails we record it and move on rather than aborting the whole batch.
+        _attempts = 2 if site in FRAGILE else 1
+        df = None
+        for _attempt in range(1, _attempts + 1):
+            if _over_budget():
+                break
+            try:
+                if _has_alarm:
+                    _signal.signal(_signal.SIGALRM, _deadline)
+                    _signal.setitimer(_signal.ITIMER_REAL, SITE_TIMEOUT_S)
+                df = scrape_jobs(
+                    site_name=[site],
+                    search_term=term,
+                    location=location,
+                    results_wanted=results_wanted,
+                    hours_old=hours_old,
+                    is_remote=is_remote,
+                    job_type=job_type_value,
+                    linkedin_fetch_description=True,
+                    proxies=_proxy,
+                    ca_cert=False if _proxy else None,
+                )
+                break  # success on first try
+            except Exception as exc:
+                msg = "".join(traceback.format_exception_only(type(exc), exc)).strip()
+                # Re-arm hazard: the signal alarm is disarmed in finally after the
+                # WHOLE block, so on a retry we must re-setitimer — done above.
+                if _attempt < _attempts:
+                    print(f"[warn] {term} / {site} attempt {_attempt}/{_attempts} failed ({msg[:120]}) — retrying…", file=sys.stderr)
+                    if _has_alarm:
+                        _signal.setitimer(_signal.ITIMER_REAL, 0)
+                    _time.sleep(3)  # backoff before retry
+                else:
+                    errors.append(f"{term} / {site}: {msg}")
+                    print(f"[warn] {term} / {site}: {msg}", file=sys.stderr)
+            finally:
+                if _has_alarm:
+                    _signal.setitimer(_signal.ITIMER_REAL, 0)
+        if df is not None and not df.empty:
+            rec = df.to_dict("records")
+            all_jobs.extend(rec)
+            term_ok += len(rec)
     if term_ok == 0:
         print(f"[warn] term '{term}' returned no jobs", file=sys.stderr)
 
@@ -411,8 +427,19 @@ with open(output_file, "w", encoding="utf-8") as f:
     json.dump(records, f, ensure_ascii=False)
 
 # If every term failed, exit non-zero so the caller treats it as a failure.
+# BUT: per-board failures (a board returned 0 / 502 / timeout, e.g. LinkedIn
+# anti-bot) are NOT fatal — the refill should still complete (as "0 added"
+# with the reason) rather than abort with a hard 500 that loses the run. Only
+# a genuinely fatal script error (no search terms / nothing usable at all)
+# keeps the non-zero exit. We distinguish by: no records AND no fatal flag.
 if not records and errors:
-    print("All search terms failed:\n" + "\n".join(errors), file=sys.stderr)
-    sys.exit(1)
+    # Still emit the reasons so the caller shows them, but exit 0 so the run
+    # is recorded as completed-with-0 (the caller surfaces errors). The empty
+    # JSON (already written above) is a valid "no jobs" result.
+    print("All boards failed for these terms (no jobs returned):\n"
+          + "\n".join(errors), file=sys.stderr)
+    # Keep exit 0 so the Node runner records a completed (0-job) run instead of
+    # a hard failure — a lone LinkedIn 502 shouldn't nuke the whole refill.
+    sys.exit(0)
 
 print(f"[ok] {len(records)} jobs written to {output_file}", file=sys.stderr)

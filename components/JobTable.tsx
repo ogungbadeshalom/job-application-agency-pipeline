@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useMemo, useRef, useState, useEffect } from 'react';
+import { memo, useMemo, useRef, useState, useEffect } from 'react';
 import type { Job, JobStatus, Profile } from '@/lib/types';
 import { CLIENT_VISIBLE_STATUSES, STATUS_ORDER } from '@/lib/types';
 import StatusBadge, { STATUS_OPTIONS } from './StatusBadge';
@@ -70,7 +70,7 @@ function fmtDate(iso: string | null | undefined) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-export default function JobTable({
+function JobTable({
   jobs,
   profiles,
   mode,
@@ -96,7 +96,9 @@ export default function JobTable({
 
   // Navigate to a job WITHOUT letting Next auto-scroll-to-top, so a Back later
   // returns to the same scroll position. Falls back to a plain Link.
+  // Prefetch the target in the background so opening the job feels instant.
   function openJob(href: string) {
+    router.prefetch(href);
     router.push(href, { scroll: false });
   }
 
@@ -591,3 +593,7 @@ function MobileJobCard({
     </div>
   );
 }
+
+// Memoized so a parent re-render (e.g. the queue's client-switcher state change)
+// doesn't re-render the whole table when its props are unchanged.
+export default memo(JobTable);

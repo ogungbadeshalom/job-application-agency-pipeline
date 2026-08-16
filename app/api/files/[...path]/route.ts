@@ -29,13 +29,14 @@ export async function GET(_req: Request, { params }: { params: { path: string[] 
   let owningJob: { company?: string | null; title?: string | null } | null = null;
 
   if (!ownerProfileId) {
-    // Search jobs for a tailored-resume or proof match.
-    const jobs = await db.listJobs({ limit: 5000 });
-    const job =
-      jobs.find((j) => j.tailored_resume_pdf_url === rel) ||
-      jobs.find((j) => j.proof_of_submission === rel);
+    // Search jobs for a tailored-resume or proof match. Use the slim indexed
+    // lookup (returns only id/profile/company/title) instead of loading the
+    // whole jobs table, so a file request doesn't pull up to N full rows (incl.
+    // large `description`/`tailored_resume` text) into memory just to resolve
+    // one path's owner.
+    const job = await db.getJobByFilePath(rel);
     ownerProfileId = job?.profile_id ?? null;
-    owningJob = job ?? null;
+    owningJob = job ? { company: job.company, title: job.title } : null;
   }
 
   if (!ownerProfileId) {

@@ -522,6 +522,31 @@ export const db = {
     const row = await one('select * from jobs where id = $1', [id]);
     return row ? mapJob(row) : null;
   },
+  // Resolve the owning job (and its profile) for a stored file path WITHOUT
+  // loading the full jobs table. The old approach in /api/files called
+  // listJobs({limit:5000}) — a `select * from jobs ... order by created_at desc`
+  // that pulled up to N full rows (incl. large `description`/`tailored_resume`
+  // text) into memory on EVERY file request just to find one path's owner.
+  // This does a single indexed lookup against the two path columns and returns
+  // only the fields the files route needs (permission + friendly filename).
+  // jobbidder_files_path_idx backs both columns.
+  async getJobByFilePath(
+    rel: string
+  ): Promise<{ id: string; profile_id: string; company: string | null; title: string | null } | null> {
+    const row = await one(
+      `select id, profile_id, company, title from jobs
+        where tailored_resume_pdf_path = $1 or proof_of_submission = $1
+        limit 1`,
+      [rel]
+    );
+    if (!row) return null;
+    return {
+      id: String(row.id),
+      profile_id: String(row.profile_id),
+      company: (row.company as string | null) ?? null,
+      title: (row.title as string | null) ?? null,
+    };
+  },
   async updateJob(id: string, patch: Partial<Job>): Promise<Job | null> {
     const allowed: Record<string, string> = {
       status: 'status',

@@ -124,7 +124,114 @@ def scrape_hiringcafe(term: str, old_days: int) -> list:
     return records
 
 
-BOARDS = {"jobicy": scrape_jobicy, "hiringcafe": scrape_hiringcafe}
+# GregHouse + Lever are per-company ATS feeds (not a global search). Both have
+# open, pragmatic JSON APIs reachable from this box. We curl a curated list of
+# company slugs, pull their postings, and filter to those matching the search
+# term (word-level on title) + remote (remote detection best-effort). Good
+# companies respond even when a specific slug 404s -> we skip it silently.
+GREENHOUSE_ORGS = [
+    "stripe", "datadog", "figma", "notion", "gusto", "monzo", "newrelic",
+    "pagerduty", "airtable", "vercel", "planetscale", "wisetack",
+]
+LEVER_ORGS = ["leverdemo"]
+
+
+def _title_matches(title: str, term: str) -> bool:
+    """Role-relevance filter. A term like 'data engineer' must match a data-ish
+    title (data/platform/analytics/engineering+data), NOT every generic
+    'Engineer' listing. Falls back to full-term substring match."""
+    if not term:
+        return True
+    t = title.strip().lower()
+    term = term.strip().lower()
+    # Exact/full-phrase substring match -> strong signal.
+    if term in t:
+        return True
+    # Loose word match ONLY when at least one keyword in the term also points to
+    # the discipline, to avoid every 'Backend Engineer' matching 'data engineer'.
+    kb = ("data", "analytics", "etl", "warehouse", "bi ", "sql", "big data",
+          "database", "platform", "pipeline", "lakehouse", "snowflake", "spark")
+    if any(k in t for k in kb):
+        words = [w for w in term.split() if len(w) > 3]
+        return any(w in t for w in words)
+    return False
+
+
+def _looks_remote(loc, workplace) -> bool:
+    blob = f"{loc or ''} {workplace or ''}".lower()
+    return ("remote" in blob) or ("remote" in (loc or "").lower())
+
+
+def scrape_greenhouse(term: str, old_days: int) -> list:
+    out = []
+    for org in GREENHOUSE_ORGS:
+        url = f"https://api.greenhouse.io/v1/boards/{org}/jobs"
+        try:
+            payload = json.loads(_fetch(url))
+        except Exception as e:
+            print(f"[warn] greenhouse:{org} {e}", file=sys.stderr)
+            continue
+        for j in payload.get("jobs", []):
+            title = j.get("title") or ""
+            if not _title_matches(title, term):
+                continue
+            # remote detection: location name may include 'remote'; otherwise keep
+            # role but mark is_remote from location string only.
+            loc = (j.get("location") or {}).get("name") or ""
+            out.append({
+                "title": title,
+                "company": j.get("company_name") or org,
+                "site": "greenhouse",
+                "job_url": j.get("absolute_url") or "",
+                "location": loc or "Remote",
+                "description": "",
+                "date_posted": j.get("first_published"),
+                "is_remote": _looks_remote(loc, None),
+                "is_expired": bool(loc and j.get("is_expired")),
+                "is_easy_apply": False,
+            })
+    print(f"[ok] greenhouse: {len(out)} jobs for '{term}'", file=sys.stderr)
+    return out
+
+
+def scrape_lever(term: str, old_days: int) -> list:
+    out = []
+    for org in LEVER_ORGS:
+        url = f"https://api.lever.co/v0/postings/{org}?mode=json"
+        try:
+            payload = json.loads(_fetch(url))
+        except Exception as e:
+            print(f"[warn] lever: {org} {e}", file=sys.stderr)
+            continue
+        if not isinstance(payload, list):
+            continue
+        for p in payload:
+            title = p.get("text") or ""
+            if not _title_matches(title, term):
+                continue
+            cats = p.get("categories") or {}
+            loc = cats.get("location") or ""
+            wt = p.get("workplaceType") or ""
+            if not _looks_remote(loc, wt):
+                continue
+            out.append({
+                "title": title,
+                "company": cats.get("team") or org,
+                "site": "lever",
+                "job_url": p.get("hostedUrl") or "",
+                "location": loc or "Remote",
+                "description": (p.get("descriptionPlain") or "")[:4000],
+                "date_posted": p.get("createdAt"),
+                "is_remote": "remote" in (loc + " " + wt).lower(),
+                "is_expired": False,
+                "is_easy_apply": False,
+            })
+    print(f"[ok] lever: {len(out)} jobs for '{term}'", file=sys.stderr)
+    return out
+
+
+BOARDS = {"jobicy": scrape_jobicy, "hiringcafe": scrape_hiringcafe,
+           "greenhouse": scrape_greenhouse, "lever": scrape_lever}
 
 
 def main():

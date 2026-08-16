@@ -132,6 +132,10 @@ def scrape_hiringcafe(term: str, old_days: int) -> list:
 GREENHOUSE_ORGS = [
     "stripe", "datadog", "figma", "notion", "gusto", "monzo", "newrelic",
     "pagerduty", "airtable", "vercel", "planetscale", "wisetack",
+    # broaden: more mid/large firms that post engineering/data roles
+    "hashicorp", "remitly", "dbtlabs", "contenda", "supabase", "render",
+    "shopify", "sentry", "twilio", "deel", "box", "dropbox", "reddit",
+    "spotsmost", "brex", "coinbase", "chime", "wise", "stripe-2",
 ]
 LEVER_ORGS = ["leverdemo"]
 

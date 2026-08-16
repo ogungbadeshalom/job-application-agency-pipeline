@@ -501,13 +501,19 @@ export const db = {
     const rows = await all(sql, params);
     return rows.map(mapJob);
   },
-  // Hard-delete jobs older than `days` days that are NOT applied (applied jobs
-  // are kept so client/worker history survives). Returns the number deleted.
+  // Hard-delete jobs older than `days` days from the candidate QUEUE only.
+  // Scoped to `status = 'saved'` (not `status <> 'applied'`): the history-delete
+  // guard (migration 015) protects `applied`/`skipped` rows, and a bare delete
+  // that selects a `skipped` row RAISEs and aborts the WHOLE statement — which
+  // silently broke the daily expire cleanup. Deleting only `saved` rows keeps
+  // applied/skipped history intact (the product decision) AND never trips the
+  // guard. `tailored` rows are skipped too (work in progress, not a finished
+  // outcome) so the queue cycle is: saved -> (tailored) -> applied/skipped.
   async deleteExpiredJobs(days: number): Promise<number> {
     const res = await query(
       `delete from jobs
         where created_at < now() - make_interval(days => $1::int)
-          and status <> 'applied'`,
+          and status = 'saved'`,
       [days]
     );
     return Number(res?.rowCount ?? 0);

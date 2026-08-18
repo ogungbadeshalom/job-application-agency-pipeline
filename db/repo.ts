@@ -780,6 +780,80 @@ export const db = {
     // Return via getAppConfig to give callers the decrypted key for in-memory use.
     return (await this.getAppConfig())!;
   },
+
+  // --- earnings pool meter ------------------------------------------------
+  async getEarningsConfig(): Promise<{
+    perAppNaira: number;
+    weeklyCapNaira: number;
+    weekStart: 'monday';
+    updatedAt: string;
+  }> {
+    const row = await one<{
+      per_app_naira?: string | number;
+      weekly_cap_naira?: string | number;
+      week_start: string;
+      updated_at: Date;
+    }>('select * from earnings_config where id = 1');
+    return {
+      perAppNaira: Number(row?.per_app_naira ?? 0),
+      weeklyCapNaira: Number(row?.weekly_cap_naira ?? 3500),
+      weekStart: (row?.week_start ?? 'monday') as 'monday',
+      updatedAt: (row?.updated_at ?? new Date()).toISOString(),
+    };
+  },
+  // Admin-only: update the (hidden) per-job rate + the visible weekly cap.
+  async setEarningsConfig(input: {
+    perAppNaira: number;
+    weeklyCapNaira: number;
+  }): Promise<{ perAppNaira: number; weeklyCapNaira: number }> {
+    await one(
+      `insert into earnings_config (id, per_app_naira, weekly_cap_naira, updated_at)
+       values (1, $1, $2, now())
+       on conflict (id) do update set
+         per_app_naira = excluded.per_app_naira,
+         weekly_cap_naira = excluded.weekly_cap_naira,
+         updated_at = now()
+       returning *`,
+      [input.perAppNaira, input.weeklyCapNaira]
+    );
+    return { perAppNaira: input.perAppNaira, weeklyCapNaira: input.weeklyCapNaira };
+  },
+  // Worker's weekly naira pool, derived from confirmed applied jobs (status =
+  // applied AND a proof_of_submission is present) whose status_changed_at falls
+  // inside the current Monday-Sunday week. Capped at the weekly cap. The per-job
+  // rate and any USD figures are NEVER returned here (worker can't see them).
+  async getWorkerEarnings(profileId: string): Promise<{
+    countThisWeek: number;
+    earnedNaira: number; // capped
+    weeklyCapNaira: number;
+    perAppNaira: number; // internal only — callers should NOT expose to workers
+    weekStartIso: string;
+    weekEndIso: string;
+  }> {
+    const cfg = await this.getEarningsConfig();
+    const weekStart = `date_trunc('week', now())`; // Monday 00:00
+    const weekEnd = `date_trunc('week', now()) + interval '7 days'`;
+    const row = await one<{ c: string }>(
+      `select count(*)::text c from jobs
+        where profile_id = $1
+          and status = 'applied'
+          and proof_of_submission is not null and proof_of_submission <> ''
+          and status_changed_at >= ${weekStart}
+          and status_changed_at < ${weekEnd}`,
+      [profileId]
+    );
+    const count = Number(row?.c ?? 0);
+    const raw = count * cfg.perAppNaira;
+    const earned = Math.min(raw, cfg.weeklyCapNaira);
+    return {
+      countThisWeek: count,
+      earnedNaira: earned,
+      weeklyCapNaira: cfg.weeklyCapNaira,
+      perAppNaira: cfg.perAppNaira,
+      weekStartIso: '',
+      weekEndIso: '',
+    };
+  },
 };
 
 export type Db = typeof db;

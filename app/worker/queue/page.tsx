@@ -49,6 +49,25 @@ export default async function WorkerQueuePage({
   }
   const allQuota = profiles.reduce((sum, p) => sum + (p.jobs_per_week || 20), 0);
 
+  // Earnings pool meter: per-client weekly naira. Only the worker-safe fields
+  // are passed down — the private per-app rate stays on the server.
+  const earningsByClient: Record<string, { earnedNaira: number; weeklyCapNaira: number; countThisWeek: number }> = {};
+  for (const p of profiles) {
+    const e = await db.getWorkerEarnings(p.id);
+    earningsByClient[p.id] = {
+      earnedNaira: e.earnedNaira,
+      weeklyCapNaira: e.weeklyCapNaira,
+      countThisWeek: e.countThisWeek,
+    };
+  }
+
+  const allEarnings = {
+    earnedNaira: Object.values(earningsByClient).reduce((s, e) => s + e.earnedNaira, 0),
+    countThisWeek: Object.values(earningsByClient).reduce((s, e) => s + e.countThisWeek, 0),
+    // cap of the selected client; we'll show per-client cap via earningsByClient.
+    weeklyCapNaira: profiles[0] ? (earningsByClient[profiles[0].id]?.weeklyCapNaira ?? 0) : 0,
+  };
+
   const nav = [
     { href: '/worker/queue', label: 'Queue', badge: jobs.filter((j) => j.status === 'saved').length },
     { href: '/worker/history', label: 'History' },
@@ -66,6 +85,8 @@ export default async function WorkerQueuePage({
       weeklyApplied={weeklyStats.applied}
       weeklySkipped={weeklyStats.skipped}
       clientStats={clientStats}
+      weeklyEarnings={allEarnings}
+      earningsByClient={earningsByClient}
     />
   );
 }

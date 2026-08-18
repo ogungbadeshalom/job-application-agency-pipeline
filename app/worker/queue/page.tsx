@@ -64,8 +64,9 @@ export default async function WorkerQueuePage({
   const allEarnings = {
     earnedNaira: Object.values(earningsByClient).reduce((s, e) => s + e.earnedNaira, 0),
     countThisWeek: Object.values(earningsByClient).reduce((s, e) => s + e.countThisWeek, 0),
-    // cap of the selected client; we'll show per-client cap via earningsByClient.
-    weeklyCapNaira: profiles[0] ? (earningsByClient[profiles[0].id]?.weeklyCapNaira ?? 0) : 0,
+    // "All" = sum of every client's weekly cap (e.g. 3500 x N clients), so a
+    // worker handling multiple clients sees the combined pool.
+    weeklyCapNaira: Object.values(earningsByClient).reduce((s, e) => s + e.weeklyCapNaira, 0),
   };
 
   const nav = [

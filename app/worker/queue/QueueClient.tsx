@@ -45,6 +45,13 @@ export default function QueueClient({
   const pathname = usePathname();
   const [clientId, setClientId] = useState(initialClientId);
   const [actionError, setActionError] = useState<string | null>(null);
+  // Worker self-refill state
+  const [refillState, setRefillState] = useState<{ preset: string; busy: boolean; msg: string | null; error: string | null }>({
+    preset: '',
+    busy: false,
+    msg: null,
+    error: null,
+  });
   // Local copy of the jobs list used for OPTIMISTIC quick-actions: flipping a
   // job's status re-renders instantly instead of waiting for a full
   // server round-trip + router.refresh(). Re-seed whenever the server sends a
@@ -221,6 +228,40 @@ export default function QueueClient({
     router.refresh();
   }, []);
 
+  // Worker self-refill: POST /api/worker-refill with the selected client + preset.
+  // Only for a real (non-'all') client. Rate-limited server-side (30 min).
+  async function doRefill() {
+    if (clientId === 'all' || !clientId) {
+      setRefillState((s) => ({ ...s, error: 'Select a client first.', msg: null }));
+      return;
+    }
+    setRefillState((s) => ({ ...s, busy: true, error: null, msg: null }));
+    try {
+      const res = await fetch('/api/worker-refill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profileId: clientId, presetId: refillState.preset || undefined }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setRefillState((s) => ({ ...s, error: data?.error || `Refill failed (${res.status})`, busy: false }));
+        return;
+      }
+      setRefillState((s) => ({
+        ...s,
+        busy: false,
+        msg: `${data?.jobs_added ?? 0} new jobs added${data?.deduped_by_company ? ' (kept 1 per company)' : ''}.`,
+        error: null,
+      }));
+      router.refresh();
+    } catch (e) {
+      setRefillState((s) => ({ ...s, busy: false, error: 'Network error — please retry.', msg: null }));
+    }
+  }
+
+  const selProfile = clientId !== 'all' ? clientProfiles?.find((p) => p.id === clientId) : undefined;
+  const presets = (selProfile?.presets ?? []) as { id: string; name: string }[];
+
   return (
     <DashboardLayout user={user} nav={nav} active="/worker/queue">
       <div className="mb-4">
@@ -253,6 +294,31 @@ export default function QueueClient({
                   {cp.name}
                 </button>
               ))}
+            </div>
+          )}
+          {/* Worker self-refill */}
+          {clientId !== 'all' && (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 min-w-[220px]">
+                <label className="text-xs text-navy-500 sr-only">Preset</label>
+                <select
+                  value={refillState.preset}
+                  onChange={(e) => setRefillState((s) => ({ ...s, preset: e.target.value, error: null, msg: null }))}
+                  className="rounded-md bg-navy-800 border border-navy-700 px-2 py-1.5 text-xs text-navy-100"
+                >
+                  <option value="">Default settings</option>
+                  {presets.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={doRefill}
+                  disabled={refillState.busy}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-md bg-brand-green/20 text-brand-green border border-brand-green/30 hover:bg-brand-green/30 disabled:opacity-50"
+                >
+                  {refillState.busy ? 'Refilling…' : 'Refill'}
+                </button>
+              </div>
             </div>
           )}
           <p className="text-sm text-navy-400">

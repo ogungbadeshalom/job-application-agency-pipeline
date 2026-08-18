@@ -95,6 +95,13 @@ export default function QueueClient({
     ? jobsState
     : jobsState.filter((j) => j.profile_id === clientId);
 
+  // Internal queue tabs: pick which subset of the client-filtered jobs show.
+  const [queueTab, setQueueTab] = useState<'working' | 'applied'>('working');
+  // 'working' = not applied (saved/tailored/skipped); 'applied' = only applied.
+  const tabJobs = queueTab === 'applied'
+    ? filteredJobs.filter((j) => j.status === 'applied')
+    : filteredJobs.filter((j) => j.status !== 'applied');
+
   // Weekly cards follow the switcher: 'all' shows the aggregate, a specific
   // client shows that client's own applied/skipped/quota for the week.
   const selected = clientStats?.[clientId];
@@ -366,13 +373,40 @@ export default function QueueClient({
             </div>
           )}
           <p className="text-sm text-navy-400">
-            {filteredJobs.length} jobs
+            {tabJobs.length} jobs
             {clientId !== 'all' && (
               <span className="text-navy-300">
                 {' '}for <span className="text-navy-200">{clientProfiles?.find((p) => p.id === clientId)?.name}</span>
               </span>
             )}
           </p>
+        </div>
+        {/* Internal queue tabs: Working (excludes applied) vs Applied */}
+        <div className="mt-2 flex items-center gap-1">
+          {(
+            [
+              { id: 'working' as const, label: 'Working' },
+              { id: 'applied' as const, label: 'Applied' },
+            ]
+          ).map((t) => {
+            const count = t.id === 'applied'
+              ? filteredJobs.filter((j) => j.status === 'applied').length
+              : filteredJobs.filter((j) => j.status !== 'applied').length;
+            const active = queueTab === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setQueueTab(t.id)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  active
+                    ? 'bg-brand-green/20 text-brand-green border border-brand-green/40'
+                    : 'text-navy-400 border border-transparent hover:text-navy-200 hover:bg-navy-800/60'
+                }`}
+              >
+                {t.label} <span className="opacity-70">({count})</span>
+              </button>
+            );
+          })}
         </div>
         <div className="mt-2 flex items-center gap-2">
           <span className="text-xs px-2 py-1 rounded-md bg-brand-green/15 text-brand-green">
@@ -457,10 +491,10 @@ export default function QueueClient({
         )}
       </div>
 
-      <ContinueBanner jobs={filteredJobs} onJump={requestJump} />
+      <ContinueBanner jobs={tabJobs} onJump={requestJump} />
 
       <JobTable
-        jobs={filteredJobs}
+        jobs={tabJobs}
         profiles={profiles}
         mode="worker"
         onQuickAction={quickAction}

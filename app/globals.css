@@ -100,3 +100,17 @@ button:not(:disabled):active {
 .new-pulse {
   animation: newPulse 2.4s ease-in-out infinite;
 }
+
+/* Earnings pool meter fill — animated green gradient that shimmers as it fills */
+@keyframes earnsShimmer {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+.earns-fill {
+  background: linear-gradient(
+    90deg,
+    #3fb950 0%, #58a6ff 45%, #56d364 60%, #3fb950 100%
+  );
+  background-size: 200% 100%;
+  animation: earnsShimmer 3s linear infinite;
+}

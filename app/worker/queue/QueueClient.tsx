@@ -19,6 +19,8 @@ export default function QueueClient({
   weeklyApplied,
   weeklySkipped,
   clientStats,
+  weeklyEarnings,
+  earningsByClient,
 }: {
   user: User;
   nav: { href: string; label: string; badge?: number }[];
@@ -34,6 +36,10 @@ export default function QueueClient({
   /** Per-client weekly stats (applied/skipped/quota) so the switcher can show
    *  the selected client's numbers. Optional for backward compat. */
   clientStats?: Record<string, { applied: number; skipped: number; quota: number }>;
+  /** Aggregated weekly earnings pool across the worker's clients. */
+  weeklyEarnings?: { earnedNaira: number; weeklyCapNaira: number; countThisWeek: number };
+  /** Earnings per client (for the client switcher). */
+  earningsByClient?: Record<string, { earnedNaira: number; weeklyCapNaira: number; countThisWeek: number }>;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -74,6 +80,24 @@ export default function QueueClient({
   const cardQuota = selected ? selected.quota : quota;
   const cardApplied = selected ? selected.applied : weeklyApplied;
   const cardSkipped = selected ? selected.skipped : weeklySkipped;
+  // Earnings pool for the selected client (or the aggregate). Only worker-safe
+  // fields (naira + cap + count) ever reach the client. `clientId` is the
+  // profile id; 'all' falls back to the aggregate.
+  const selectedEarn = clientId !== 'all' && earningsByClient?.[clientId]
+    ? earningsByClient[clientId]
+    : weeklyEarnings;
+  const cardEarnings = {
+    earned: selectedEarn?.earnedNaira ?? 0,
+    cap: selectedEarn?.weeklyCapNaira ?? 0,
+    count: selectedEarn?.countThisWeek ?? 0,
+    pct: selectedEarn && selectedEarn.weeklyCapNaira > 0
+      ? Math.min(100, (selectedEarn.earnedNaira / selectedEarn.weeklyCapNaira) * 100)
+      : 0,
+    maxed: !!selectedEarn && selectedEarn.earnedNaira >= selectedEarn.weeklyCapNaira && selectedEarn.weeklyCapNaira > 0,
+  };
+  function naira(v: number): string {
+    return `₦${Math.round(v).toLocaleString('en-US')}`;
+  }
 
   // ---- Scroll preservation across queue <-> job navigation ----
   // Next.js App Router resets scroll to top on navigation BEFORE the queue
@@ -285,6 +309,42 @@ export default function QueueClient({
             {cardApplied} of {cardQuota} this week (Mon–Sun)
           </p>
         </div>
+      </div>
+
+      {/* Earnings pool meter — worker's weekly naira, privacy-safe (no rate) */}
+      <div className="panel p-4 mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="th-uppercase">Weekly earnings pool</span>
+          <span className="text-xs text-navy-500">
+            resets every Monday{cardEarnings.maxed ? ' · maxed' : ''}
+          </span>
+        </div>
+        <div className="flex items-end gap-3">
+          <div
+            className={`text-3xl sm:text-4xl font-bold tabular-nums transition-colors ${
+              cardEarnings.maxed ? 'text-brand-green' : 'text-brand-blue'
+            }`}
+          >
+            {naira(cardEarnings.earned)}
+          </div>
+          <div className="text-sm text-navy-400 pb-1">
+            of <span className="text-navy-200 font-medium">{naira(cardEarnings.cap)}</span> this week
+          </div>
+        </div>
+        {/* Fill meter with animated gradient + milestone ticks */}
+        <div className="relative h-4 rounded-full bg-navy-900 overflow-hidden mt-2">
+          <div
+            className="earns-fill h-full transition-all duration-700"
+            style={{ width: `${cardEarnings.pct}%` }}
+          />
+        </div>
+        <div className="flex justify-between text-[11px] text-navy-500 mt-1">
+          <span>{naira(0)}</span>
+          <span>{naira(cardEarnings.cap)}</span>
+        </div>
+        {cardEarnings.maxed && (
+          <p className="text-xs text-brand-green mt-1">🎉 Week maxed — see you next Monday!</p>
+        )}
       </div>
 
       <ContinueBanner jobs={filteredJobs} onJump={requestJump} />

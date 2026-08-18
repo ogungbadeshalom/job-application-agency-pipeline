@@ -1,12 +1,9 @@
 import { NextResponse } from 'next/server';
-import { spawn } from 'child_process';
-import path from 'path';
-import fs from 'fs/promises';
-import os from 'os';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import type { Job, ScrapeConfig, ScrapeResultJob } from '@/lib/types';
 import { isUuid } from '@/lib/validate';
+import { runJobSpy, dedupeAndMap } from '@/lib/scrape';
 
 // POST /api/scrape
 // Admin-only. Runs JobSpy (Python subprocess), dedupes by URL, inserts jobs.
@@ -191,139 +188,5 @@ export async function POST(req: Request) {
       completed_at: new Date().toISOString(),
     });
     return NextResponse.json({ error: msg }, { status: 500 });
-  }
-}
-
-// Map JobSpy rows to our Job shape and dedupe by URL against the profile.
-async function dedupeAndMap(
-  raw: ScrapeResultJob[],
-  profileId: string,
-  scrapeRunId: string
-): Promise<Job[]> {
-  const mask = await db.dedupeJobsByURL(
-    profileId,
-    raw.map((r) => ({ url: r.job_url }))
-  );
-  const fresh = raw.filter((_, i) => mask[i]);
-  // Also drop duplicate URLs within this same scrape batch (e.g. the same
-  // posting surfacing across two site-groups or two search terms), so each
-  // profile gets at most one row per URL.
-  const seenThisBatch = new Set<string>();
-  const deduped = fresh.filter((r) => {
-    // Coerce job_url defensively: a raw/numeric job_url (or null) must never
-    // crash .trim() — normalize to '' and key on the sentinel instead.
-    const u = String(r.job_url ?? '').trim();
-    const key = u || `__noUrl__${String(r.site || '')}__${String(r.title || '')}`;
-    if (seenThisBatch.has(key)) return false;
-    seenThisBatch.add(key);
-    return true;
-  });
-  const now = new Date().toISOString();
-  return deduped.map((r) => ({
-    id: '',
-    profile_id: profileId,
-    title: r.title || 'Untitled',
-    company: r.company || '',
-    board: r.site || 'unknown',
-    url: r.job_url || '',
-    description: r.description || '',
-    compensation_min: r.interval_amount ?? null,
-    compensation_max: r.interval_amount ?? null,
-    compensation_currency: r.currency || 'USD',
-    location: r.location || null,
-    status: 'saved' as const,
-    tailored_resume: null,
-    tailored_resume_pdf_url: null,
-    submitted_at: null,
-    proof_of_submission: null,
-    notes: null,
-    scrape_run_id: scrapeRunId,
-    created_at: now,
-    updated_at: now,
-    last_viewed_at: null,
-  }));
-}
-
-interface JobSpyArgs {
-  sites: string[];
-  search_terms: string[];
-  location: string;
-  results_wanted: number;
-  hours_old: number;
-  is_remote?: boolean;
-  job_type?: string;
-  include_kw?: string[];
-  exclude_kw?: string[];
-  remove_easy_apply?: boolean;
-}
-
-// Spawn the Python JobSpy script and parse its JSON output.
-async function runJobSpy(args: JobSpyArgs): Promise<ScrapeResultJob[]> {
-  const scriptPath = path.join(process.cwd(), 'scripts', 'run_jobspy.py');
-  const tmpFile = path.join(os.tmpdir(), `scrape_${Date.now()}.json`);
-  const configJson = JSON.stringify(args);
-
-  // On Windows the python executable is typically `python`; elsewhere `python3`.
-  const pyBin = process.platform === 'win32' ? 'python' : 'python3';
-
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const child = spawn(pyBin, [scriptPath, configJson, tmpFile], {
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-      let stderr = '';
-      child.stderr.on('data', (d) => (stderr += d.toString()));
-      // Settle the promise exactly once and always clear the timer, whichever
-      // of {timer, error, close} fires first. Without a shared guard, a kill by
-      // the timeout is followed by a spurious second reject from 'close' (the
-      // error message would read "JobSpy exited null" and mask the timeout),
-      // and a spawn 'error' leaves the 150s timer pending (it would fire later
-      // against an already-settled promise and keep the process alive).
-      let settled = false;
-      let timer: NodeJS.Timeout | null = null;
-      const finish = (err: Error | null) => {
-        if (settled) return;
-        settled = true;
-        if (timer) clearTimeout(timer);
-        if (err) reject(err);
-        else resolve();
-      };
-      child.on('error', (e) => finish(e));
-      // Hard cap on the whole scrape so a hung board can't stall the request
-      // indefinitely (8+ boards sequentially can exceed default limits).
-      timer = setTimeout(() => {
-        child.kill('SIGKILL');
-        finish(new Error(`JobSpy timed out after 300s. ${stderr.slice(0, 300)}`.trim()));
-      }, 300_000);
-      child.on('close', (code, signal) => {
-        if (code === 0) {
-          finish(null);
-        } else if (signal) {
-          // Killed by our own timeout (or an external signal) — the specific
-          // error is already surfaced by the timer, so don't double-report.
-          if (!settled) finish(new Error(`JobSpy killed by signal ${signal}.`));
-        } else {
-          finish(
-            new Error(
-              `JobSpy exited ${code}. ${stderr.slice(0, 1000) || 'No stderr.'}`.trim()
-            )
-          );
-        }
-      });
-    });
-
-    const text = await fs.readFile(tmpFile, 'utf-8');
-    // Parse defensively: Python's json module can emit bare NaN/Infinity literals
-    // (invalid strict JSON) if a value slips past our sanitizer. Rewrite them to
-    // null so JSON.parse never throws the "Unexpected token 'N'" error.
-    const safeText = text
-      .replace(/-Infinity/g, 'null')
-      .replace(/\bNaN\b/g, 'null')
-      .replace(/\bInfinity\b/g, 'null');
-    const parsed = JSON.parse(safeText);
-    if (!Array.isArray(parsed)) return [];
-    return parsed as ScrapeResultJob[];
-  } finally {
-    await fs.rm(tmpFile, { force: true });
   }
 }

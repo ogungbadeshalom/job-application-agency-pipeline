@@ -783,40 +783,48 @@ export const db = {
 
   // --- earnings pool meter ------------------------------------------------
   async getEarningsConfig(): Promise<{
-    perAppNaira: number;
+    usdPerApp: number;
+    ngnPerUsd: number;
     weeklyCapNaira: number;
     weekStart: 'monday';
     updatedAt: string;
   }> {
     const row = await one<{
-      per_app_naira?: string | number;
+      usd_per_app?: string | number;
+      ngn_per_usd?: string | number;
       weekly_cap_naira?: string | number;
       week_start: string;
       updated_at: Date;
     }>('select * from earnings_config where id = 1');
     return {
-      perAppNaira: Number(row?.per_app_naira ?? 0),
+      usdPerApp: Number(row?.usd_per_app ?? 0),
+      ngnPerUsd: Number(row?.ngn_per_usd ?? 1350),
       weeklyCapNaira: Number(row?.weekly_cap_naira ?? 3500),
       weekStart: (row?.week_start ?? 'monday') as 'monday',
       updatedAt: (row?.updated_at ?? new Date()).toISOString(),
     };
   },
-  // Admin-only: update the (hidden) per-job rate + the visible weekly cap.
+  // Admin-only: update the private USD-per-app rate, the NGN/USD rate, and the
+  // visible weekly cap (in naira).
   async setEarningsConfig(input: {
-    perAppNaira: number;
+    usdPerApp: number;
+    ngnPerUsd: number;
     weeklyCapNaira: number;
-  }): Promise<{ perAppNaira: number; weeklyCapNaira: number }> {
+  }): Promise<{ usdPerApp: number; ngnPerUsd: number; weeklyCapNaira: number }> {
     await one(
-      `insert into earnings_config (id, per_app_naira, weekly_cap_naira, updated_at)
-       values (1, $1, $2, now())
+      `insert into earnings_config (id, usd_per_app, ngn_per_usd, weekly_cap_naira,
+         per_app_naira, updated_at)
+       values (1, $1, $2, $3, $1 * $2, now())
        on conflict (id) do update set
-         per_app_naira = excluded.per_app_naira,
+         usd_per_app = excluded.usd_per_app,
+         ngn_per_usd = excluded.ngn_per_usd,
          weekly_cap_naira = excluded.weekly_cap_naira,
+         per_app_naira = $1 * $2,
          updated_at = now()
        returning *`,
-      [input.perAppNaira, input.weeklyCapNaira]
+      [input.usdPerApp, input.ngnPerUsd, input.weeklyCapNaira]
     );
-    return { perAppNaira: input.perAppNaira, weeklyCapNaira: input.weeklyCapNaira };
+    return { usdPerApp: input.usdPerApp, ngnPerUsd: input.ngnPerUsd, weeklyCapNaira: input.weeklyCapNaira };
   },
   // Worker's weekly naira pool, derived from confirmed applied jobs (status =
   // applied AND a proof_of_submission is present) whose status_changed_at falls
@@ -843,13 +851,14 @@ export const db = {
       [profileId]
     );
     const count = Number(row?.c ?? 0);
-    const raw = count * cfg.perAppNaira;
+    // Each confirmed app = usd_per_app, converted to naira at ngn_per_usd.
+    const raw = count * cfg.usdPerApp * cfg.ngnPerUsd;
     const earned = Math.min(raw, cfg.weeklyCapNaira);
     return {
       countThisWeek: count,
       earnedNaira: earned,
       weeklyCapNaira: cfg.weeklyCapNaira,
-      perAppNaira: cfg.perAppNaira,
+      perAppNaira: cfg.usdPerApp * cfg.ngnPerUsd, // internal only
       weekStartIso: '',
       weekEndIso: '',
     };

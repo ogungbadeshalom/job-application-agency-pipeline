@@ -95,12 +95,15 @@ export default function QueueClient({
     ? jobsState
     : jobsState.filter((j) => j.profile_id === clientId);
 
-  // Internal queue tabs: pick which subset of the client-filtered jobs show.
-  const [queueTab, setQueueTab] = useState<'working' | 'applied'>('working');
-  // 'working' = not applied (saved/tailored/skipped); 'applied' = only applied.
-  const tabJobs = queueTab === 'applied'
-    ? filteredJobs.filter((j) => j.status === 'applied')
-    : filteredJobs.filter((j) => j.status !== 'applied');
+  // Internal queue tabs: which subset of the client-filtered jobs show.
+  const [queueTab, setQueueTab] = useState<'working' | 'applied' | 'skipped'>('working');
+  // working = unworked (saved/tailored); applied = applied only; skipped = skipped only.
+  const tabJobs =
+    queueTab === 'applied'
+      ? filteredJobs.filter((j) => j.status === 'applied')
+      : queueTab === 'skipped'
+        ? filteredJobs.filter((j) => j.status === 'skipped')
+        : filteredJobs.filter((j) => j.status !== 'applied' && j.status !== 'skipped');
 
   // Weekly cards follow the switcher: 'all' shows the aggregate, a specific
   // client shows that client's own applied/skipped/quota for the week.
@@ -295,11 +298,11 @@ export default function QueueClient({
             {actionError}
           </div>
         )}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-xl font-semibold text-navy-100">My Queue</h1>
           {/* Client switcher — shown only when this worker handles >1 client */}
           {(clientProfiles ?? []).length > 1 && (
-            <div className="flex items-center gap-1 rounded-md border border-navy-700 p-0.5">
+            <div className="flex flex-wrap items-center gap-1 rounded-md border border-navy-700 p-0.5 w-fit">
               <button
                 onClick={() => switchClient('all')}
                 className={`px-2.5 py-1 text-xs font-medium rounded ${
@@ -323,13 +326,13 @@ export default function QueueClient({
           )}
           {/* Worker self-refill */}
           {clientId !== 'all' && (
-            <div className="flex flex-col items-end gap-1.5">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col items-stretch sm:items-end gap-1.5 w-full sm:w-auto">
+              <div className="flex flex-wrap items-center gap-2">
                 <label className="text-xs text-navy-500">Preset</label>
                 <select
                   value={refillState.preset}
                   onChange={(e) => setRefillState((s) => ({ ...s, preset: e.target.value, error: null, msg: null }))}
-                  className="rounded-md bg-navy-800 border border-navy-700 px-2 py-1.5 text-xs text-navy-100"
+                  className="rounded-md bg-navy-800 border border-navy-700 px-2 py-1.5 text-xs text-navy-100 flex-1 min-w-[120px]"
                 >
                   <option value="">Default settings</option>
                   {presets.map((p) => (
@@ -387,11 +390,15 @@ export default function QueueClient({
             [
               { id: 'working' as const, label: 'Working' },
               { id: 'applied' as const, label: 'Applied' },
+              { id: 'skipped' as const, label: 'Skipped' },
             ]
           ).map((t) => {
-            const count = t.id === 'applied'
-              ? filteredJobs.filter((j) => j.status === 'applied').length
-              : filteredJobs.filter((j) => j.status !== 'applied').length;
+            const count =
+              t.id === 'applied'
+                ? filteredJobs.filter((j) => j.status === 'applied').length
+                : t.id === 'skipped'
+                  ? filteredJobs.filter((j) => j.status === 'skipped').length
+                  : filteredJobs.filter((j) => j.status !== 'applied' && j.status !== 'skipped').length;
             const active = queueTab === t.id;
             return (
               <button

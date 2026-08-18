@@ -2,14 +2,11 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 
-// Earnings pool meter endpoint.
+// Earnings pool meter endpoint (admin only).
 //
-// GET  /api/earnings (admin) -> the editable config (incl. the private per-app
-//      rate) + aggregate. Workers never hit this for their own numbers — their
-//      weekly naira is computed server-side in /worker/queue and the rate is
-//      never exposed there either.
-// PUT  /api/earnings (admin only)
-//      body: { perAppNaira: number, weeklyCapNaira: number }
+// GET  /api/earnings -> the editable config (private USD-per-app rate, NGN/USD
+//      rate, and the visible naira weekly cap).
+// PUT  /api/earnings -> body: { usdPerApp, ngnPerUsd, weeklyCapNaira }
 export async function GET() {
   const session = await getSession();
   if (!session || session.user.role !== 'admin') {
@@ -17,7 +14,8 @@ export async function GET() {
   }
   const cfg = await db.getEarningsConfig();
   return NextResponse.json({
-    perAppNaira: cfg.perAppNaira,
+    usdPerApp: cfg.usdPerApp,
+    ngnPerUsd: cfg.ngnPerUsd,
     weeklyCapNaira: cfg.weeklyCapNaira,
     updatedAt: cfg.updatedAt,
   });
@@ -29,16 +27,19 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const body = await req.json().catch(() => ({}));
-  const perAppNaira = Number(body.perAppNaira);
+  const usdPerApp = Number(body.usdPerApp);
+  const ngnPerUsd = Number(body.ngnPerUsd);
   const weeklyCapNaira = Number(body.weeklyCapNaira);
   if (
-    !Number.isFinite(perAppNaira) ||
+    !Number.isFinite(usdPerApp) ||
+    !Number.isFinite(ngnPerUsd) ||
     !Number.isFinite(weeklyCapNaira) ||
-    perAppNaira < 0 ||
+    usdPerApp < 0 ||
+    ngnPerUsd <= 0 ||
     weeklyCapNaira <= 0
   ) {
     return NextResponse.json({ error: 'Invalid earnings config' }, { status: 400 });
   }
-  const res = await db.setEarningsConfig({ perAppNaira, weeklyCapNaira });
+  const res = await db.setEarningsConfig({ usdPerApp, ngnPerUsd, weeklyCapNaira });
   return NextResponse.json(res);
 }

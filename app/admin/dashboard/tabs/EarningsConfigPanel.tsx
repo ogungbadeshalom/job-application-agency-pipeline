@@ -4,11 +4,13 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 // Admin-only: configure the worker earnings pool meter.
-//  - perAppNaira: private per-application rate (never shown to workers)
-//  - weeklyCapNaira: the weekly naira cap the worker's pool meter fills toward
+//  - usdPerApp:      private USD per confirmed application (never shown to workers)
+//  - ngnPerUsd:      exchange rate used to convert earnings to naira
+//  - weeklyCapNaira: the weekly naira cap the worker's meter fills toward
 export default function EarningsConfigPanel() {
   const router = useRouter();
-  const [perApp, setPerApp] = useState('');
+  const [usdPerApp, setUsdPerApp] = useState('');
+  const [ngnPerUsd, setNgnPerUsd] = useState('');
   const [cap, setCap] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +21,8 @@ export default function EarningsConfigPanel() {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (d) {
-          setPerApp(String(d.perAppNaira ?? ''));
+          setUsdPerApp(String(d.usdPerApp ?? ''));
+          setNgnPerUsd(String(d.ngnPerUsd ?? ''));
           setCap(String(d.weeklyCapNaira ?? ''));
         }
       })
@@ -36,7 +39,11 @@ export default function EarningsConfigPanel() {
       const res = await fetch('/api/earnings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ perAppNaira: Number(perApp), weeklyCapNaira: Number(cap) }),
+        body: JSON.stringify({
+          usdPerApp: Number(usdPerApp),
+          ngnPerUsd: Number(ngnPerUsd),
+          weeklyCapNaira: Number(cap),
+        }),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => null);
@@ -56,27 +63,40 @@ export default function EarningsConfigPanel() {
       <div className="p-3 border-b border-navy-700">
         <h3 className="text-sm font-semibold text-navy-200">Worker Earnings Pool</h3>
         <p className="text-xs text-navy-500 mt-0.5">
-          The weekly naira meter workers see. The per-application rate is private.
+          The weekly naira meter workers see. The USD per-app rate is private —
+          only the naira total + weekly cap are shown to workers.
         </p>
       </div>
       <div className="p-3 space-y-3">
         <label className="block">
-          <span className="text-xs text-navy-400">Per-application rate (naira, private)</span>
+          <span className="text-xs text-navy-400">USD per application (private)</span>
           <input
             type="number"
-            step="0.01"
+            step="0.0001"
             min="0"
-            value={perApp}
-            onChange={(e) => setPerApp(e.target.value)}
+            value={usdPerApp}
+            onChange={(e) => setUsdPerApp(e.target.value)}
             className="mt-1 w-full rounded-md bg-navy-800 border border-navy-700 px-3 py-2 text-navy-100"
             placeholder="e.g. 0.0105"
+          />
+        </label>
+        <label className="block">
+          <span className="text-xs text-navy-400">NGN per USD (private)</span>
+          <input
+            type="number"
+            step="1"
+            min="0"
+            value={ngnPerUsd}
+            onChange={(e) => setNgnPerUsd(e.target.value)}
+            className="mt-1 w-full rounded-md bg-navy-800 border border-navy-700 px-3 py-2 text-navy-100"
+            placeholder="e.g. 1350"
           />
         </label>
         <label className="block">
           <span className="text-xs text-navy-400">Weekly cap (naira, shown to worker)</span>
           <input
             type="number"
-            step="0.01"
+            step="1"
             min="0"
             value={cap}
             onChange={(e) => setCap(e.target.value)}

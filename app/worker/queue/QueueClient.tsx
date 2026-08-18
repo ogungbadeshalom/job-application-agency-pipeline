@@ -8,6 +8,17 @@ import type { Job, Profile, User } from '@/lib/types';
 
 const SCROLL_KEY = 'jobbidder_queue_scroll';
 
+// Boards a worker can choose for their self-refill (no Indeed/LinkedIn: both
+// are excluded by policy on this deployment; Lever is thin).
+const REFILL_BOARDS = [
+  { site: 'greenhouse', label: 'Greenhouse' },
+  { site: 'builtin', label: 'BuiltIn' },
+  { site: 'jobicy', label: 'Jobicy' },
+  { site: 'weworkremotely', label: 'WeWorkRemote' },
+  { site: 'remotive', label: 'Remotive' },
+  { site: 'workingnomads', label: 'WorkingNomads' },
+];
+
 export default function QueueClient({
   user,
   nav,
@@ -46,8 +57,11 @@ export default function QueueClient({
   const [clientId, setClientId] = useState(initialClientId);
   const [actionError, setActionError] = useState<string | null>(null);
   // Worker self-refill state
-  const [refillState, setRefillState] = useState<{ preset: string; busy: boolean; msg: string | null; error: string | null }>({
+  const [refillState, setRefillState] = useState<{
+    preset: string; boards: string[]; busy: boolean; msg: string | null; error: string | null;
+  }>({
     preset: '',
+    boards: [],
     busy: false,
     msg: null,
     error: null,
@@ -240,7 +254,11 @@ export default function QueueClient({
       const res = await fetch('/api/worker-refill', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profileId: clientId, presetId: refillState.preset || undefined }),
+        body: JSON.stringify({
+        profileId: clientId,
+        presetId: refillState.preset || undefined,
+        sites: refillState.boards.length ? refillState.boards : undefined,
+      }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -298,9 +316,9 @@ export default function QueueClient({
           )}
           {/* Worker self-refill */}
           {clientId !== 'all' && (
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 min-w-[220px]">
-                <label className="text-xs text-navy-500 sr-only">Preset</label>
+            <div className="flex flex-col items-end gap-1.5">
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-navy-500">Preset</label>
                 <select
                   value={refillState.preset}
                   onChange={(e) => setRefillState((s) => ({ ...s, preset: e.target.value, error: null, msg: null }))}
@@ -318,6 +336,32 @@ export default function QueueClient({
                 >
                   {refillState.busy ? 'Refilling…' : 'Refill'}
                 </button>
+              </div>
+              {/* Board selector: workers pick which boards to scrape. */}
+              <div className="flex items-center gap-1 flex-wrap justify-end">
+                <span className="text-[10px] uppercase text-navy-500 mr-1">Boards</span>
+                {REFILL_BOARDS.map((b) => {
+                  const on = refillState.boards.includes(b.site);
+                  return (
+                    <button
+                      key={b.site}
+                      type="button"
+                      onClick={() =>
+                        setRefillState((s) => ({
+                          ...s,
+                          boards: on ? s.boards.filter((x) => x !== b.site) : [...s.boards, b.site],
+                        }))
+                      }
+                      className={`px-2 py-0.5 text-[10px] rounded-full border transition-colors ${
+                        on
+                          ? 'bg-brand-green/20 text-brand-green border-brand-green/40'
+                          : 'bg-navy-800 text-navy-400 border-navy-700 hover:border-navy-600'
+                      }`}
+                    >
+                      {b.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}

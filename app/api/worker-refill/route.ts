@@ -24,6 +24,13 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const profileId = typeof body.profileId === 'string' ? body.profileId : '';
   const presetId = typeof body.presetId === 'string' ? body.presetId : '';
+  // Optional: worker-selected boards. Must be non-empty and only known boards.
+  const rawSites: unknown = body.sites;
+  const requestedSites: string[] = Array.isArray(rawSites)
+    ? rawSites.filter((s): s is string => typeof s === 'string').slice(0, 8)
+    : [];
+  const AVAILABLE_BOARDS = ['greenhouse', 'builtin', 'jobicy', 'weworkremotely', 'remotive', 'workingnomads', 'lever'];
+  const chosenSites = requestedSites.filter((s) => AVAILABLE_BOARDS.includes(s));
 
   if (!profileId || !isUuid(profileId)) {
     return NextResponse.json({ error: 'Select a profile.' }, { status: 400 });
@@ -53,7 +60,12 @@ export async function POST(req: Request) {
   const presets: ProfilePreset[] = (profile.presets ?? []) as ProfilePreset[];
   const preset = presetId ? presets.find((p) => p.id === presetId) : undefined;
   const searchTerms = preset?.search_terms?.length ? preset.search_terms : profile.scrape_search_terms;
-  const sites = preset?.sites?.length ? preset.sites : profile.scrape_sites;
+  // Boards: worker-selected (if they picked any) > preset > profile default.
+  const sites = chosenSites.length
+    ? chosenSites
+    : preset?.sites?.length
+      ? preset.sites
+      : profile.scrape_sites;
   const resultsWanted = Math.min(preset?.results_wanted || RESULTS_WANTED, 150);
   const location = preset?.location || 'Remote';
   const hoursOld = 72;

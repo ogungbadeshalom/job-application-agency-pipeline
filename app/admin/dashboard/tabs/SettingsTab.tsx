@@ -8,6 +8,7 @@ import type { ScrapeRun, User } from '@/lib/types';
 import { LabeledInput } from './shared';
 import AIConfigPanel from './AIConfigPanel';
 import MaintenancePanel from './MaintenancePanel';
+import EarningsConfigPanel from './EarningsConfigPanel';
 
 export default function SettingsTab({ users, scrapeRuns }: { users: User[]; scrapeRuns: ScrapeRun[] }) {
   const [resetTarget, setResetTarget] = useState<User | null>(null);
@@ -41,6 +42,7 @@ export default function SettingsTab({ users, scrapeRuns }: { users: User[]; scra
   return (
     <div className="space-y-6">
       <AIConfigPanel />
+      <EarningsConfigPanel />
       <MaintenancePanel />
 
       <section className="panel overflow-hidden">

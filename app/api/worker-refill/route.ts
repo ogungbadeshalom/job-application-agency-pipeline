@@ -12,8 +12,10 @@ import type { Job, ProfilePreset, ScrapeResultJob } from '@/lib/types';
 //  - rate-limited (one refill per worker per 30 min)
 //  - capped result size
 //  - 1 job per company enforced after insertion
-const RATE_LIMIT_MIN = 30;
+const RATE_LIMIT_MIN = 0; // rate limiting disabled (multiple workers share a profile)
 const RESULTS_WANTED = 80;
+// Fallback board list if none configured (working boards only — no Indeed/LinkedIn).
+const DEFAULT_SITES = ['greenhouse', 'builtin', 'jobicy', 'weworkremotely'];
 
 export async function POST(req: Request) {
   const session = await getSession();
@@ -43,29 +45,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Not your profile.' }, { status: 403 });
   }
 
-  // Rate limit: at most one refill per worker every 30 minutes.
-  const cutoff = new Date(Date.now() - RATE_LIMIT_MIN * 60_000);
-  const prev = await db.findRecentScrapeRunByUser(session.user.id, cutoff);
-  if (prev) {
-    const started = prev.started_at ? Date.parse(prev.started_at) : Date.now();
-    const minsAgo = Math.floor((Date.now() - started) / 60_000);
-    const waitLeft = Math.max(0, RATE_LIMIT_MIN - minsAgo);
-    return NextResponse.json(
-      { error: `You can refill again in ~${waitLeft} minutes.` },
-      { status: 429 }
-    );
-  }
+  // (Rate limiting removed — multiple workers share this profile concurrently.)
 
   // Resolve the preset (or fall back to the profile defaults).
   const presets: ProfilePreset[] = (profile.presets ?? []) as ProfilePreset[];
   const preset = presetId ? presets.find((p) => p.id === presetId) : undefined;
   const searchTerms = preset?.search_terms?.length ? preset.search_terms : profile.scrape_search_terms;
-  // Boards: worker-selected (if they picked any) > preset > profile default.
-  const sites = chosenSites.length
+  // Boards: worker-selected (if they picked any) > preset > profile default >
+  // fallback board list (so a profile with no sites configured still works).
+  const sites = (chosenSites.length
     ? chosenSites
     : preset?.sites?.length
       ? preset.sites
-      : profile.scrape_sites;
+      : profile.scrape_sites?.length
+        ? profile.scrape_sites
+        : DEFAULT_SITES
+  ).slice(0, 8);
   const resultsWanted = Math.min(preset?.results_wanted || RESULTS_WANTED, 150);
   const location = preset?.location || 'Remote';
   const hoursOld = 72;

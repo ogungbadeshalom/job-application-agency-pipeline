@@ -22,8 +22,6 @@ export const SITE_OPTIONS: { name: string; site: string; disabled?: boolean; not
   { name: 'Greenhouse', site: 'greenhouse', note: 'ATS per-company board' },
   { name: 'Lever', site: 'lever', note: 'ATS per-company board' },
   { name: 'SmartRecruiters', site: 'smart_recruiters', disabled: true, note: 'returning 0 from this server' },
-  { name: 'WeWorkRemotely', site: 'weworkremotely' },
-  { name: 'Remotive', site: 'remotive' },
   { name: 'WorkingNomads', site: 'workingnomads' },
   { name: 'Jobicy', site: 'jobicy', note: 'remote-only aggregator' },
   { name: 'HiringCafe', site: 'hiringcafe', note: 'opt-in, uses headless browser (slow)' },
@@ -42,7 +40,7 @@ export default function RefillJobsModal({
   profiles: Profile[];
   onDone?: (result: { jobs_added: number }) => void;
 }) {
-  const [sites, setSites] = useState<string[]>(['linkedin','builtin','greenhouse','weworkremotely','workingnomads','jobicy']);
+  const [sites, setSites] = useState<string[]>(['linkedin','builtin','greenhouse','workingnomads','jobicy']);
   const [searchTerms, setSearchTerms] = useState('');
   const [location, setLocation] = useState('United States');
   const [remoteOnly, setRemoteOnly] = useState(true); // most clients want remote
@@ -135,7 +133,7 @@ export default function RefillJobsModal({
       // can't land on the freshly reset form.
       abortRef.current?.abort();
       abortRef.current = null;
-      setSites(['linkedin', 'builtin', 'greenhouse', 'weworkremotely', 'workingnomads', 'jobicy']);
+      setSites(['linkedin', 'builtin', 'greenhouse', 'workingnomads', 'jobicy']);
       setSearchTerms('');
       setLocation('United States');
       setRemoteOnly(true);

@@ -15,7 +15,7 @@ import type { Job, ProfilePreset, ScrapeResultJob } from '@/lib/types';
 const RATE_LIMIT_MIN = 0; // rate limiting disabled (multiple workers share a profile)
 const RESULTS_WANTED = 80;
 // Fallback board list if none configured (working boards only — no Indeed/LinkedIn).
-const DEFAULT_SITES = ['greenhouse', 'builtin', 'jobicy', 'weworkremotely'];
+const DEFAULT_SITES = ['greenhouse', 'builtin', 'jobicy'];
 
 export async function POST(req: Request) {
   const session = await getSession();
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
   const requestedSites: string[] = Array.isArray(rawSites)
     ? rawSites.filter((s): s is string => typeof s === 'string').slice(0, 8)
     : [];
-  const AVAILABLE_BOARDS = ['greenhouse', 'builtin', 'jobicy', 'weworkremotely', 'remotive', 'workingnomads', 'lever'];
+  const AVAILABLE_BOARDS = ['greenhouse', 'builtin', 'jobicy', 'workingnomads', 'lever'];
   const chosenSites = requestedSites.filter((s) => AVAILABLE_BOARDS.includes(s));
 
   if (!profileId || !isUuid(profileId)) {

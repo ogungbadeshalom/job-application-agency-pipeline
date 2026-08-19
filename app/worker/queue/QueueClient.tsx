@@ -14,8 +14,6 @@ const REFILL_BOARDS = [
   { site: 'greenhouse', label: 'Greenhouse' },
   { site: 'builtin', label: 'BuiltIn' },
   { site: 'jobicy', label: 'Jobicy' },
-  { site: 'weworkremotely', label: 'WeWorkRemote' },
-  { site: 'remotive', label: 'Remotive' },
   { site: 'workingnomads', label: 'WorkingNomads' },
 ];
 

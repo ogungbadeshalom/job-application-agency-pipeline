@@ -9,6 +9,26 @@
 //   npm run dev
 //   node scripts/test-access.mjs
 
+import { readFileSync, existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+// Node doesn't auto-load .env.local, so pull ADMIN_PASSWORD / BASE_URL from it
+// (next's loadEnvConfig does this for the app; this bare-node script needs it
+// explicitly). Without it the admin test silently falls back to the seed
+// default 'changeme', which fails against any real deployed admin password
+// and produces a false "admin sees all jobs" failure.
+function loadDotEnv() {
+  const p = resolve(process.cwd(), '.env.local');
+  if (!existsSync(p)) return;
+  for (const line of readFileSync(p, 'utf8').split('\n')) {
+    const m = line.match(/^([A-Z0-9_]+)=(.*)$/);
+    if (!m) continue;
+    const [, k, v] = m;
+    process.env[k] ??= v.replace(/^(['"])(.*)\1$/, '$2');
+  }
+}
+loadDotEnv();
+
 const BASE = process.env.BASE_URL || 'http://localhost:3000';
 let pass = 0;
 let fail = 0;

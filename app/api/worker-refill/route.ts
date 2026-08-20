@@ -9,13 +9,26 @@ import type { Job, ProfilePreset, ScrapeResultJob } from '@/lib/types';
 // the profile's default scrape settings). Safety rails:
 //  - worker only, and only for their OWN assigned profile
 //  - always remote-only
-//  - rate-limited (one refill per worker per 30 min)
+//  - single-flight (only one refill scrape at a time across workers)
 //  - capped result size
 //  - 1 job per company enforced after insertion
-const RATE_LIMIT_MIN = 0; // rate limiting disabled (multiple workers share a profile)
 const RESULTS_WANTED = 80;
-// Fallback board list if none configured (working boards only — no Indeed/LinkedIn).
+// Boards a worker may refill from (no Indeed/LinkedIn/Remotive/WWR by policy).
 const DEFAULT_SITES = ['greenhouse', 'builtin', 'jobicy'];
+const AVAILABLE_BOARDS = ['greenhouse', 'builtin', 'jobicy', 'workingnomads', 'lever'];
+
+// Single-flight: only one worker-refill scrape may run at a time across workers,
+// so two people sharing a profile (e.g. Erry) can't stack concurrent JobSpy
+// subprocesses. Concurrent callers get a 409 until the current run finishes.
+let refillInFlight = false;
+
+async function acquireLock(): Promise<void> {
+  if (refillInFlight) {
+    throw new RefillBusyError('Another refill is already running — wait a moment and retry.');
+  }
+  refillInFlight = true;
+}
+class RefillBusyError extends Error {}
 
 export async function POST(req: Request) {
   const session = await getSession();
@@ -31,7 +44,6 @@ export async function POST(req: Request) {
   const requestedSites: string[] = Array.isArray(rawSites)
     ? rawSites.filter((s): s is string => typeof s === 'string').slice(0, 8)
     : [];
-  const AVAILABLE_BOARDS = ['greenhouse', 'builtin', 'jobicy', 'workingnomads', 'lever'];
   const chosenSites = requestedSites.filter((s) => AVAILABLE_BOARDS.includes(s));
 
   if (!profileId || !isUuid(profileId)) {
@@ -45,7 +57,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Not your profile.' }, { status: 403 });
   }
 
-  // (Rate limiting removed — multiple workers share this profile concurrently.)
+  // Single-flight: reject if another refill is already scraping (avoids 2
+  // workers stacking concurrent JobSpy subprocesses on a shared profile).
+  try {
+    await acquireLock();
+  } catch (e) {
+    if (e instanceof RefillBusyError) {
+      return NextResponse.json({ error: e.message }, { status: 409 });
+    }
+    throw e;
+  }
 
   // Resolve the preset (or fall back to the profile defaults).
   const presets: ProfilePreset[] = (profile.presets ?? []) as ProfilePreset[];
@@ -125,5 +146,8 @@ export async function POST(req: Request) {
       completed_at: new Date().toISOString(),
     });
     return NextResponse.json({ error: msg }, { status: 500 });
+  } finally {
+    // Always release the single-flight lock so the next refill can proceed.
+    refillInFlight = false;
   }
 }

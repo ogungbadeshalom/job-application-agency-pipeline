@@ -20,6 +20,21 @@ export default function TailorPanel({
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  // Persist the current tailored resume to the job (server-side) so it's
+  // visible to clients/admin immediately. Reused by both the Tailor action
+  // (auto-save) and the manual Save button.
+  async function persist(text: string): Promise<void> {
+    const res = await fetch(`/api/jobs/${job.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tailored_resume: text }),
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(() => null);
+      throw new Error(d?.error || 'Save failed');
+    }
+  }
+
   async function tailor() {
     setLoading(true);
     setError(null);
@@ -40,6 +55,9 @@ export default function TailorPanel({
       }
       setOutput(data.tailored_resume);
       setPdfUrl(data.tailored_resume_pdf_url ?? null);
+      // Auto-save so clients can see it right away (no manual Save needed).
+      await persist(data.tailored_resume);
+      setSaved(true);
       onSaved?.(data.tailored_resume);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error');
@@ -52,15 +70,7 @@ export default function TailorPanel({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/jobs/${job.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tailored_resume: output }),
-      });
-      if (!res.ok) {
-        const d = await res.json().catch(() => null);
-        throw new Error(d?.error || 'Save failed');
-      }
+      await persist(output);
       setSaved(true);
       onSaved?.(output);
     } catch (e) {

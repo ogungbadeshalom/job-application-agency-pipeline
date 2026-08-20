@@ -137,6 +137,10 @@ GREENHOUSE_ORGS = [
     "shopify", "sentry", "twilio", "deel", "box", "dropbox", "reddit",
     "brex", "coinbase", "chime", "wise", "stripe-2",
     "amplitude", "asana", "anthropic", "vercel",
+    # v2.48: more data/ML-heavy orgs (verified return jobs from this box)
+    "okta", "gitlab", "elastic", "mongodb", "databricks", "roblox",
+    "pinterest", "airbnb", "lyft", "dropbox", "robinhood", "sofi",
+    "affirm", "twitch", "mercury", "zscaler", "fastly",
 ]
 LEVER_ORGS = ["leverdemo"]
 

@@ -638,14 +638,6 @@ export const db = {
     const rows = await all('select * from scrape_runs order by created_at desc');
     return rows.map(mapScrapeRun);
   },
-  // Find the most recent scrape run started by a given user since a cutoff.
-  async findRecentScrapeRunByUser(userId: string, since: Date): Promise<ScrapeRun | null> {
-    const row = await one<Record<string, unknown>>(
-      `select * from scrape_runs where triggered_by = $1 and started_at >= $2 order by started_at desc limit 1`,
-      [userId, since.toISOString()]
-    );
-    return row ? mapScrapeRun(row) : null;
-  },
   // Keep only the newest saved/tailored job per company for a profile queue.
   async dedupeQueueByCompany(profileId: string): Promise<number> {
     const res = await query(

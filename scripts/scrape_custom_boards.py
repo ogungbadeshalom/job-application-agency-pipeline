@@ -135,7 +135,8 @@ GREENHOUSE_ORGS = [
     # broaden: more mid/large firms that post engineering/data roles
     "hashicorp", "remitly", "dbtlabs", "contenda", "supabase", "render",
     "shopify", "sentry", "twilio", "deel", "box", "dropbox", "reddit",
-    "spotsmost", "brex", "coinbase", "chime", "wise", "stripe-2",
+    "brex", "coinbase", "chime", "wise", "stripe-2",
+    "amplitude", "asana", "anthropic", "vercel",
 ]
 LEVER_ORGS = ["leverdemo"]
 

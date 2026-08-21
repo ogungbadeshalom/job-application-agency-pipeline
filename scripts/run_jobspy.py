@@ -145,6 +145,47 @@ def _over_budget() -> bool:
 # still called per term.)
 _hiringcafe_done = False
 
+# LinkedIn via the UPSTREAM jobspy package (real companies, not the fork's
+# recruiter spam). Fronted by a bounded subprocess so a hung scrape can't stall
+# the batch; returns the record list, or None on any failure so the caller can
+# fall back to the in-process fork scrape.
+def _scrape_linkedin_upstream(term, location, results_wanted, hours_old, is_remote):
+    import subprocess as _subprocess
+    import tempfile as _tempfile
+    script = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "scrape_linkedin_upstream.py")
+    args = {
+        "term": term,
+        "location": location,
+        "results_wanted": min(int(results_wanted or 0), 40),
+        "hours_old": int(hours_old or 72),
+        "is_remote": bool(is_remote),
+    }
+    with _tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+        out = f.name
+    py = "python3.14"
+    try:
+        _res = _subprocess.run([py, script, json.dumps(args), out], timeout=45, check=False,
+                        capture_output=True)
+        # Surface the subprocess stderr so failures are diagnosable.
+        if _res.returncode != 0:
+            print(f"[warn] linkedin upstream rc={_res.returncode}: {_res.stderr.decode()[-200:]}", file=sys.stderr)
+        with open(out, "r") as fh:
+            recs = json.load(fh)
+        _os.unlink(out)
+    except Exception as _e:
+        print(f"[warn] linkedin upstream exception: {_e}", file=sys.stderr)
+        _os.unlink(out)
+        return None
+    if not recs or not isinstance(recs, list) or len(recs) == 0:
+        return None
+    # Return a pandas DataFrame so the existing downstream (`df.empty`,
+    # `df.to_dict('records')`) path works unchanged, matching scrape_jobs.
+    try:
+        import pandas as _pd
+        return _pd.DataFrame(recs)
+    except Exception:
+        return None
+
 for term in search_terms:
     if _over_budget():
         print("[warn] total time budget exceeded — returning partial results", file=sys.stderr)
@@ -202,6 +243,17 @@ for term in search_terms:
             if _over_budget():
                 break
             try:
+                if site == "linkedin" and _attempt == 1:
+                    # LinkedIn: use the UPSTREAM jobspy (real companies) via a
+                    # dedicated python3.14 subprocess. Falls back to the in-process
+                    # fork scrape below if this produces nothing.
+                    _up = _scrape_linkedin_upstream(
+                        term, location, results_wanted, hours_old, is_remote
+                    )
+                    if _up is not None:
+                        df = _up
+                        break
+                    _time.sleep(2)
                 if _has_alarm:
                     _signal.signal(_signal.SIGALRM, _deadline)
                     _signal.setitimer(_signal.ITIMER_REAL, SITE_TIMEOUT_S)
@@ -336,6 +388,12 @@ for r in all_jobs:
             for marker in ("remote", "anywhere", "work from home", "wfh")
         )
         if loc_remote:
+            keep = True
+        elif site == "linkedin":
+            # LinkedIn's remote flag is unreliable and the free feed mostly lists
+            # a city even for remote-capable roles (AWS, Adobe, Capital One…).
+            # Per Shalom: for LINKEDIN ONLY, accept US-listed roles — treat them
+            # as remote-flexible — while all other boards keep strict remote-only.
             keep = True
         elif isinstance(_loc, str) and _loc.strip():
             # A location that names a real city (2+ commas => "City, State,

@@ -20,22 +20,32 @@ try:
 except Exception as e:
     print(f"bad args: {e}", file=sys.stderr); sys.exit(2)
 
+try:
+    import pandas as _pd  # noqa: F401  (ensure available; jobspy needs it too)
+except Exception:
+    pass
+proxy = args.get("proxy", "") or ""
+site = args.get("site", "linkedin").lower()
 # Force the UPSTREAM package in, not the fork.
 sys.path = [p for p in sys.path if "JobSpy-improved" not in p]
 
 import warnings; warnings.filterwarnings("ignore")
 from jobspy import scrape_jobs
 
+kw = {}
+if proxy:
+    kw["proxies"] = {"http": proxy, "https": proxy}
+
 try:
     df = scrape_jobs(
-        site_name=["linkedin"],
+        site_name=[site],
         search_term=args.get("term", ""),
         location=args.get("location", "United States"),
         results_wanted=int(args.get("results_wanted", 30)),
         hours_old=int(args.get("hours_old", 72)),
         is_remote=bool(args.get("is_remote", True)),
-        # keep the listing-side scrape light; descriptions come later if needed
         linkedin_fetch_description=False,
+        **kw,
     )
     if df is None or df.empty:
         print("linkedin upstream: 0 rows", file=sys.stderr)

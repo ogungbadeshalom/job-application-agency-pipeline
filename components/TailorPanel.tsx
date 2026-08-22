@@ -123,7 +123,7 @@ export default function TailorPanel({
         <button
           onClick={tailor}
           disabled={loading || !profile.base_resume_text}
-          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md bg-emerald-600/20 text-brand-green hover:bg-emerald-600/30 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md bg-brand-green/15 text-brand-green hover:bg-brand-green/25 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? <Spinner /> : null}
           {output ? 'Re-tailor for this job' : 'Tailor for this job'}

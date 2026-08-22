@@ -124,7 +124,7 @@ export default function AssignWorkersModal({
           <button
             onClick={save}
             disabled={!selWorker || saving}
-            className="inline-flex items-center gap-2 px-4 py-1.5 text-sm font-medium rounded-md bg-brand-green text-navy-950 hover:bg-emerald-400 disabled:opacity-40"
+            className="inline-flex items-center gap-2 px-4 py-1.5 text-sm font-medium rounded-md bg-brand-green text-navy-950 hover:bg-brand-greenDark disabled:opacity-40"
           >
             {saving ? <><Spinner /> Saving…</> : 'Save assignments'}
           </button>

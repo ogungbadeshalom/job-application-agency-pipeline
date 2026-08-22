@@ -92,7 +92,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading || !email || !password}
-            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-md bg-brand-greenDark text-white hover:bg-emerald-700 disabled:opacity-50"
+            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-md bg-brand-greenDark text-white hover:bg-brand-green disabled:opacity-50"
           >
             <Spinner size={16} className={loading ? '' : 'opacity-0'} />
             {loading ? 'Signing in…' : 'Sign in'}

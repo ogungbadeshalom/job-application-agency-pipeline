@@ -133,6 +133,7 @@ export default function DashboardLayout({
             <button
               onClick={logout}
               title="Sign out"
+              aria-label="Sign out"
               className="p-2 rounded-md text-navy-400 hover:text-navy-100 hover:bg-navy-800 order-last"
             >
               <Logout />

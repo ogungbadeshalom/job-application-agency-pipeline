@@ -168,7 +168,7 @@ export default function EditUserModal({
           <button
             onClick={save}
             disabled={saving}
-            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md bg-brand-greenDark text-white hover:bg-emerald-700 disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md bg-brand-greenDark text-white hover:bg-brand-green disabled:opacity-50"
           >
             {saving ? <Spinner /> : null}
             {savedAt ? '✓ Saved' : 'Save changes'}
@@ -184,7 +184,7 @@ export default function EditUserModal({
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <LabeledInput label="Email" value={email} onChange={setEmail} />
           <LabeledInput label="Full name" value={fullName} onChange={setFullName} />
         </div>
@@ -256,7 +256,7 @@ export default function EditUserModal({
             onClick={toggleDisable}
             className={`text-sm rounded-md px-3 py-1.5 ${
               isDisabled
-                ? 'bg-emerald-600/20 text-brand-green hover:bg-emerald-600/30'
+                ? 'bg-brand-green/15 text-brand-green hover:bg-brand-green/25'
                 : 'bg-red-500/15 text-brand-red hover:bg-red-500/25'
             }`}
           >

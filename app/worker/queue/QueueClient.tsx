@@ -8,13 +8,16 @@ import type { Job, Profile, User } from '@/lib/types';
 
 const SCROLL_KEY = 'jobbidder_queue_scroll';
 
-// Boards a worker can choose for their self-refill (no Indeed/LinkedIn: both
-// are excluded by policy on this deployment; Lever is thin).
+// Boards available to the worker's self-serve refill. LinkedIn is included now
+// that it scrapes real US-remote companies via the rotating proxy + upstream
+// jobspy. (Indeed/Remotive/WWR still excluded by policy.)
 const REFILL_BOARDS = [
+  { site: 'linkedin', label: 'LinkedIn' },
   { site: 'greenhouse', label: 'Greenhouse' },
   { site: 'builtin', label: 'BuiltIn' },
   { site: 'jobicy', label: 'Jobicy' },
   { site: 'workingnomads', label: 'WorkingNomads' },
+  { site: 'lever', label: 'Lever' },
 ];
 
 export default function QueueClient({

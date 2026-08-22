@@ -13,9 +13,10 @@ import type { Job, ProfilePreset, ScrapeResultJob } from '@/lib/types';
 //  - capped result size
 //  - 1 job per company enforced after insertion
 const RESULTS_WANTED = 80;
-// Boards a worker may refill from (no Indeed/LinkedIn/Remotive/WWR by policy).
+// Boards a worker may refill from (no Indeed/Remotive/WWR by policy; LinkedIn
+// is allowed now that it scrapes real US-remote companies via the proxy).
 const DEFAULT_SITES = ['greenhouse', 'builtin', 'jobicy'];
-const AVAILABLE_BOARDS = ['greenhouse', 'builtin', 'jobicy', 'workingnomads', 'lever'];
+const AVAILABLE_BOARDS = ['greenhouse', 'builtin', 'jobicy', 'workingnomads', 'lever', 'linkedin'];
 
 // Single-flight: only one worker-refill scrape may run at a time across workers,
 // so two people sharing a profile (e.g. Erry) can't stack concurrent JobSpy

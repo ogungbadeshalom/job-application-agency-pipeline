@@ -56,13 +56,14 @@ export default function QueueClient({
   const [actionError, setActionError] = useState<string | null>(null);
   // Worker self-refill state
   const [refillState, setRefillState] = useState<{
-    preset: string; boards: string[]; busy: boolean; msg: string | null; error: string | null;
+    preset: string; boards: string[]; busy: boolean; msg: string | null; error: string | null; done: boolean;
   }>({
     preset: '',
     boards: [],
     busy: false,
     msg: null,
     error: null,
+    done: false,
   });
   // Local copy of the jobs list used for OPTIMISTIC quick-actions: flipping a
   // job's status re-renders instantly instead of waiting for a full
@@ -257,7 +258,7 @@ export default function QueueClient({
       setRefillState((s) => ({ ...s, error: 'Select a client first.', msg: null }));
       return;
     }
-    setRefillState((s) => ({ ...s, busy: true, error: null, msg: null }));
+    setRefillState((s) => ({ ...s, busy: true, error: null, msg: null, done: false }));
     try {
       const res = await fetch('/api/worker-refill', {
         method: 'POST',
@@ -270,18 +271,22 @@ export default function QueueClient({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setRefillState((s) => ({ ...s, error: data?.error || `Refill failed (${res.status})`, busy: false }));
+        setRefillState((s) => ({ ...s, error: data?.error || `Refill failed (${res.status})`, busy: false, done: true }));
         return;
       }
+      const added = data?.jobs_added ?? 0;
       setRefillState((s) => ({
         ...s,
         busy: false,
-        msg: `${data?.jobs_added ?? 0} new jobs added${data?.deduped_by_company ? ' (kept 1 per company)' : ''}.`,
+        msg: added > 0
+          ? `✓ Added ${added} new job${added === 1 ? '' : 's'}${data?.deduped_by_company ? ' (kept 1 per company)' : ''}.`
+          : 'No new jobs found this round — try a different board or preset.',
         error: null,
+        done: true,
       }));
       router.refresh();
     } catch (e) {
-      setRefillState((s) => ({ ...s, busy: false, error: 'Network error — please retry.', msg: null }));
+      setRefillState((s) => ({ ...s, busy: false, error: 'Network error — please retry.', msg: null, done: true }));
     }
   }
 
@@ -371,6 +376,28 @@ export default function QueueClient({
                   );
                 })}
               </div>
+            </div>
+          )}
+          {/* Refill feedback: loading bar while busy, then success / 0-new / error */}
+          {refillState.busy && (
+            <div className="mt-2 w-full sm:w-72">
+              <div className="flex items-center gap-2 text-xs text-navy-300">
+                <span className="inline-block h-3 w-3 rounded-full border-2 border-brand-green/40 border-t-brand-green animate-spin" />
+                Refilling… fetching jobs (can take 1–3 min)
+              </div>
+              <div className="mt-1 h-1.5 rounded-full bg-navy-800 overflow-hidden">
+                <div className="h-full bg-brand-green width-indeterminate" />
+              </div>
+            </div>
+          )}
+          {refillState.done && !refillState.busy && refillState.msg && !refillState.error && (
+            <div className="mt-2 w-full sm:w-96 text-xs rounded-md border px-3 py-2 bg-brand-green/10 border-brand-green/30 text-brand-green">
+              {refillState.msg}
+            </div>
+          )}
+          {refillState.done && !refillState.busy && refillState.error && (
+            <div className="mt-2 w-full sm:w-96 text-xs rounded-md border px-3 py-2 bg-red-500/10 border-red-500/30 text-brand-red">
+              {refillState.error}
             </div>
           )}
           <p className="text-sm text-navy-400">

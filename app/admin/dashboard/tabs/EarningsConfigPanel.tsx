@@ -76,7 +76,7 @@ export default function EarningsConfigPanel() {
             min="0"
             value={usdPerApp}
             onChange={(e) => setUsdPerApp(e.target.value)}
-            className="mt-1 w-full rounded-md bg-navy-800 border border-navy-700 px-3 py-2 text-navy-100"
+            className="mt-1 w-full rounded-md bg-navy-950 border border-navy-700 px-3 py-2 text-navy-100 focus:outline-none focus:border-brand-blue"
             placeholder="e.g. 0.0105"
           />
         </label>
@@ -88,7 +88,7 @@ export default function EarningsConfigPanel() {
             min="0"
             value={ngnPerUsd}
             onChange={(e) => setNgnPerUsd(e.target.value)}
-            className="mt-1 w-full rounded-md bg-navy-800 border border-navy-700 px-3 py-2 text-navy-100"
+            className="mt-1 w-full rounded-md bg-navy-950 border border-navy-700 px-3 py-2 text-navy-100 focus:outline-none focus:border-brand-blue"
             placeholder="e.g. 1350"
           />
         </label>
@@ -100,7 +100,7 @@ export default function EarningsConfigPanel() {
             min="0"
             value={cap}
             onChange={(e) => setCap(e.target.value)}
-            className="mt-1 w-full rounded-md bg-navy-800 border border-navy-700 px-3 py-2 text-navy-100"
+            className="mt-1 w-full rounded-md bg-navy-950 border border-navy-700 px-3 py-2 text-navy-100 focus:outline-none focus:border-brand-blue"
             placeholder="e.g. 3500"
           />
         </label>
@@ -117,7 +117,7 @@ export default function EarningsConfigPanel() {
         <button
           onClick={save}
           disabled={saving}
-          className="px-4 py-2 rounded-md bg-brand-blue text-white text-sm font-medium hover:opacity-90 disabled:opacity-50"
+          className="px-4 py-2 rounded-md bg-brand-green text-navy-950 text-sm font-medium hover:bg-brand-green disabled:opacity-50"
         >
           {saving ? 'Saving…' : 'Save'}
         </button>

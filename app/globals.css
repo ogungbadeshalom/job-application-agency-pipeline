@@ -45,7 +45,7 @@ body {
   letter-spacing: 0.05em;
   font-size: 0.68rem;
   font-weight: 500;
-  color: #8b949e;
+  color: #6e7681; /* navy-500, matches inline label captions */
   font-variant-numeric: tabular-nums;
 }
 
@@ -108,9 +108,18 @@ button:not(:disabled):active {
 }
 .earns-fill {
   background: linear-gradient(
-    90deg,
+   90deg,
     #3fb950 0%, #58a6ff 45%, #56d364 60%, #3fb950 100%
   );
   background-size: 200% 100%;
   animation: earnsShimmer 3s linear infinite;
+}
+
+/* Respect users who prefer reduced motion (Vercel guideline): kill the
+   decorative animations for them while keeping the content visible. */
+@media (prefers-reduced-motion: reduce) {
+  .earns-fill,
+  .new-pulse {
+    animation: none !important;
+  }
 }

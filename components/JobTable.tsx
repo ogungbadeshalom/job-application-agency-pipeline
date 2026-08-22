@@ -256,7 +256,7 @@ function JobTable({
           <thead>
             <tr className="border-b border-navy-700">
               {cols.map((c) => (
-                <th key={c.key} className="th-uppercase text-left px-3 py-2 whitespace-nowrap">
+                <th key={c.key} className="th-uppercase text-left px-3 py-2.5 whitespace-nowrap">
                   {c.label}
                 </th>
               ))}
@@ -395,7 +395,7 @@ function JobTable({
                         {STATUS_ORDER[job.status] < STATUS_ORDER.applied && (
                           <button
                             onClick={() => onQuickAction?.(job, 'applied')}
-                            className="px-2.5 py-1 text-xs rounded-md bg-emerald-600/20 text-brand-green hover:bg-emerald-600/30"
+                            className="px-2.5 py-1 text-xs rounded-md bg-brand-green/15 text-brand-green hover:bg-brand-green/25"
                           >
                             Mark Applied
                           </button>
@@ -403,7 +403,7 @@ function JobTable({
                         {job.status === 'skipped' ? (
                           <button
                             onClick={() => onQuickAction?.(job, 'saved')}
-                            className="px-2 py-1 text-xs rounded-md bg-emerald-600/20 text-brand-green hover:bg-emerald-600/30"
+                            className="px-2 py-1 text-xs rounded-md bg-brand-green/15 text-brand-green hover:bg-brand-green/25"
                           >
                             Unskip
                           </button>
@@ -460,7 +460,7 @@ function JobTable({
 }
 
 function Cell({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <td className={`px-4 py-3 align-middle ${className}`}>{children}</td>;
+  return <td className={`px-3 py-3 align-middle ${className}`}>{children}</td>;
 }
 
 // Compact progress dot for the admin "Progress" column (resume / JD / proof).
@@ -568,7 +568,7 @@ function MobileJobCard({
           {STATUS_ORDER[job.status] < STATUS_ORDER.applied && (
             <button
               onClick={() => onQuickAction?.(job, 'applied')}
-              className="px-2.5 py-1 text-xs rounded-md bg-emerald-600/20 text-brand-green hover:bg-emerald-600/30"
+              className="px-2.5 py-1 text-xs rounded-md bg-brand-green/15 text-brand-green hover:bg-brand-green/25"
             >
               Mark Applied
             </button>
@@ -576,7 +576,7 @@ function MobileJobCard({
           {job.status === 'skipped' ? (
             <button
               onClick={() => onQuickAction?.(job, 'saved')}
-              className="px-2 py-1 text-xs rounded-md bg-emerald-600/20 text-brand-green hover:bg-emerald-600/30"
+              className="px-2 py-1 text-xs rounded-md bg-brand-green/15 text-brand-green hover:bg-brand-green/25"
             >
               Unskip
             </button>

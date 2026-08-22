@@ -128,14 +128,14 @@ export default function SubmissionPanel({
             <button
               onClick={() => changeStatus('applied')}
               disabled={status === 'applied'}
-              className="px-3 py-1.5 text-sm rounded-md bg-emerald-600/20 text-brand-green hover:bg-emerald-600/30 disabled:opacity-40"
+              className="px-3 py-1.5 text-sm rounded-md bg-brand-green/15 text-brand-green hover:bg-brand-green/25 disabled:opacity-40"
             >
               Mark Applied
             </button>
             {isSkipped ? (
               <button
                 onClick={() => changeStatus('tailored')}
-                className="px-3 py-1.5 text-sm rounded-md bg-emerald-600/20 text-brand-green hover:bg-emerald-600/30"
+                className="px-3 py-1.5 text-sm rounded-md bg-brand-green/15 text-brand-green hover:bg-brand-green/25"
               >
                 Unskip
               </button>

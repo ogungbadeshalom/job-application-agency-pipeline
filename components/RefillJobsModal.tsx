@@ -266,7 +266,7 @@ export default function RefillJobsModal({
             <button
               onClick={submit}
               disabled={loading || profileIds.length === 0}
-              className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md bg-brand-greenDark text-white hover:bg-emerald-700 disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md bg-brand-greenDark text-white hover:bg-brand-green disabled:opacity-50"
             >
               {loading ? <Spinner /> : null}
               {loading ? 'Scraping…' : 'Run scrape'}
@@ -381,7 +381,7 @@ export default function RefillJobsModal({
                 type="button"
                 disabled={presetSaving || !presetTargetId || !presetName.trim()}
                 onClick={() => savePresetTo(presetTargetId, presetName)}
-                className="px-3 py-2 text-sm rounded-md bg-brand-green text-navy-950 font-medium hover:bg-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-3 py-2 text-sm rounded-md bg-brand-green text-navy-950 font-medium hover:bg-brand-greenDark disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {presetSaving ? 'Saving…' : 'Save preset'}
               </button>
@@ -401,7 +401,7 @@ export default function RefillJobsModal({
             </p>
           </Field>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Must include (comma-separated)">
               <input
                 value={includeKw}
@@ -422,7 +422,7 @@ export default function RefillJobsModal({
             </Field>
           </div>
 
-          <div className="flex items-center gap-2 -mt-1">
+          <div className="flex items-center gap-2">
             <input
               id="remote-only"
               type="checkbox"
@@ -435,7 +435,7 @@ export default function RefillJobsModal({
             </label>
           </div>
 
-          <div className="flex items-center gap-2 -mt-1">
+          <div className="flex items-center gap-2">
             <input
               id="remove-easy-apply"
               type="checkbox"
@@ -448,7 +448,7 @@ export default function RefillJobsModal({
             </label>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Job type">
               <select
                 value={jobType}

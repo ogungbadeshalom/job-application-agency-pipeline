@@ -13,6 +13,9 @@ function base({ size = 16, ...props }: IconProps) {
     strokeWidth: 2,
     strokeLinecap: 'round' as const,
     strokeLinejoin: 'round' as const,
+    // Icons are decorative by default; override with aria-hidden={false} if a
+    // meaningful label is attached to the SVG itself.
+    'aria-hidden': true,
     ...props,
   };
 }

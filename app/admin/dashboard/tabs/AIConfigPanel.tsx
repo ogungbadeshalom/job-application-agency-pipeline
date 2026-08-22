@@ -140,7 +140,7 @@ export default function AIConfigPanel() {
         </div>
       ) : (
         <div className="p-4 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block th-uppercase mb-1">Provider</label>
               <select
@@ -216,7 +216,7 @@ export default function AIConfigPanel() {
             <button
               onClick={save}
               disabled={saving || !model}
-              className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-md bg-brand-greenDark text-white hover:bg-emerald-700 disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-md bg-brand-greenDark text-white hover:bg-brand-green disabled:opacity-50"
             >
               {saving ? <Spinner /> : null}
               Save

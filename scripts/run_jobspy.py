@@ -100,15 +100,15 @@ errors = []
 # fast/reliable boards stay on the direct IP.
 import os
 PROXY = os.environ.get("MUBENG_PROXY", "").strip() or "http://127.0.0.1:8899"
-FRAGILE = {"glassdoor", "zip_recruiter", "linkedin"}
+FRAGILE = {"glassdoor", "zip_recruiter", "linkedin", "indeed", "remoteok"}
 
 def _use_proxy(site_names):
-    """Return the proxy for the fragile boards if mubeng is actually up."""
+    """Return the proxy (dict, as JobSpy expects) for fragile boards if mubeng is up."""
     if not any(s in site_names for s in FRAGILE):
         return None  # reliable boards stay on direct IP
     if not _proxy_alive():
         return None  # mubeng down -> go direct (may 403, but no worse)
-    return PROXY
+    return PROXY  # JobSpy accepts a proxy URL string (rotating session)
 
 def _proxy_alive():
     try:
@@ -149,16 +149,18 @@ _hiringcafe_done = False
 # recruiter spam). Fronted by a bounded subprocess so a hung scrape can't stall
 # the batch; returns the record list, or None on any failure so the caller can
 # fall back to the in-process fork scrape.
-def _scrape_linkedin_upstream(term, location, results_wanted, hours_old, is_remote):
+def _scrape_linkedin_upstream(site, term, location, results_wanted, hours_old, is_remote, proxy=None):
     import subprocess as _subprocess
     import tempfile as _tempfile
     script = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "scrape_linkedin_upstream.py")
     args = {
+        "site": site,
         "term": term,
         "location": location,
         "results_wanted": min(int(results_wanted or 0), 40),
         "hours_old": int(hours_old or 72),
         "is_remote": bool(is_remote),
+        "proxy": proxy or "",
     }
     with _tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
         out = f.name
@@ -243,12 +245,12 @@ for term in search_terms:
             if _over_budget():
                 break
             try:
-                if site == "linkedin" and _attempt == 1:
-                    # LinkedIn: use the UPSTREAM jobspy (real companies) via a
-                    # dedicated python3.14 subprocess. Falls back to the in-process
-                    # fork scrape below if this produces nothing.
+                if site in ("linkedin", "indeed", "remoteok") and _attempt == 1:
+                    # Fragile boards route through the UPSTREAM jobspy package
+                    # (real companies, no recruiter spam) + the rotating proxy,
+                    # which beats the fork/IP-blocked path on these boards.
                     _up = _scrape_linkedin_upstream(
-                        term, location, results_wanted, hours_old, is_remote
+                        site, term, location, results_wanted, hours_old, is_remote, proxy=_proxy
                     )
                     if _up is not None:
                         df = _up
@@ -389,7 +391,7 @@ for r in all_jobs:
         )
         if loc_remote:
             keep = True
-        elif site == "linkedin":
+        elif str(r.get("site", "")).lower() == "linkedin":
             # LinkedIn's remote flag is unreliable and the free feed mostly lists
             # a city even for remote-capable roles (AWS, Adobe, Capital One…).
             # Per Shalom: for LINKEDIN ONLY, accept US-listed roles — treat them
@@ -452,20 +454,24 @@ for r in all_jobs:
         if any(m in _all for m in ("easy apply", "easy-apply", "easyapply", "quick apply", "quick-apply", "one click apply", "one-click apply", "one click to apply")):
             continue
         # 2) Non-direct-apply URLs. This must be CONSERVATIVE: LinkedIn posts a
-        #    login-walled /jobs/view page with an in-app "Easy Apply" button that
-        #    no worker can reach directly, so drop those. Board posting URLs like
-        #    Stripe's stripe.com/jobs/search?gh_jid=… and careers.* career pages
-        #    ARE direct apply pages with a form, so they are kept. Never block a
-        #    posting that has a job_url_direct (that field is the real apply link).
+        #    login-walled /jobs/view page, so historically we dropped those. But
+        #    the UPSTREAM-linkedin source now returns REAL US-remote companies
+        #    (not recruiter spam), and workers can open /jobs/view and apply via
+        #    their own LinkedIn login. So allow LinkedIn /jobs/view links to flow
+        #    (reach > the convenience of a directly-embedded form). Stripe-style
+        #    career-page URLs and anything with a real job_url_direct are kept.
         _ut = str(_direct or _u).strip()
         if _ut:
             _ul = _ut.lower()
-            if (
+            _is_li = (
                 _ul.startswith("https://www.linkedin.com/jobs/view")
                 or _ul.startswith("http://www.linkedin.com/jobs/view")
                 or "rin.linkedin.com/jobs/view" in _ul
                 or "lnkd.in/" in _ul
-            ) and not _direct:
+            )
+            # Drop non-direct apply URLs UNLESS they're real LinkedIn job pages
+            # (which we now keep), or they have a job_url_direct.
+            if not _direct and not _is_li:
                 continue
 
     # Cross-board dedup by job URL.

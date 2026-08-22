@@ -16,13 +16,13 @@ Admin clicks **Refill Jobs** → JobSpy scrapes live boards → jobs land in eac
 **Admin — People & Clients** (workers ↔ clients, assignment, quotas)
 ![Admin Profiles](docs/screenshots/admin-profiles.png)
 
-**Admin — Resumes** (per-client base resume upload, text length, last tailored)
+**Admin — Resumes** (per-client base resume upload, text extraction, and a one-click **General preset** generator that auto-derives ~10 fitting roles from each resume)
 ![Admin Resumes](docs/screenshots/admin-resumes.png)
 
-**Admin — Settings** (AI provider config, team, maintenance banner, scrape history)
+**Admin — Settings** (AI provider config, earnings rates, team, maintenance banner, scrape history, downloadable backups)
 ![Admin Settings](docs/screenshots/admin-settings.png)
 
-**Worker — Queue** (their client's jobs; search, status filter, "continue where I left off")
+**Worker — Queue** (their client's jobs with Working/Applied/Skipped tabs, a weekly earnings pool meter, and a worker self-serve **Refill** button with loading + results feedback)
 ![Worker Queue](docs/screenshots/worker-queue.png)
 
 **Worker — Completion History** (applied jobs grouped by week)

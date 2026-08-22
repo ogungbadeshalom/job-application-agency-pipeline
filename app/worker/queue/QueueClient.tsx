@@ -297,7 +297,7 @@ export default function QueueClient({
           </div>
         )}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-xl font-semibold text-navy-100">My Queue</h1>
+          <h1 className="text-xl font-semibold text-pretty text-navy-100">My Queue</h1>
           {/* Client switcher — shown only when this worker handles >1 client */}
           {(clientProfiles ?? []).length > 1 && (
             <div className="flex flex-wrap items-center gap-1 rounded-md border border-navy-700 p-0.5 w-fit">

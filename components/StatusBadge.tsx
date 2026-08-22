@@ -2,8 +2,8 @@ import type { JobStatus } from '@/lib/types';
 
 const STYLES: Record<JobStatus, { bg: string; text: string; label: string }> = {
   saved: { bg: 'bg-navy-700', text: 'text-navy-300', label: 'Saved' },
-  tailored: { bg: 'bg-blue-500/15', text: 'text-brand-blue', label: 'Tailored' },
-  applied: { bg: 'bg-emerald-500/15', text: 'text-brand-green', label: 'Applied' },
+  tailored: { bg: 'bg-brand-blue/15', text: 'text-brand-blue', label: 'Tailored' },
+  applied: { bg: 'bg-brand-green/15', text: 'text-brand-green', label: 'Applied' },
   skipped: { bg: 'bg-navy-700', text: 'text-navy-400', label: 'Skipped' },
 };
 

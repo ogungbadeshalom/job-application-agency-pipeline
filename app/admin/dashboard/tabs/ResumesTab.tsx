@@ -8,6 +8,25 @@ import type { Job, Profile } from '@/lib/types';
 
 export default function ResumesTab({ profiles, jobs }: { profiles: Profile[]; jobs: Job[] }) {
   const [uploadFor, setUploadFor] = useState<Profile | null>(null);
+  const [genFor, setGenFor] = useState<string | null>(null);
+  const [genMsg, setGenMsg] = useState<{ id: string; text: string; ok: boolean } | null>(null);
+
+  // Regenerate the client's "General" refill preset from their resume.
+  async function generateGeneral(profile: Profile) {
+    setGenFor(profile.id);
+    setGenMsg(null);
+    try {
+      const res = await fetch(`/api/presets/${profile.id}/generate`, { method: 'POST' });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d?.error || 'Generate failed');
+      setGenMsg({ id: profile.id, text: `✓ General preset ready (${d.preset?.search_terms?.length ?? 0} roles)`, ok: true });
+    } catch (e) {
+      const m = e instanceof Error ? e.message : 'Generate failed';
+      setGenMsg({ id: profile.id, text: m, ok: false });
+    } finally {
+      setGenFor(null);
+    }
+  }
 
   const lastTailored = (pid: string) => {
     const ts = jobs
@@ -30,12 +49,22 @@ export default function ResumesTab({ profiles, jobs }: { profiles: Profile[]; jo
             <div key={p.id} className="p-3.5 space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <div className="font-medium text-navy-100 min-w-0">{p.name}</div>
-                <button
-                  onClick={() => setUploadFor(p)}
-                  className="shrink-0 px-2.5 py-1 text-xs rounded-md bg-navy-800 text-navy-200 hover:bg-navy-750"
-                >
-                  {p.base_resume_url ? 'Replace' : 'Upload'}
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => generateGeneral(p)}
+                    disabled={!p.base_resume_text || genFor === p.id}
+                    title="Generate a General refill preset (10 roles) from this resume"
+                    className="px-2.5 py-1 text-xs rounded-md bg-brand-blue/15 text-brand-blue border border-brand-blue/30 hover:bg-brand-blue/25 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {genFor === p.id ? <Spinner size={12} /> : '⚡ General preset'}
+                  </button>
+                  <button
+                    onClick={() => setUploadFor(p)}
+                    className="px-2.5 py-1 text-xs rounded-md bg-navy-800 text-navy-200 hover:bg-navy-750"
+                  >
+                    {p.base_resume_url ? 'Replace' : 'Upload'}
+                  </button>
+                </div>
               </div>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-navy-400">
                 {p.base_resume_url ? (
@@ -55,6 +84,9 @@ export default function ResumesTab({ profiles, jobs }: { profiles: Profile[]; jo
                 </span>
                 <span>Tailored: {lastTailored(p.id)}</span>
               </div>
+              {genMsg?.id === p.id && (
+                <div className={`text-xs ${genMsg.ok ? 'text-brand-green' : 'text-brand-red'}`}>{genMsg.text}</div>
+              )}
             </div>
           ))}
         </div>

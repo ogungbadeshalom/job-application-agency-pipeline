@@ -188,7 +188,7 @@ function UploadModal({ profile, onClose }: { profile: Profile; onClose: () => vo
           <button
             onClick={upload}
             disabled={loading || !file}
-            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md bg-brand-greenDark text-white hover:bg-emerald-700 disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md bg-brand-greenDark text-white hover:bg-brand-green disabled:opacity-50"
           >
             {loading ? <Spinner /> : null}
             Upload

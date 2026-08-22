@@ -240,7 +240,7 @@ function ResetPasswordModal({ user, onClose }: { user: User; onClose: () => void
           <button
             onClick={submit}
             disabled={loading || !password}
-            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md bg-brand-greenDark text-white hover:bg-emerald-700 disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md bg-brand-greenDark text-white hover:bg-brand-green disabled:opacity-50"
           >
             {loading ? <Spinner /> : null}
             Set password

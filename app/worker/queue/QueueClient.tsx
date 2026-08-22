@@ -76,6 +76,17 @@ export default function QueueClient({
   useEffect(() => {
     setJobsState(jobs);
   }, [jobs]);
+  // On initial mount with a specific client, default the preset to its
+  // "General" preset so the one-click broad refill is preselected.
+  useEffect(() => {
+    if (clientId === 'all' || !clientId) return;
+    const profile = (clientProfiles ?? []).find((p) => p.id === clientId);
+    const general = (profile?.presets ?? []).find((p: { name: string }) => p.name === 'General');
+    if (general?.id) {
+      setRefillState((s) => (s.preset ? s : { ...s, preset: general.id }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientProfiles, clientId]);
   // Pagination-aware "Jump to my spot": {id, nonce} handed to JobTable, which
   // navigates to the job's page and scrolls to the row. A fresh nonce per click
   // ensures repeat clicks on the same job re-trigger the effect.
@@ -89,6 +100,12 @@ export default function QueueClient({
   // selection survives a refresh, browser back, or a later "Back to queue".
   function switchClient(id: string) {
     setClientId(id);
+    // Auto-select the client's "General" preset by default so the one-click
+    // broad refill is the immediate action (workers can still pick a specific
+    // role-family preset from the dropdown).
+    const profile = (clientProfiles ?? []).find((p) => p.id === id);
+    const general = (profile?.presets ?? []).find((p: { name: string }) => p.name === 'General');
+    setRefillState((s) => ({ ...s, preset: general?.id ?? '', error: null, msg: null, done: false }));
     const qs = id === 'all' ? '' : `?client=${id}`;
     router.replace(`/worker/queue${qs}`, { scroll: false });
   }
@@ -294,7 +311,13 @@ export default function QueueClient({
   }
 
   const selProfile = clientId !== 'all' ? clientProfiles?.find((p) => p.id === clientId) : undefined;
-  const presets = (selProfile?.presets ?? []) as { id: string; name: string }[];
+  const presets = ((selProfile?.presets ?? []) as { id: string; name: string }[]).slice().sort((a, b) => {
+    // General first — it's the broad one-click refill most workers want; the
+    // specific role-family presets come after for targeted refinement.
+    const ga = a.name === 'General' ? 0 : 1;
+    const gb = b.name === 'General' ? 0 : 1;
+    return ga - gb;
+  });
 
   return (
     <DashboardLayout user={user} nav={nav} active="/worker/queue">

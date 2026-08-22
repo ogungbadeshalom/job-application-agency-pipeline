@@ -5,6 +5,7 @@ import { extractResumeText } from '@/lib/resume-text';
 import { newStoragePath, writeStorage } from '@/lib/storage';
 import { parseMultipart } from '@/lib/multipart';
 import { isUuid } from '@/lib/validate';
+import { generateGeneralPreset } from '@/lib/generateGeneralPreset';
 
 // POST /api/upload  multipart: file + profile_id
 // Admin. Writes the raw file to local disk and stores its text for AI tailoring
@@ -85,6 +86,11 @@ export async function POST(req: Request) {
     base_resume_text: text,
     base_resume_url: relPath,
   });
+
+  // Auto-generate a "General" refill preset from the newly-uploaded resume so
+  // workers have a one-click refill across ~10 roles the client qualifies for.
+  // Fire-and-forget: don't block the upload on the AI call.
+  generateGeneralPreset(profileId).catch(() => {});
 
   return NextResponse.json({ profile, chars: text.length, path: relPath });
 }

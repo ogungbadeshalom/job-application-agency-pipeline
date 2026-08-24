@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { RESUME_PRESETS, type ResumePreset, isResumePreset } from '@/lib/resume-presets';
+import { RESUME_PRESETS, type ResumePreset } from '@/lib/resume-presets';
 import type { Role } from '@/lib/types';
 
 interface NavItem { href: string; label: string; badge?: number }
@@ -39,7 +39,6 @@ export default function ResumeLabClient({
     setPreset(next);
     setPreviewNonce((n) => n + 1);
     if (!clientId) return;
-    // Auto-save the per-client design choice.
     setSaving(true);
     try {
       const res = await fetch(`/api/profiles/${clientId}/design`, {
@@ -64,34 +63,38 @@ export default function ResumeLabClient({
     return `/api/resume-preview?${p.toString()}&n=${previewNonce}`;
   }, [clientId, preset, previewNonce]);
 
+  const single = clientProfiles.length <= 1;
+
   return (
-    <DashboardLayout user={user} nav={nav} active="/worker/resume-lab">
+    <DashboardLayout user={user} nav={nav} active="/client/resume-lab">
       <div className="mb-4">
         <h1 className="text-xl font-semibold text-pretty text-navy-100">Resume Lab</h1>
         <p className="text-sm text-navy-400 mt-1">
-          Preview how each client&apos;s resume looks, then pick a design style. Your choice is saved per client and used for every tailored resume.
+          Preview your resume and choose a design style. Your choice is used on all your tailored resumes.
         </p>
       </div>
 
-      {/* Client picker */}
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <span className="text-xs text-navy-500 uppercase tracking-wide">Client</span>
-        {(clientProfiles || []).map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            onClick={() => selectClient(p.id)}
-            className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
-              clientId === p.id
-                ? 'bg-brand-green/20 text-brand-green border-brand-green/40'
-                : 'bg-navy-800 text-navy-300 border-navy-700 hover:border-navy-600'
-            }`}
-          >
-            {p.name}
-            {!p.base_resume_text && <span className="ml-1 text-[10px] text-navy-500">no resume</span>}
-          </button>
-        ))}
-      </div>
+      {/* Client picker (only when the viewer manages several clients) */}
+      {!single && (
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <span className="text-xs text-navy-500 uppercase tracking-wide">Client</span>
+          {(clientProfiles || []).map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => selectClient(p.id)}
+              className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
+                clientId === p.id
+                  ? 'bg-brand-green/20 text-brand-green border-brand-green/40'
+                  : 'bg-navy-800 text-navy-300 border-navy-700 hover:border-navy-600'
+              }`}
+            >
+              {p.name}
+              {!p.base_resume_text && <span className="ml-1 text-[10px] text-navy-500">no resume</span>}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Design preset picker */}
       <div className="mb-4">
@@ -146,7 +149,7 @@ export default function ResumeLabClient({
           </div>
         </div>
       ) : (
-        <div className="text-sm text-navy-400">No clients assigned to you.</div>
+        <div className="text-sm text-navy-400">No resume available.</div>
       )}
     </DashboardLayout>
   );

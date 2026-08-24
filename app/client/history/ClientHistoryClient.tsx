@@ -12,7 +12,7 @@ export default function ClientHistoryClient({
   user: User;
   jobs: Job[];
 }) {
-  const nav = [{ href: '/client/jobs', label: 'My Applications', badge: jobs.length }, { href: '/client/history', label: 'History' }];
+  const nav = [{ href: '/client/jobs', label: 'My Applications', badge: jobs.length }, { href: '/client/resume-lab', label: 'Resume Lab' }, { href: '/client/history', label: 'History' }];
 
   // Group applied jobs by the Monday of their submission week (local time).
   function monday(iso: string): Date | null {

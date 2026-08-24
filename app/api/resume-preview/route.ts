@@ -10,7 +10,7 @@ import { renderResumePdf, type ResumeData, type ResumePreset, RESUME_PRESETS } f
 // how the resume design looks without tailoring. Honors auto-save per client.
 export async function GET(req: Request) {
   const session = await getSession();
-  if (!session || !['admin', 'worker'].includes(session.user.role)) {
+  if (!session || !['admin', 'worker', 'client'].includes(session.user.role)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const url = new URL(req.url);
@@ -22,7 +22,11 @@ export async function GET(req: Request) {
 
   const profile = await db.getProfile(profileId);
   if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+  // Worker can preview assigned clients; a client can preview only their OWN.
   if (session.user.role === 'worker' && !(await db.workerHasClient(session.user.id, profileId))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+  if (session.user.role === 'client' && session.user.profile_id !== profileId) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
   if (!profile.base_resume_text) {

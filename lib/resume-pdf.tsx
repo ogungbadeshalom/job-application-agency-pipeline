@@ -12,6 +12,10 @@ import {
   renderToBuffer,
 } from '@react-pdf/renderer';
 
+import type { ResumePreset } from './resume-presets';
+export type { ResumePreset } from './resume-presets';
+export { RESUME_PRESETS, isResumePreset } from './resume-presets';
+
 // ---- Structured shape the AI must produce --------------------------------
 export interface ResumeData {
   name: string;
@@ -26,15 +30,6 @@ export interface ResumeData {
   }[];
   skills: string[];
 }
-
-export type ResumePreset = 'classic' | 'modern' | 'bold' | 'minimal';
-
-export const RESUME_PRESETS: { id: ResumePreset; label: string; note: string }[] = [
-  { id: 'classic', label: 'Classic', note: 'Traditional blue-accent sections' },
-  { id: 'modern', label: 'Modern', note: 'Teal accent, airy spacing' },
-  { id: 'bold', label: 'Bold / Tech', note: 'Big headings, high contrast' },
-  { id: 'minimal', label: 'Minimal', note: 'Clean grayscale, thin rules' },
-];
 
 // Each preset = an accent color + heading treatment + spacing feel.
 interface PresetPalette {

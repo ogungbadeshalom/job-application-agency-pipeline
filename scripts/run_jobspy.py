@@ -442,12 +442,6 @@ for r in all_jobs:
         )
         if loc_remote:
             keep = True
-        elif str(r.get("site", "")).lower() == "linkedin":
-            # LinkedIn's remote flag is unreliable and the free feed mostly lists
-            # a city even for remote-capable roles (AWS, Adobe, Capital One…).
-            # Per Shalom: for LINKEDIN ONLY, accept US-listed roles — treat them
-            # as remote-flexible — while all other boards keep strict remote-only.
-            keep = True
         elif isinstance(_loc, str) and _loc.strip():
             # A location that names a real city (2+ commas => "City, State,
             # Country") is on-site — drop it.

@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { RESUME_PRESETS, type ResumePreset } from '@/lib/resume-pdf';
+import { RESUME_PRESETS, type ResumePreset, isResumePreset } from '@/lib/resume-presets';
 import type { Role } from '@/lib/types';
 
 interface NavItem { href: string; label: string; badge?: number }

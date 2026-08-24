@@ -80,7 +80,7 @@ const PALETTES: Record<ResumePreset, PresetPalette> = {
     ruleWidth: 2.5,
     sectionPadding: 5,
     headerMargin: 18,
-    font: 'Helvetica-Bold',
+    font: 'Helvetica', // body stays regular; headings use Helvetica-Bold explicitly
     titleFont: 'Helvetica-Bold',
   },
   minimal: {

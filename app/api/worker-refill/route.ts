@@ -13,10 +13,11 @@ import type { Job, ProfilePreset, ScrapeResultJob } from '@/lib/types';
 //  - capped result size
 //  - 1 job per company enforced after insertion
 const RESULTS_WANTED = 80;
-// Boards a worker may refill from (no Indeed/Remotive/WWR by policy; LinkedIn
-// is allowed now that it scrapes real US-remote companies via the proxy).
+// Boards that actually produce US-remote jobs from this server. Lever/Indeed/
+// RemoteOK/Remotive return ~0 or are banned, so they are EXCLUDED here to stop
+// workers wasting a refill on dead boards. LinkedIn included (works via proxy).
 const DEFAULT_SITES = ['greenhouse', 'builtin', 'jobicy'];
-const AVAILABLE_BOARDS = ['greenhouse', 'builtin', 'jobicy', 'workingnomads', 'lever', 'linkedin'];
+const AVAILABLE_BOARDS = ['greenhouse', 'builtin', 'jobicy', 'workingnomads', 'linkedin'];
 
 // Single-flight: only one worker-refill scrape may run at a time across workers,
 // so two people sharing a profile (e.g. Erry) can't stack concurrent JobSpy
@@ -85,15 +86,18 @@ export async function POST(req: Request) {
       const preset = presetId ? presets.find((p) => p.id === presetId) : undefined;
       const searchTerms = preset?.search_terms?.length ? preset.search_terms : profile.scrape_search_terms;
       // Boards: worker-selected (if they picked any) > preset > profile default >
-      // fallback board list (so a profile with no sites configured still works).
-      const sites = (chosenSites.length
+      // fallback board list. EVERY source is filtered through AVAILABLE_BOARDS so
+      // dead/banned boards (lever/indeed/remotive/remoteok) can never be scraped.
+      const chosen = (chosenSites.length
         ? chosenSites
         : preset?.sites?.length
           ? preset.sites
           : profile.scrape_sites?.length
             ? profile.scrape_sites
             : DEFAULT_SITES
-      ).slice(0, 8);
+      );
+      const sites = chosen.filter((s) => AVAILABLE_BOARDS.includes(s));
+      if (!sites.length) sites.push(...DEFAULT_SITES);
       const resultsWanted = Math.min(preset?.results_wanted || RESULTS_WANTED, 150);
       const location = preset?.location || 'Remote';
       const hoursOld = 72;

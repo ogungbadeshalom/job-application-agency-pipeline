@@ -17,10 +17,10 @@ const SCRAPE_TIMEOUT_MS = 600_000; // 10 min
 export const SITE_OPTIONS: { name: string; site: string; disabled?: boolean; note?: string }[] = [
   { name: 'Indeed', site: 'indeed', disabled: true, note: 'disabled — removed from using (blocking/anti-bot on this deployment)' },
   { name: 'LinkedIn', site: 'linkedin' },
-  { name: 'RemoteOK', site: 'remoteok' },
+  { name: 'RemoteOK', site: 'remoteok', disabled: true, note: 'disabled — ~0 yield from this server' },
   { name: 'BuiltIn', site: 'builtin' },
   { name: 'Greenhouse', site: 'greenhouse', note: 'ATS per-company board' },
-  { name: 'Lever', site: 'lever', note: 'ATS per-company board' },
+  { name: 'Lever', site: 'lever', disabled: true, note: 'disabled — returns 0 from this server' },
   { name: 'SmartRecruiters', site: 'smart_recruiters', disabled: true, note: 'returning 0 from this server' },
   { name: 'WorkingNomads', site: 'workingnomads' },
   { name: 'Jobicy', site: 'jobicy', note: 'remote-only aggregator' },

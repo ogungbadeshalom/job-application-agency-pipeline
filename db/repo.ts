@@ -59,6 +59,7 @@ function mapProfile(r: Record<string, unknown>): Profile {
     assigned_worker_id: (r.assigned_worker_id as string) ?? null,
     base_resume_url: (r.base_resume_path as string) ?? null, // map path -> domain url field
     base_resume_text: (r.base_resume_text as string) ?? null,
+    resume_design: (r.resume_design as string) ?? 'classic',
     scrape_search_terms: r.scrape_search_terms as unknown as string[],
     scrape_location: (r.scrape_location as string) ?? null,
     scrape_sites: r.scrape_sites as unknown as string[],
@@ -451,6 +452,7 @@ export const db = {
       scrape_sites: 'scrape_sites',
       scrape_results_wanted: 'scrape_results_wanted',
       scrape_hours_old: 'scrape_hours_old',
+      resume_design: 'resume_design',
       jobs_per_week: 'jobs_per_week',
     } as const;
     for (const [k, col] of Object.entries(allowed)) {

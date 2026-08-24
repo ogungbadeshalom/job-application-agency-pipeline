@@ -8,11 +8,10 @@ import type { Job, Profile, User } from '@/lib/types';
 
 const SCROLL_KEY = 'jobbidder_queue_scroll';
 
-// Boards available to the worker's self-serve refill. LinkedIn is included now
-// that it scrapes real US-remote companies via the rotating proxy + upstream
-// jobspy. (Lever/Indeed/RemoteOK/Remotive excluded: ~0 yield or banned.)
+// Boards available to the worker's self-serve refill. Only boards that reliably
+// return STRICT remote jobs. LinkedIn excluded (its free/guest scrape has no
+// remote/onsite signal and yields ~0 strict-remote). Others excluded: dead/banned.
 const REFILL_BOARDS = [
-  { site: 'linkedin', label: 'LinkedIn' },
   { site: 'greenhouse', label: 'Greenhouse' },
   { site: 'builtin', label: 'BuiltIn' },
   { site: 'jobicy', label: 'Jobicy' },

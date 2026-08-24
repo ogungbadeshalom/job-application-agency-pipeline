@@ -13,11 +13,12 @@ import type { Job, ProfilePreset, ScrapeResultJob } from '@/lib/types';
 //  - capped result size
 //  - 1 job per company enforced after insertion
 const RESULTS_WANTED = 80;
-// Boards that actually produce US-remote jobs from this server. Lever/Indeed/
-// RemoteOK/Remotive return ~0 or are banned, so they are EXCLUDED here to stop
-// workers wasting a refill on dead boards. LinkedIn included (works via proxy).
+// Boards that actually produce US-remote jobs from this server. LinkedIn is
+// EXCLUDED here: its free/guest scrape returns no remote/onsite signal (city
+// locations only; descriptions blocked), so it yields ~0 strict-remote jobs and
+// wastes a worker refill. Lever/Indeed/RemoteOK/Remotive also excluded (dead/banned).
 const DEFAULT_SITES = ['greenhouse', 'builtin', 'jobicy'];
-const AVAILABLE_BOARDS = ['greenhouse', 'builtin', 'jobicy', 'workingnomads', 'linkedin'];
+const AVAILABLE_BOARDS = ['greenhouse', 'builtin', 'jobicy', 'workingnomads'];
 
 // Single-flight: only one worker-refill scrape may run at a time across workers,
 // so two people sharing a profile (e.g. Erry) can't stack concurrent JobSpy

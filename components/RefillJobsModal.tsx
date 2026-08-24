@@ -16,7 +16,7 @@ const SCRAPE_TIMEOUT_MS = 600_000; // 10 min
 // `disabled: true` sites are grayed out — known-flaky on this deployment.
 export const SITE_OPTIONS: { name: string; site: string; disabled?: boolean; note?: string }[] = [
   { name: 'Indeed', site: 'indeed', disabled: true, note: 'disabled — removed from using (blocking/anti-bot on this deployment)' },
-  { name: 'LinkedIn', site: 'linkedin' },
+  { name: 'LinkedIn', site: 'linkedin', disabled: true, note: 'disabled — free/guest scrape has no remote/onsite signal (yields ~0 strict-remote)' },
   { name: 'RemoteOK', site: 'remoteok', disabled: true, note: 'disabled — ~0 yield from this server' },
   { name: 'BuiltIn', site: 'builtin' },
   { name: 'Greenhouse', site: 'greenhouse', note: 'ATS per-company board' },

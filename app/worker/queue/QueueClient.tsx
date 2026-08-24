@@ -10,14 +10,13 @@ const SCROLL_KEY = 'jobbidder_queue_scroll';
 
 // Boards available to the worker's self-serve refill. LinkedIn is included now
 // that it scrapes real US-remote companies via the rotating proxy + upstream
-// jobspy. (Indeed/Remotive/WWR still excluded by policy.)
+// jobspy. (Lever/Indeed/RemoteOK/Remotive excluded: ~0 yield or banned.)
 const REFILL_BOARDS = [
   { site: 'linkedin', label: 'LinkedIn' },
   { site: 'greenhouse', label: 'Greenhouse' },
   { site: 'builtin', label: 'BuiltIn' },
   { site: 'jobicy', label: 'Jobicy' },
   { site: 'workingnomads', label: 'WorkingNomads' },
-  { site: 'lever', label: 'Lever' },
 ];
 
 export default function QueueClient({

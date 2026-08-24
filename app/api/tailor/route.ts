@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { callAI, RESUME_TAILOR_SYSTEM } from '@/lib/ai';
-import { renderResumePdf, type ResumeData } from '@/lib/resume-pdf';
+import { renderResumePdf, type ResumeData, type ResumePreset } from '@/lib/resume-pdf';
 import { newStoragePath, writeStorage } from '@/lib/storage';
 import { isUuid } from '@/lib/validate';
 
@@ -75,10 +75,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `AI returned invalid JSON: ${msg}` }, { status: 502 });
   }
 
-  // Render + persist the PDF for download.
+  // Render + persist the PDF for download, honoring the client's design preset.
   let pdfUrl: string | null = null;
   try {
-    const buf = await renderResumePdf(data);
+    const preset = (profile.resume_design || 'classic') as ResumePreset;
+    const buf = await renderResumePdf(data, preset);
     const rel = newStoragePath('tailored', 'pdf');
     await writeStorage(rel, buf);
     pdfUrl = rel;

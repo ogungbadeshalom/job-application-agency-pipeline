@@ -35,6 +35,7 @@ export interface Profile {
   assigned_worker_id: string | null;
   base_resume_url: string | null;
   base_resume_text: string | null;
+  resume_design: string;
   scrape_search_terms: string[];
   scrape_location: string | null;
   scrape_sites: string[];

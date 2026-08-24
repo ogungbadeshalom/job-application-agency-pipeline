@@ -58,6 +58,57 @@ except Exception:
     _CUSTOM_BOARDS = {}
 
 
+def _is_direct_apply_url(url):
+    """True if a job URL is a real, directly-applicable posting page the worker
+    can reach an application form on — a company career/ATS page (Greenhouse
+    gh_jid or boards.greenhouse.io / job-boards.greenhouse.io, Lever, Workday,
+    iCIMS, careers.* / jobs.* subdomains, or a concrete /jobs/<id> path) or a
+    LinkedIn /jobs/view page — as opposed to a dead-end / aggregator / login
+    wall. The remove_easy_apply filter must KEEP these (they ARE the direct
+    apply link) and only drop URLs that genuinely can't be applied to directly.
+    """
+    if not url:
+        return False
+    from urllib.parse import urlparse
+    u = url.strip().lower()
+    # LinkedIn job-view pages: worker applies via their own LinkedIn login.
+    if "linkedin.com/jobs/view" in u or "lnkd.in/" in u:
+        return True
+    # Concrete job id in query string (Greenhouse gh_jid, Lever jid, Workday
+    # jobRequisition, generic jid/jobId/job_id) -> a specific posting.
+    if any(q in u for q in ("gh_jid=", "jobid=", "jid=", "job_id=",
+                            "jobrid=", "requisitionid=")):
+        return True
+    # Known ATS / career-board hosts that host real postings.
+    for host in ("boards.greenhouse.io", "job-boards.greenhouse.io",
+                 "jobs.lever.co", "jobs.ashbyhq.com", "apply.workable.com",
+                 "greenhouse.io", "lever.co", "workday", "icims",
+                 "smartrecruiters", "recruiting.paylocity", "app.careerpuck.com"):
+        if host in u:
+            return True
+    # careers.* / jobs.* subdomains can be either a dedicated posting host
+    # (jobs.elastic.co/o/<role>) or a listing root (jobs.dou.ua/). Only count
+    # them when the path names a concrete posting, not a bare root or listing.
+    netloc = urlparse(url).netloc.lower()
+    if netloc.startswith(("careers.", "jobs.")) or netloc.startswith("job-"):
+        path = urlparse(url).path.rstrip("/")
+        last = path.rsplit("/", 1)[-1] if path else ""
+        if last and last.lower() not in ("jobs", "careers", "search", "index",
+                                         "all", "list", "listing", "browse"):
+            return True
+        return False
+    # A concrete posting path on a company domain: a non-empty last path
+    # segment under a /careers/ /jobs/ /job/ prefix (e.g. /careers/12345,
+    # /jobs/apply/xyz). A bare listing page ends in /jobs or /careers with no
+    # id and is NOT a single posting — that stays droppable.
+    path = urlparse(url).path.rstrip("/")
+    last = path.rsplit("/", 1)[-1] if path else ""
+    if ("/jobs/" in u or "/job/" in u or "/careers/" in u) and last and \
+            not last.lower() in ("jobs", "careers", "search", "index", "all"):
+        return True
+    return False
+
+
 sites = config.get("sites", ["indeed"])
 search_terms = config.get("search_terms", [])
 location = config.get("location", "United States")
@@ -453,25 +504,19 @@ for r in all_jobs:
             continue
         if any(m in _all for m in ("easy apply", "easy-apply", "easyapply", "quick apply", "quick-apply", "one click apply", "one-click apply", "one click to apply")):
             continue
-        # 2) Non-direct-apply URLs. This must be CONSERVATIVE: LinkedIn posts a
-        #    login-walled /jobs/view page, so historically we dropped those. But
-        #    the UPSTREAM-linkedin source now returns REAL US-remote companies
-        #    (not recruiter spam), and workers can open /jobs/view and apply via
-        #    their own LinkedIn login. So allow LinkedIn /jobs/view links to flow
-        #    (reach > the convenience of a directly-embedded form). Stripe-style
-        #    career-page URLs and anything with a real job_url_direct are kept.
+        # 2) Non-direct-apply URLs. This must be CONSERVATIVE: only drop a job
+        #    when its URL is a genuine dead-end the worker CANNOT reach an
+        #    application form on. Real company career/ATS posting URLs
+        #    (Greenhouse gh_jid / boards.greenhouse.io, Lever, Workday,
+        #    careers.* / jobs.* subdomains, /jobs/<id> paths) ARE direct apply
+        #    pages and MUST be kept — previously they were dropped because the
+        #    existence check only exempted LinkedIn URLs, silently discarding
+        #    essentially the whole Greenhouse board on every scrape. LinkedIn
+        #    /jobs/view links are also kept (workers apply via their login;
+        #    reach > a directly-embedded form).
         _ut = str(_direct or _u).strip()
         if _ut:
-            _ul = _ut.lower()
-            _is_li = (
-                _ul.startswith("https://www.linkedin.com/jobs/view")
-                or _ul.startswith("http://www.linkedin.com/jobs/view")
-                or "rin.linkedin.com/jobs/view" in _ul
-                or "lnkd.in/" in _ul
-            )
-            # Drop non-direct apply URLs UNLESS they're real LinkedIn job pages
-            # (which we now keep), or they have a job_url_direct.
-            if not _direct and not _is_li:
+            if not (bool(_direct) or _is_direct_apply_url(_ut)):
                 continue
 
     # Cross-board dedup by job URL.

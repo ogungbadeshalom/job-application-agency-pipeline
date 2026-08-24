@@ -21,6 +21,7 @@ export default function ClientJobsClient({
 
   const nav = [
     { href: '/client/jobs', label: 'My Applications', badge: jobs.length },
+    { href: '/client/resume-lab', label: 'Resume Lab' },
     { href: '/client/history', label: 'History' },
   ];
 

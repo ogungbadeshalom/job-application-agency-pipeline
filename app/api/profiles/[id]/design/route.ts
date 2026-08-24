@@ -8,7 +8,7 @@ import { RESUME_PRESETS, type ResumePreset } from '@/lib/resume-pdf';
 // Worker/admin: save the client's resume-design preset (per-client).
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const session = await getSession();
-  if (!session || !['admin', 'worker'].includes(session.user.role)) {
+  if (!session || !['admin', 'worker', 'client'].includes(session.user.role)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   if (!isUuid(params.id)) return NextResponse.json({ error: 'bad profileId' }, { status: 400 });
@@ -16,6 +16,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const profile = await db.getProfile(params.id);
   if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
   if (session.user.role === 'worker' && !(await db.workerHasClient(session.user.id, params.id))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+  if (session.user.role === 'client' && session.user.profile_id !== params.id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

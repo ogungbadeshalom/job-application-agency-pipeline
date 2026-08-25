@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth';
 import type { Job, ScrapeConfig, ScrapeResultJob } from '@/lib/types';
 import { isUuid } from '@/lib/validate';
 import { runJobSpy, dedupeAndMap } from '@/lib/scrape';
+import { filterJobsByResume } from '@/lib/aiJobMatch';
 
 // POST /api/scrape
 // Admin-only. Runs JobSpy (Python subprocess), dedupes by URL, inserts jobs.
@@ -145,10 +146,16 @@ export async function POST(req: Request) {
       }
     }
 
-    // Dedupe + insert per profile.
+    // Dedupe + insert per profile, gated by each profile's resume role-fit.
     let totalAdded = 0;
     for (const profile of targetProfiles) {
-      const fresh = await dedupeAndMap(allRaw, profile.id, run.id);
+      let pool = allRaw;
+      // AI role-fit gate: only keep jobs matching this client's resume so
+      // off-target roles (Director/PM/Sales/Compliance/adjacent) never enter.
+      if (profile.base_resume_text) {
+        pool = await filterJobsByResume(allRaw, profile.base_resume_text);
+      }
+      const fresh = await dedupeAndMap(pool, profile.id, run.id);
       if (fresh.length) {
         await db.createJobs(fresh as Job[]);
         totalAdded += fresh.length;

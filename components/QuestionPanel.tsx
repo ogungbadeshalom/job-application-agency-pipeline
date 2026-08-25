@@ -40,7 +40,7 @@ export default function QuestionPanel({
     };
   }, [profileId]);
 
-  async function getAnswer() {
+  async function getAnswer(retry = true) {
     setLoading(true);
     setError(null);
     try {
@@ -63,8 +63,22 @@ export default function QuestionPanel({
       }
       setAnswer(data.answer);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unknown error');
+      const msg = e instanceof Error ? e.message : 'Unknown error';
+      // Auto-retry once on transient failures (timeout / 5xx / connection
+      // reset from the free AI endpoint) so a slow-or-dropped call doesn't
+      // dead-end the worker — the endpoint often succeeds on a second try.
+      const transient = /timed out|502|503|504|ECONNRESET|fetch failed|AI call failed/i.test(msg);
+      if (transient && retry) {
+        setError(`${msg} — retrying…`);
+        setLoading(false);
+        setTimeout(() => getAnswer(false), 1200);
+        return;
+      }
+      setError(msg);
     } finally {
+      // Non-retry path exits here; the auto-retry branch clears loading itself
+      // and immediately re-runs getAnswer (which sets it true again), so a plain
+      // setLoading(false) here is safe and cannot fight the retry.
       setLoading(false);
     }
   }
@@ -128,13 +142,18 @@ export default function QuestionPanel({
         </div>
         <div className="flex flex-wrap gap-2">
           <button
-            onClick={getAnswer}
+            onClick={() => getAnswer()}
             disabled={loading || !question.trim()}
             className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md bg-brand-green/15 text-brand-green hover:bg-brand-green/25 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? <Spinner /> : null}
-            Get AI Answer
+            {loading ? 'Generating answer…' : 'Get AI Answer'}
           </button>
+          {loading && (
+            <span className="text-xs text-navy-500 self-center">
+              This can take 5–15s. Please wait for it to finish.
+            </span>
+          )}
           {answer && (
             <>
               <button

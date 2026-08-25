@@ -182,22 +182,42 @@ async function callOpenAICompat(a: OpenAICompatArgs): Promise<string> {
   let lastErr: unknown;
   // Retry terminations: free inference endpoints can drop a connection once;
   // a quick retry usually succeeds.
-  for (let attempt = 0; attempt < 3; attempt++) {
+  // Hard timeout per attempt: free endpoints (freeinference.org) can hang or
+  // silently drop TCP connections (ECONNRESET). Without a cap the UI spins
+  // forever. 45s/attempt keeps the whole Answer/Tailor request bounded (~90s
+  // worst case across 2 tries) while giving a slow model enough room.
+  const ATTEMPT_TIMEOUT_MS = 45_000;
+  const attempts = 3;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ATTEMPT_TIMEOUT_MS);
     try {
-      const completion = await client.chat.completions.create({
-        model: a.model,
-        temperature: a.temperature,
-        max_tokens: a.maxTokens,
-        messages: [
-          { role: 'system', content: a.system },
-          { role: 'user', content: a.user },
-        ],
-      });
-      return completion.choices[0]?.message?.content?.trim() || '';
-    } catch (e) {
-      lastErr = e;
-      if (attempt < 2) await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+      const completion = await client.chat.completions.create(
+        {
+          model: a.model,
+          temperature: a.temperature,
+          max_tokens: a.maxTokens,
+          messages: [
+            { role: 'system', content: a.system },
+            { role: 'user', content: a.user },
+          ],
+        },
+        { signal: controller.signal }
+      );
+      const text = completion.choices[0]?.message?.content?.trim() || '';
+      if (text) return text;
+      lastErr = new Error('AI returned an empty response.'); // retry blank responses too
+    } catch (e: any) {
+      // Classify for a clear, worker-facing error instead of "AI call failed".
+      if (controller.signal.aborted && e?.code !== 'ECONNRESET') {
+        lastErr = new Error(`AI request timed out after ${ATTEMPT_TIMEOUT_MS / 1000}s.`);
+      } else {
+        lastErr = e;
+      }
+    } finally {
+      clearTimeout(timer);
     }
+    if (attempt < attempts - 1) await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
   }
   throw lastErr;
 }

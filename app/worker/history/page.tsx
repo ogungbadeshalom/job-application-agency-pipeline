@@ -16,7 +16,7 @@ export default async function WorkerHistoryPage() {
     );
   }
 
-  const jobs = await db.listJobs({ profile_ids: profiles.map((p) => p.id) });
+  const jobs = await db.listJobsSlim({ profile_ids: profiles.map((p) => p.id) });
 
   const nav = [
     { href: '/worker/queue', label: 'Queue', badge: jobs.filter((j) => j.status === 'saved').length },

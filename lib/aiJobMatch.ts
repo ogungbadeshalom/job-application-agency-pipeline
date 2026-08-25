@@ -16,7 +16,7 @@ const REJECT_TITLE_RE = new RegExp(
   'sales engineer|pre-?sales|account (manager|executive|technical lead)|' +
   'customer success|csm|client success|account manager|business development|' +
   'recruiter|talent|compliance|privacy|legal|counsel|soc|governance|risk manager|' +
-  'support engineer|helpdesk|help desk|field ops|operations|coordinator|' +
+  'support|support engineer|helpdesk|help desk|field ops|operations|coordinator|' +
   'subject matter expert|sme|specialist|operations manager|' +
   'freelance|intern\\b|co-op)\\b',
   'i'

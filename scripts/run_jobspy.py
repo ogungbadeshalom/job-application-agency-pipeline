@@ -434,33 +434,67 @@ for r in all_jobs:
     # city (vague state-only like "MO, US" / "US" => remote-capable).
     if is_remote:
         _loc = r.get("location")
-        loc_txt = ("" if not isinstance(_loc, str) else _loc).lower()
+        _title = r.get("title")
+        _desc = r.get("description")
+        def _s(v):
+            return "" if not isinstance(v, str) else v.lower()
+        loc_txt = _s(_loc)
+        title_txt = _s(_title)
+        desc_txt = _s(_desc)
         row_remote = bool(r.get("is_remote"))
-        loc_remote = any(
-            marker in loc_txt
-            for marker in ("remote", "anywhere", "work from home", "wfh")
+        region = _s(r.get("work_from_home_type"))
+
+        # STRICT remote classifier. A job must be verifiably remote and NOT
+        # contradict itself. Signal sources: location, is_remote flag, title and
+        # description wording (hybrid/on-site/remote-friendly ever present => drop).
+        def _has_any(text, words):
+            return any(w in text for w in words)
+
+        # Location names remote (excluding "remote-friendly", which is office-first).
+        loc_remote = _has_any(loc_txt, ("remote", "anywhere", "work from home", "wfh", "fully remote", "100% remote")) and "remote-friendly" not in loc_txt
+        # "Remote-Friendly" means office-first + optional remote -> NOT strictly remote.
+        remote_friendly_only = "remote-friendly" in loc_txt and not _has_any(loc_txt, ("remote -", "fully remote", "100% remote", "remote,", "remote;", " or remote", "-remote"))
+        # Description / title confirm remote only with strong phrasing. The bare
+        # word "remote" appears in ~every JD ("remote team"), so only explicit
+        # remote-work declarations count.
+        desc_remote = _has_any(desc_txt, (
+            "remote position", "remote role", "remote job", "work from home",
+            "fully remote", "100% remote", "remote-first", "remote first",
+            "remote only", "100% remotely", "fully work from home", "remote - us",
+            "remote (us", "remote in us", "this role is remote", "open to remote",
+        ))
+        title_remote = _has_any(title_txt, ("remote", "wfh", "fully remote"))
+        wfh_remote = _has_any(region, ("remote", "fully remote", "wfh"))
+
+        # Hybrid / on-site / in-office anywhere => definitely not strictly remote.
+        hybrid_signal = (
+            _has_any(loc_txt, ("hybrid", "on-site", "onsite", "on site", "in-office", "office hub"))
+            or _has_any(desc_txt, ("hybrid", "on-site", "onsite", "on site", "in-office", "office hub", "office location", "office hubs"))
+            or _has_any(title_txt, ("hybrid", "on-site", "onsite"))
         )
-        if loc_remote:
-            keep = True
-        elif isinstance(_loc, str) and _loc.strip():
-            # A location that names a real city (2+ commas => "City, State,
-            # Country") is on-site — drop it.
-            if _loc.count(",") >= 2:
-                keep = False
-            elif _loc.strip().lower() in {"", "us", "usa", "united states", "anywhere"}:
-                # Bare country/empty is ambiguous. ONLY treat as remote if the
-                # row flag also says remote (BuiltIn reports many ON-SITE jobs
-                # with just "US" + is_remote=False — those must NOT keep through).
-                keep = row_remote
-            else:
-                # One comma = "MO, US" state-only, or a single name, or e.g.
-                # "Remote" variants already handled above. Trust is_remote only
-                # if the text doesn't name a concrete place (>=1 comma + not
-                # remote-capable). Conservative: require the remote row flag.
-                keep = row_remote and not _loc.count(",")  # no-city (single token) remote
+        # A location naming a concrete city (City, ST) or a bare foreign region.
+        is_city_loc = isinstance(_loc, str) and _loc.count(",") >= 1 and not loc_remote
+        foreign_region = _has_any(loc_txt, ("poland", "spain", "canada", "germany", "france", "united kingdom", "europe", "emea", "latam", "india", "australia", "brazil", "costa rica", "mexico"))
+        bare_country = isinstance(_loc, str) and _loc.strip().lower() in {"us", "usa", "united states", "uk", "remote"} and not loc_remote
+
+        if hybrid_signal or remote_friendly_only:
+            keep = False
         else:
-            # empty/non-string location — keep only if the board flagged remote
-            keep = row_remote
+            if loc_remote:
+                # The LOCATION itself names remote — the strongest, most reliable signal.
+                keep = True
+            elif not _loc or not _loc.strip():
+                # Empty location: only keep with remote proof.
+                keep = (desc_remote or title_remote or wfh_remote or row_remote) and not foreign_region
+            elif is_city_loc or foreign_region:
+                # A concrete city or foreign region: only keep if the description
+                # (or location) clearly declares remote work.
+                keep = (desc_remote or wfh_remote or loc_remote) and not foreign_region
+            elif bare_country:
+                # Bare "US"/"USA"/"UK" with no remote wording -> not proof of remote.
+                keep = (desc_remote or wfh_remote)
+            else:
+                keep = (desc_remote or title_remote or wfh_remote) and not foreign_region
         if not keep:
             continue
 

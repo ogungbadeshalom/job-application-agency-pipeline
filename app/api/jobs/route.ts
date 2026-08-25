@@ -15,6 +15,9 @@ export async function GET(req: Request) {
   const filter: ListJobsFilter = {};
 
   const statusParam = url.searchParams.get('status');
+  const pid = url.searchParams.get('profile_id');
+  const searchParam = url.searchParams.get('search');
+  if (searchParam) filter.search = searchParam;
 
   if (session.user.role === 'admin') {
     // sees everything
@@ -32,7 +35,6 @@ export async function GET(req: Request) {
   // explicit overrides (admin filters)
   if (statusParam)
     filter.status = (filter.status ?? []).length ? filter.status : ([statusParam] as JobStatus[]);
-  const pid = url.searchParams.get('profile_id');
   if (pid && session.user.role === 'admin') {
     if (!isUuid(pid)) {
       return NextResponse.json({ error: 'profile_id must be a valid uuid' }, { status: 400 });
@@ -40,7 +42,7 @@ export async function GET(req: Request) {
     filter.profile_id = pid;
   }
 
-  const jobs = await db.listJobs(filter);
+  const jobs = await db.listJobsSlim(filter);
   return NextResponse.json({ jobs });
 }
 

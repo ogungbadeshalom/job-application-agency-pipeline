@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { isUuid } from '@/lib/validate';
 import { runJobSpy, dedupeAndMap } from '@/lib/scrape';
+import { filterJobsByResume } from '@/lib/aiJobMatch';
 import type { Job, ProfilePreset, ScrapeResultJob } from '@/lib/types';
 
 // Worker-initiated refill for their own queue, using a saved profile preset (or
@@ -132,7 +133,15 @@ export async function POST(req: Request) {
           is_remote: true, // worker refills are always remote-only
         });
 
-        const fresh = await dedupeAndMap(allRaw, profileId, run.id);
+        // AI role-fit gate: only keep jobs that genuinely match the client's
+        // resume (level + role family + skills), so off-target roles (Director/
+        // PM/Sales/Compliance/adjacent) never enter the queue.
+        let matched = allRaw;
+        if (profile.base_resume_text) {
+          matched = await filterJobsByResume(allRaw, profile.base_resume_text);
+        }
+
+        const fresh = await dedupeAndMap(matched, profileId, run.id);
         let added = 0;
         if (fresh.length) {
           await db.createJobs(fresh as Job[]);

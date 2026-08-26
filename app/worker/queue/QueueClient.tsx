@@ -290,9 +290,16 @@ export default function QueueClient({
   }, []);
 
   // Worker self-refill: POST /api/worker-refill with the selected client + preset.
-  // Only for a real (non-'all') client. Rate-limited server-side (30 min).
+  // For a single-client worker, the default 'all' view maps to that one client.
+  // Rate-limited server-side (30 min).
   async function doRefill() {
-    if (clientId === 'all' || !clientId) {
+    const refillProfileId =
+      clientId !== 'all' && clientId
+        ? clientId
+        : (clientProfiles ?? []).length === 1
+          ? clientProfiles![0].id
+          : null;
+    if (!refillProfileId) {
       setRefillState((s) => ({ ...s, error: 'Select a client first.', msg: null }));
       return;
     }
@@ -302,7 +309,7 @@ export default function QueueClient({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-        profileId: clientId,
+        profileId: refillProfileId,
         presetId: refillState.preset || undefined,
         sites: refillState.boards.length ? refillState.boards : undefined,
       }),
@@ -371,8 +378,10 @@ export default function QueueClient({
               ))}
             </div>
           )}
-          {/* Worker self-refill */}
-          {clientId !== 'all' && (
+          {/* Worker self-refill — shown when a specific client is selected, or
+              when the worker has exactly ONE client (defaults to 'all' but the
+              refill is against that single client, so show it). */}
+          {(clientId !== 'all' || (clientProfiles ?? []).length === 1) && (
             <div className="flex flex-col items-stretch sm:items-end gap-1.5 w-full sm:w-auto">
               <div className="flex flex-wrap items-center gap-2">
                 <label className="text-xs text-navy-500">Preset</label>

@@ -125,8 +125,17 @@ export default function QueueClient({
         ? filteredJobs.filter((j) => j.status === 'skipped')
         : filteredJobs.filter((j) => j.status !== 'applied' && j.status !== 'skipped');
 
-  // Role guide for the currently selected client (hide on 'all' aggregate).
-  const activeRoleGuide = clientId !== 'all' ? clientRoles?.[clientId] : undefined;
+  // Role guide for the currently selected client. On the 'all' aggregate, show
+  // the guide when the worker has exactly ONE client (defaults to 'all' but the
+  // guide still makes sense); hide it only when mixing multiple clients.
+  const activeRoleGuide =
+    clientRoles == null
+      ? undefined
+      : clientId !== 'all'
+        ? clientRoles[clientId]
+        : (clientProfiles ?? []).length === 1
+          ? clientRoles[clientProfiles![0].id]
+          : undefined;
 
   // Weekly cards follow the switcher: 'all' shows the aggregate, a specific
   // client shows that client's own applied/skipped/quota for the week.

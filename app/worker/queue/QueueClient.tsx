@@ -52,7 +52,12 @@ export default function QueueClient({
   /** Earnings per client (for the client switcher). */
   earningsByClient?: Record<string, { earnedNaira: number; weeklyCapNaira: number; countThisWeek: number }>;
   /** Role guide per assigned client (which roles the resume supports). */
-  clientRoles?: Record<string, { domains: string[]; familyLabels: string[]; exampleTitles: string[]; skipNote: string }>;
+  clientRoles?: Record<string, {
+    headline: string;
+    families: { id: string; label: string; exampleTitles: string[]; skipNote: string }[];
+    exampleTitles: string[];
+    skipNote: string;
+  }>;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -456,11 +461,16 @@ export default function QueueClient({
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
               </svg>
               <span className="text-xs font-semibold uppercase tracking-wide">Roles you can apply for</span>
+              {activeRoleGuide.headline && (
+                <span className="ml-1 normal-case tracking-normal text-[11px] text-navy-300 font-normal">
+                  — {activeRoleGuide.headline}
+                </span>
+              )}
             </div>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {activeRoleGuide.familyLabels.map((f) => (
-                <span key={f} className="rounded-full bg-brand-green/15 text-brand-green border border-brand-green/30 px-2 py-0.5 text-[11px] font-medium">
-                  {f}
+              {activeRoleGuide.families.map((f) => (
+                <span key={f.id} className="rounded-full bg-brand-green/15 text-brand-green border border-brand-green/30 px-2 py-0.5 text-[11px] font-medium">
+                  {f.label}
                 </span>
               ))}
             </div>

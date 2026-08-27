@@ -66,6 +66,7 @@ export default function QueueClient({
   // Worker self-refill state
   const [refillState, setRefillState] = useState<{
     preset: string; boards: string[]; busy: boolean; msg: string | null; error: string | null; done: boolean;
+    progress: { step: number; totalSteps: number; current: string; jobsFound: number } | null;
   }>({
     preset: '',
     boards: [],
@@ -73,6 +74,7 @@ export default function QueueClient({
     msg: null,
     error: null,
     done: false,
+    progress: null,
   });
   // Local copy of the jobs list used for OPTIMISTIC quick-actions: flipping a
   // job's status re-renders instantly instead of waiting for a full
@@ -303,7 +305,7 @@ export default function QueueClient({
       setRefillState((s) => ({ ...s, error: 'Select a client first.', msg: null }));
       return;
     }
-    setRefillState((s) => ({ ...s, busy: true, error: null, msg: null, done: false }));
+    setRefillState((s) => ({ ...s, busy: true, error: null, msg: null, done: false, progress: null }));
     try {
       const res = await fetch('/api/worker-refill', {
         method: 'POST',
@@ -336,6 +338,33 @@ export default function QueueClient({
   }
 
   const selProfile = clientId !== 'all' ? clientProfiles?.find((p) => p.id === clientId) : undefined;
+
+  // Poll live refill progress while a refill is running, so the worker sees real
+  // progress (current board/search, job count) instead of a blanket time estimate.
+  useEffect(() => {
+    if (!refillState.busy || refillState.done) return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await fetch('/api/worker-refill/progress', { cache: 'no-store' });
+        if (cancelled) return;
+        if (res.ok) {
+          const data = await res.json().catch(() => ({}));
+          const p = data?.progress;
+          if (p && typeof p.totalSteps === 'number') {
+            setRefillState((s) =>
+              s.busy ? { ...s, progress: { step: p.step ?? 0, totalSteps: p.totalSteps, current: p.current ?? '', jobsFound: p.jobsFound ?? 0 } } : s
+            );
+          }
+        }
+      } catch { /* transient poll error — ignore, keep trying */ }
+    };
+    poll();
+    const iv = setInterval(poll, 2000);
+    return () => { cancelled = true; clearInterval(iv); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refillState.busy, refillState.done]);
+
   const presets = ((selProfile?.presets ?? []) as { id: string; name: string }[]).slice().sort((a, b) => {
     // General first — it's the broad one-click refill most workers want; the
     // specific role-family presets come after for targeted refinement.
@@ -431,16 +460,34 @@ export default function QueueClient({
               </div>
             </div>
           )}
-          {/* Refill feedback: loading bar while busy, then success / 0-new / error */}
+          {/* Refill feedback: live progress while busy, then success / 0-new / error */}
           {refillState.busy && (
-            <div className="mt-2 w-full sm:w-72">
+            <div className="mt-2 w-full sm:w-80">
               <div className="flex items-center gap-2 text-xs text-navy-300">
                 <span className="inline-block h-3 w-3 rounded-full border-2 border-brand-green/40 border-t-brand-green animate-spin" />
-                Refilling… fetching jobs (can take 1–3 min)
+                <span>
+                  {refillState.progress && refillState.progress.totalSteps > 0
+                    ? `Scraping… ${refillState.progress.current || 'working'}`
+                    : 'Starting scraper…'}
+                </span>
               </div>
-              <div className="mt-1 h-1.5 rounded-full bg-navy-800 overflow-hidden">
-                <div className="h-full bg-brand-green width-indeterminate" />
-              </div>
+              {/* Real progress: step/totalStep + jobs found so far */}
+              {refillState.progress && refillState.progress.totalSteps > 0 && (
+                <div className="mt-1.5">
+                  <div className="flex justify-between text-[10px] text-navy-400 mb-0.5">
+                    <span>
+                      Step {Math.min(refillState.progress.step + 1, refillState.progress.totalSteps)} of {refillState.progress.totalSteps}
+                    </span>
+                    <span>{refillState.progress.jobsFound} jobs found</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-navy-800 overflow-hidden">
+                    <div
+                      className="h-full bg-brand-green transition-all duration-500"
+                      style={{ width: `${Math.min(100, ((refillState.progress.step + 1) / refillState.progress.totalSteps) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
           {refillState.done && !refillState.busy && refillState.msg && !refillState.error && (

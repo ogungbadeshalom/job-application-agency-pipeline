@@ -130,17 +130,21 @@ def scrape_hiringcafe(term: str, old_days: int) -> list:
 # term (word-level on title) + remote (remote detection best-effort). Good
 # companies respond even when a specific slug 404s -> we skip it silently.
 GREENHOUSE_ORGS = [
-    "stripe", "datadog", "figma", "notion", "gusto", "monzo", "newrelic",
-    "pagerduty", "airtable", "vercel", "planetscale", "wisetack",
-    # broaden: more mid/large firms that post engineering/data roles
+    # Non-enterprise orgs that post US-remote software/AI/ML roles. Enterprise
+    # giants (stripe/datadog/figma/twilio/dropbox/etc.) are deliberately NOT
+    # listed here — they're filtered by the enterprise blocklist anyway, so
+    # leaving them out saves 30+ no-op API calls per refill.
+    "gusto", "monzo", "newrelic", "pagerduty", "planetscale", "wisetack",
     "hashicorp", "remitly", "dbtlabs", "contenda", "supabase", "render",
-    "shopify", "sentry", "twilio", "deel", "box", "dropbox", "reddit",
-    "brex", "coinbase", "chime", "wise", "stripe-2",
-    "amplitude", "asana", "anthropic", "vercel",
-    # v2.48: more data/ML-heavy orgs (verified return jobs from this box)
-    "okta", "gitlab", "elastic", "mongodb", "databricks", "roblox",
-    "pinterest", "airbnb", "lyft", "dropbox", "robinhood", "sofi",
-    "affirm", "twitch", "mercury", "zscaler", "fastly",
+    "sentry", "deel", "box", "wise", "amplitude", "mercari", "discord",
+    # v2.48 base: data/ML-heavy non-enterprise orgs (verified return jobs)
+    "okta", "elastic", "mongodb", "zscaler", "fastly", "transloadit",
+    # v2.71: expanded non-enterprise US-remote SWE/AI supply (verified from this box)
+    "postman", "checkr", "veriff", "skyscanner", "webflow", "mattermost",
+    "verkada", "purestorage", "glance", "singlestore", "neo4j", "prisma",
+    "cloudflare", "circleci",
+    # more non-enterprise remote-friendly engineering orgs (response-verified)
+    "canonical", "nango", "athenahealth", "betterment",
 ]
 LEVER_ORGS = ["leverdemo"]
 

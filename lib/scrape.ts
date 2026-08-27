@@ -67,12 +67,38 @@ export async function dedupeAndMap(
   }));
 }
 
-// Spawn the Python JobSpy script and parse its JSON output.
-export async function runJobSpy(args: JobSpyArgs): Promise<ScrapeResultJob[]> {
+export interface ScrapeRunProgress {
+  totalSteps: number;
+  step: number;              // 0-based, incremented as each (site, term) completes
+  current: string;           // human-readable current step, e.g. "BuiltIn — data engineer"
+  jobsFound: number;         // cumulative jobs found so far
+  done: boolean;
+}
+
+// In-memory live scraper progress, keyed by scrape_run_id. Populated by
+// runJobSpy's onProgress callback as the subprocess streams each (site, term)
+// completion on stderr, and read by the UI's poll endpoint. Kept in-memory (not
+// DB) so polling is cheap and there's no schema change; it lives only for the
+// lifetime of the run.
+export const scrapeProgress: Record<string, ScrapeRunProgress> = {};
+
+// Spawn the Python JobSpy script and parse its JSON output. When `onProgress`
+// is provided, the subprocess's stderr is streamed live — each "[ok] site: N
+// jobs for 'term'" line emits an incremental progress update, so the UI can show
+// real progress instead of a blanket time estimate.
+export async function runJobSpy(
+  args: JobSpyArgs,
+  onProgress?: (p: ScrapeRunProgress) => void
+): Promise<ScrapeResultJob[]> {
   const scriptPath = path.join(process.cwd(), 'scripts', 'run_jobspy.py');
   const tmpFile = path.join(os.tmpdir(), `scrape_${Date.now()}.json`);
   const configJson = JSON.stringify(args);
   const pyBin = process.platform === 'win32' ? 'python' : 'python3';
+
+  // Total steps to scrape = sites x distinct terms (mirrors the script's loop:
+  // `for term in search_terms: for site in sites:`). Used to compute progress.
+  const sites = args.sites ?? [];
+  const totalSteps = Math.max(sites.length * (args.search_terms ?? []).length, 1);
 
   try {
     await new Promise<void>((resolve, reject) => {
@@ -80,7 +106,41 @@ export async function runJobSpy(args: JobSpyArgs): Promise<ScrapeResultJob[]> {
         stdio: ['ignore', 'pipe', 'pipe'],
       });
       let stderr = '';
-      child.stderr.on('data', (d) => (stderr += d.toString()));
+      let step = 0;
+      let jobsFound = 0;
+      const onLine = (line: string) => {
+        // Emit live progress from "[ok] <site>: <N> jobs for '<term>'" lines.
+        const m = line.match(/\[ok\]\s+(.+?):\s+(\d+)\s+jobs?\s+for\s+'([^']+)'/);
+        if (m) {
+          const site = m[1];
+          const n = Number(m[2]) || 0;
+          const term = m[3];
+          jobsFound += n;
+          step += 1; // each completed (site, term) advances the progress step
+          const p: ScrapeRunProgress = {
+            totalSteps,
+            step,
+            current: `${site} — ${term}`,
+            jobsFound,
+            done: false,
+          };
+          if (onProgress) {
+            try {
+              onProgress(p);
+            } catch { /* ignore subscriber errors */ }
+          }
+        }
+      };
+      child.stderr.on('data', (d) => {
+        const s = d.toString();
+        stderr += s;
+        // stderr lines may arrive in chunks; split on newlines and process whole lines.
+        const lines = s.split('\n');
+        for (const ln of lines) {
+          const t = ln.trim();
+          if (t && (t.includes('[ok]') || t.includes('[warn]'))) onLine(t);
+        }
+      });
       let settled = false;
       let timer: NodeJS.Timeout | null = null;
       const finish = (err: Error | null) => {
@@ -97,6 +157,11 @@ export async function runJobSpy(args: JobSpyArgs): Promise<ScrapeResultJob[]> {
       }, 300_000);
       child.on('close', (code, signal) => {
         if (code === 0) {
+          if (onProgress) {
+            try {
+              onProgress({ totalSteps, step: totalSteps, current: 'Finalizing', jobsFound, done: true });
+            } catch { /* ignore */ }
+          }
           finish(null);
         } else if (signal) {
           if (!settled) finish(new Error(`JobSpy killed by signal ${signal}.`));

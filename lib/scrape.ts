@@ -82,6 +82,10 @@ export interface ScrapeRunProgress {
 // lifetime of the run.
 export const scrapeProgress: Record<string, ScrapeRunProgress> = {};
 
+// Track the in-flight scrape run per worker so the queue UI can discover which
+// run_id to poll for live progress without waiting for the POST to resolve.
+export const latestRunByWorker: Record<string, { runId: string; profileId: string }> = {};
+
 // Spawn the Python JobSpy script and parse its JSON output. When `onProgress`
 // is provided, the subprocess's stderr is streamed live — each "[ok] site: N
 // jobs for 'term'" line emits an incremental progress update, so the UI can show

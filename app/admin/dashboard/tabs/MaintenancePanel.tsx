@@ -7,7 +7,6 @@ import { Spinner } from '@/components/Icon';
 export default function MaintenancePanel() {
   const [message, setMessage] = useState('');
   const [enabled, setEnabled] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
@@ -20,8 +19,7 @@ export default function MaintenancePanel() {
           setEnabled(d.enabled ?? false);
         }
       })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .catch(() => {});
   }, []);
 
   async function save() {

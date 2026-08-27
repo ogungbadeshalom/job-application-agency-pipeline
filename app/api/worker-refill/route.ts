@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { isUuid } from '@/lib/validate';
-import { runJobSpy, dedupeAndMap, scrapeProgress } from '@/lib/scrape';
+import { runJobSpy, dedupeAndMap, scrapeProgress, latestRunByWorker } from '@/lib/scrape';
 import { filterJobsByResume } from '@/lib/aiJobMatch';
 import type { Job, ProfilePreset, ScrapeResultJob } from '@/lib/types';
 
@@ -33,33 +33,6 @@ async function acquireLock(): Promise<void> {
   refillInFlight = true;
 }
 class RefillBusyError extends Error {}
-
-// Track the in-flight scrape run per worker so the queue UI can discover which
-// run_id to poll for live progress without waiting for the POST to resolve.
-// NOT exported — a Next.js route only allows HTTP-method + special config exports.
-const latestRunByWorker: Record<string, { runId: string; profileId: string }> = {};
-
-// GET /api/worker-refill/progress?run=<scrape_run_id>
-// Live refill progress for the worker queue UI to poll while a refill scrape is
-// running. Returns the in-memory progress record written by the subprocess. A
-// 404 means the run already finished (record deleted). If no ?run= is given,
-// returns the requesting worker's most recent in-flight run's progress.
-export async function GET(req: Request) {
-  const session = await getSession();
-  if (!session || session.user.role !== 'worker') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  const url = new URL(req.url);
-  let runId = url.searchParams.get('run') || '';
-  if (!runId) {
-    runId = latestRunByWorker[session.user.id]?.runId || '';
-  }
-  const p = runId ? scrapeProgress[runId] : undefined;
-  if (!p) {
-    return NextResponse.json({ progress: null, runId: runId || null }, { status: 404 });
-  }
-  return NextResponse.json({ progress: p, runId });
-}
 
 export async function POST(req: Request) {
   const session = await getSession();

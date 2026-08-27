@@ -16,6 +16,7 @@ const REFILL_BOARDS = [
   { site: 'builtin', label: 'BuiltIn' },
   { site: 'jobicy', label: 'Jobicy' },
   { site: 'workingnomads', label: 'WorkingNomads' },
+  { site: 'ashby', label: 'Ashby' },
 ];
 
 export default function QueueClient({

@@ -243,8 +243,84 @@ def scrape_lever(term: str, old_days: int) -> list:
     return out
 
 
+# Ashby board API — clean JSON with an explicit isRemote + workplaceType + jobUrl.
+# Verified from this VPS (late 2026): API is datacenter-safe and returns remote
+# US roles for these non-enterprise orgs. Enterprise giants on Ashby (openai,
+# notion, vercel, linear, ramp, quora, supabase) are excluded here — most are
+# already filtered by the enterprise blocklist anyway.
+ASHBY_ORGS = [
+    "xero", "bastion", "cursor", "ditto", "sourcegraph", "methodology", "toggl",
+    "smartcar", "orkes", "losant", "chainalysis", "hasura", "prisma", "upstash",
+]
+
+def _title_matches_ashby(title, term):
+    if not term:
+        return True
+    t = title.strip().lower()
+    term = term.strip().lower()
+    if term in t:
+        return True
+    # loose word match for multi-word terms (mirrors greenhouse logic)
+    kb = ("data", "software", "engineer", "developer", "full", "back", "front",
+          "ai", "ml", "platform", "llm", "infra", "backend")
+    if any(k in t for k in kb):
+        words = [w for w in term.split() if len(w) > 3]
+        return any(w in t for w in words)
+    return False
+
+def scrape_ashby(term, old_days):
+    out = []
+    for org in ASHBY_ORGS:
+        url = f"https://api.ashbyhq.com/posting-api/job-board/{org}"
+        try:
+            payload = json.loads(_fetch(url))
+        except Exception as e:
+            print(f"[warn] ashby:{org} {e}", file=sys.stderr)
+            continue
+        for j in payload.get("jobs", []):
+            if not j.get("isRemote"):
+                continue  # strict: only explicitly-remote roles
+            # The isRemote flag alone is unreliable (some orgs set it true even
+            # for city/on-site roles, e.g. Xero's AU/NZ/CA entries). Require a
+            # US or generic-Remote location too, so strict-remote-only holds.
+            loc = (j.get("location") or "").strip()
+            address = ((j.get("address") or {}).get("postalAddress") or {})
+            country = (address.get("addressCountry") or "").lower()
+            loc_l = loc.lower()
+            is_us_remote = (
+                country == "united states"
+                or "united states" in loc_l
+                or loc_l.startswith("us")
+                or loc_l in ("remote", "anywhere", "global", "usa")
+            )
+            non_us_region = any(r in loc_l or r in country for r in
+                                ("australia", "au:", "new zealand", "nz:", "europe",
+                                 "canada", "can:", "germany", "uk", "london",
+                                 "india", "singapore", "poland", "netherlands"))
+            if non_us_region and not is_us_remote:
+                continue  # limit AU/NZ/EU/CA to US-remote only
+            title = j.get("title") or ""
+            if not _title_matches_ashby(title, term):
+                continue
+            out.append({
+                "title": title,
+                "company": org,
+                "site": "ashby",
+                "job_url": j.get("jobUrl") or j.get("applyUrl") or "",
+                "location": loc or "Remote",
+                "description": "",
+                "date_posted": j.get("publishedAt"),
+                "is_remote": True,
+                "is_expired": False,
+                "is_easy_apply": False,
+            })
+    print(f"[ok] ashby: {len(out)} jobs for '{term}'", file=sys.stderr)
+    return out
+
+
 BOARDS = {"jobicy": scrape_jobicy, "hiringcafe": scrape_hiringcafe,
-           "greenhouse": scrape_greenhouse, "lever": scrape_lever}
+           "greenhouse": scrape_greenhouse, "lever": scrape_lever,
+           "ashby": scrape_ashby}
 
 
 def main():

@@ -19,7 +19,7 @@ const RESULTS_WANTED = 80;
 // locations only; descriptions blocked), so it yields ~0 strict-remote jobs and
 // wastes a worker refill. Lever/Indeed/RemoteOK/Remotive also excluded (dead/banned).
 const DEFAULT_SITES = ['greenhouse', 'builtin', 'jobicy'];
-const AVAILABLE_BOARDS = ['greenhouse', 'builtin', 'jobicy', 'workingnomads'];
+const AVAILABLE_BOARDS = ['greenhouse', 'builtin', 'jobicy', 'workingnomads', 'ashby'];
 
 // Single-flight: only one worker-refill scrape may run at a time across workers,
 // so two people sharing a profile (e.g. Erry) can't stack concurrent JobSpy

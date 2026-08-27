@@ -340,6 +340,55 @@ export default function QueueClient({
 
   const selProfile = clientId !== 'all' ? clientProfiles?.find((p) => p.id === clientId) : undefined;
 
+  // ---- Manual "Add Job" (worker-sourced application) ----
+  const [addOpen, setAddOpen] = useState(false);
+  const [addState, setAddState] = useState<{
+    url: string; title: string; company: string; description: string; busy: boolean; error: string | null; msg: string | null;
+  }>({ url: '', title: '', company: '', description: '', busy: false, error: null, msg: null });
+  const resetAdd = () => setAddState({ url: '', title: '', company: '', description: '', busy: false, error: null, msg: null });
+
+  async function addManualJob() {
+    const profileId =
+      clientId !== 'all' && clientId
+        ? clientId
+        : (clientProfiles ?? []).length === 1
+          ? clientProfiles![0].id
+          : null;
+    if (!profileId) {
+      setAddState((s) => ({ ...s, error: 'Select a client first.', msg: null }));
+      return;
+    }
+    if (!addState.url.trim()) {
+      setAddState((s) => ({ ...s, error: 'Paste a job posting URL.', msg: null }));
+      return;
+    }
+    setAddState((s) => ({ ...s, busy: true, error: null, msg: null }));
+    try {
+      const res = await fetch('/api/jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profile_id: profileId,
+          url: addState.url.trim(),
+          title: addState.title.trim(),
+          company: addState.company.trim(),
+          description: addState.description.trim(),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setAddState((s) => ({ ...s, busy: false, error: data?.error || `Add failed (${res.status})`, msg: null }));
+        return;
+      }
+      setAddState((s) => ({ ...s, busy: false, msg: '✓ Added to your queue.', error: null }));
+      resetAdd();
+      setAddOpen(false);
+      router.refresh();
+    } catch {
+      setAddState((s) => ({ ...s, busy: false, error: 'Network error — please retry.', msg: null }));
+    }
+  }
+
   // Poll live refill progress while a refill is running, so the worker sees real
   // progress (current board/search, job count) instead of a blanket time estimate.
   useEffect(() => {
@@ -431,6 +480,13 @@ export default function QueueClient({
                   className="px-3 py-1.5 text-xs font-semibold rounded-md bg-brand-green/20 text-brand-green border border-brand-green/30 hover:bg-brand-green/30 disabled:opacity-50"
                 >
                   {refillState.busy ? 'Refilling…' : 'Refill'}
+                </button>
+                <button
+                  onClick={() => { resetAdd(); setAddOpen(true); }}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-md bg-navy-700 text-navy-100 border border-navy-600 hover:bg-navy-600"
+                  title="Add a job you found yourself (paste the posting link)"
+                >
+                  ＋ Add Job
                 </button>
               </div>
               {/* Board selector: workers pick which boards to scrape. */}
@@ -669,6 +725,92 @@ export default function QueueClient({
         gotoJobId={pendingJump?.id}
         gotoJobNonce={pendingJump?.n ?? 0}
       />
+
+      {/* Manual "Add Job" modal — worker pastes a posting link they found
+          themselves; it enters the queue as `saved` (Working tab). */}
+      {addOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/70 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-md rounded-lg border border-navy-700 bg-navy-900 p-5 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-navy-100">Add a job you found</h2>
+              <button
+                onClick={() => setAddOpen(false)}
+                className="text-navy-400 hover:text-navy-200 text-lg leading-none"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-navy-400 mb-1">Job posting URL *</label>
+                <input
+                  value={addState.url}
+                  onChange={(e) => setAddState((s) => ({ ...s, url: e.target.value, error: null }))}
+                  placeholder="https://company.com/careers/123"
+                  className="w-full rounded-md bg-navy-800 border border-navy-700 px-3 py-2 text-sm text-navy-100 placeholder-navy-500 focus:border-brand-green/50 focus:outline-none"
+                />
+                <p className="text-[10px] text-navy-500 mt-1">Tip: title &amp; company auto-fill from the link if available.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-navy-400 mb-1">Title</label>
+                  <input
+                    value={addState.title}
+                    onChange={(e) => setAddState((s) => ({ ...s, title: e.target.value }))}
+                    placeholder="Auto-fetched"
+                    className="w-full rounded-md bg-navy-800 border border-navy-700 px-3 py-2 text-sm text-navy-100 placeholder-navy-500 focus:border-brand-green/50 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-navy-400 mb-1">Company</label>
+                  <input
+                    value={addState.company}
+                    onChange={(e) => setAddState((s) => ({ ...s, company: e.target.value }))}
+                    placeholder="Auto-fetched"
+                    className="w-full rounded-md bg-navy-800 border border-navy-700 px-3 py-2 text-sm text-navy-100 placeholder-navy-500 focus:border-brand-green/50 focus:outline-none"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-navy-400 mb-1">Notes / description (optional)</label>
+                <textarea
+                  value={addState.description}
+                  onChange={(e) => setAddState((s) => ({ ...s, description: e.target.value }))}
+                  rows={2}
+                  placeholder="Optional — auto-fetched from the page if available."
+                  className="w-full rounded-md bg-navy-800 border border-navy-700 px-3 py-2 text-sm text-navy-100 placeholder-navy-500 focus:border-brand-green/50 focus:outline-none resize-none"
+                />
+              </div>
+              {addState.error && (
+                <div className="text-xs rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-brand-red">
+                  {addState.error}
+                </div>
+              )}
+              {addState.msg && (
+                <div className="text-xs rounded-md border border-brand-green/30 bg-brand-green/10 px-3 py-2 text-brand-green">
+                  {addState.msg}
+                </div>
+              )}
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  onClick={() => setAddOpen(false)}
+                  className="px-3 py-1.5 text-xs font-medium rounded-md border border-navy-700 text-navy-300 hover:text-navy-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={addManualJob}
+                  disabled={addState.busy}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-md bg-brand-green text-navy-950 hover:bg-brand-green/90 disabled:opacity-50"
+                >
+                  {addState.busy ? 'Adding…' : 'Add to queue'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

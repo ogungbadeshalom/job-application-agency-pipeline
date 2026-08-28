@@ -13,6 +13,7 @@ import { all, one, query } from './pool';
 import { encryptSecret, decryptSecret } from '../lib/crypto';
 import type {
   AppConfig,
+  AtsScore,
   Job,
   JobStatus,
   ListJobsFilter,
@@ -122,6 +123,8 @@ function mapJob(r: Record<string, unknown>): Job {
     updated_at: (r.updated_at as Date).toISOString(),
     last_viewed_at: r.last_viewed_at ? (r.last_viewed_at as Date).toISOString() : null,
     is_new: isNewJob(r.created_at),
+    ats_score: r.ats_score != null ? (r.ats_score as number) : null,
+    ats_feedback: r.ats_feedback ? (r.ats_feedback as AtsScore) : null,
   };
 }
 
@@ -641,6 +644,8 @@ export const db = {
       proof_of_submission: 'proof_of_submission',
       notes: 'notes',
       last_viewed_at: 'last_viewed_at',
+      ats_score: 'ats_score',
+      ats_feedback: 'ats_feedback',
     };
     const sets: string[] = [];
     const params: unknown[] = [];

@@ -85,6 +85,15 @@ export interface AtsScore {
   content: ScoreGroup;
   structure: ScoreGroup;
   skills: ScoreGroup;
+  // Tailor-AI methodology fields (weighted ATS analysis)
+  matchingSkills?: string[];
+  missingSkills?: string[];
+  matchingKeywords?: string[];
+  missingKeywords?: string[];
+  booleanSearchResult?: 'pass' | 'borderline' | 'fail';
+  yearsOfExperience?: number;
+  yearsRequired?: number;
+  keyRecommendations?: string[];
 }
 export interface ScoreGroup {
   score: number; // 0-100

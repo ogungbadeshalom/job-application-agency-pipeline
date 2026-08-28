@@ -244,26 +244,54 @@ export const QUESTION_HELPER_SYSTEM = `Help a candidate answer application quest
 Write in first person. Be specific and under 150 words. Use concrete examples drawn from the resume.
 Do not fabricate achievements. If the resume lacks relevant detail, say so briefly and answer generically.`;
 
-// ATS scoring prompt (schema sourced from adrianhajdin/ai-resume-analyzer).
-// Rates a candidate's resume against a job description across 5 dimensions and
-// returns a strict JSON object with overallScore + per-dimension good/improve tips.
-export const RESUME_ATS_SYSTEM = `You are an expert in ATS (Applicant Tracking System) and resume analysis.
-Analyze and rate the provided resume against the job description. Be thorough and honest — give low scores where the resume is a weak fit, and point out concrete improvements.
+// ATS scoring prompt (methodology from Tailor-AI / Atanub707 llmMatcher.ts, which
+// models how real ATS parse: weighted scoring + exact keyword/boolean logic).
+// Rates a candidate's resume against a job description and returns a strict JSON
+// object with a weighted score + per-dimension breakdown + concrete gaps to fix.
+export const RESUME_ATS_SYSTEM = `You are a real-world ATS (Applicant Tracking System) scoring engine and a Technical Recruiter. Score how well the candidate's CV would rank when processed by an actual ATS (Greenhouse, Workday, Lever, Taleo, iCIMS, SmartRecruiters).
 
-Return ONLY a single JSON object, no markdown, no commentary, matching this exact schema:
+Rules of real ATS scoring:
+- ATS does NOT "understand" context like a human. It parses text and matches exact keywords.
+- Boolean search is the primary filter: recruiters search ("Senior" AND "DevOps" AND "AWS"). If exact combos are missing, the resume is invisible regardless of skill.
+- Section-weighting: keywords from job TITLES and SUMMARY count 2x more than keywords from a skills list.
+- Recency weighting: skills in the most recent role count more than skills from 5+ years ago.
+- Keyword density: a skill mentioned across multiple roles scores higher than listed once.
+- Hard skills (AWS, Docker, Kubernetes, Python) count; soft skills (leadership, communication) do NOT move the ATS score.
+- Contextual relevance: "Led Kubernetes migration for 200 nodes" scores higher than listing "Kubernetes" 5 times.
+- Quantification (metrics, numbers, percentages) is a bonus signal in modern AI-enhanced ATS.
+- Exact certification names must match.
+- Years of experience: calculate from actual dates, not just stated years.
+
+SCORING METHODOLOGY (weighted):
+1. Boolean Title Match (20%): exact title or standard variants (e.g. "DevOps Engineer" vs "DevOps Engineer II", "Platform Engineer", "SRE").
+2. Hard Skills Overlap (35%): every hard skill/tool in the JD found in the CV, weighted by section (title/summary 2x, experience 1.5x, skills 1x).
+3. Years of Experience Fit (15%): from actual dates vs JD requirement.
+4. Keyword Density & Recency (15%): count JD keyword appearances across roles; penalize if only in one old role.
+5. Certification Match (5%): exact certification names from the JD in the CV.
+6. Quantification Bonus (10%): experience bullets with metrics/numbers/percentages.
+
+Return ONLY a strict JSON object, no markdown, no code fences, matching this exact schema:
 {
-  "overallScore": <number 0-100>,
+  "overallScore": <number 0-100, weighted using the above methodology>,
   "ATS": { "score": <number 0-100>, "tips": [ { "type": "good"|"improve", "tip": "<short title>", "explanation": "<detail>" } ] },
   "toneAndStyle": { "score": <number 0-100>, "tips": [ { "type": "good"|"improve", "tip": "<short title>", "explanation": "<detail>" } ] },
   "content": { "score": <number 0-100>, "tips": [ { "type": "good"|"improve", "tip": "<short title>", "explanation": "<detail>" } ] },
   "structure": { "score": <number 0-100>, "tips": [ { "type": "good"|"improve", "tip": "<short title>", "explanation": "<detail>" } ] },
-  "skills": { "score": <number 0-100>, "tips": [ { "type": "good"|"improve", "tip": "<short title>", "explanation": "<detail>" } ] }
+  "skills": { "score": <number 0-100>, "tips": [ { "type": "good"|"improve", "tip": "<short title>", "explanation": "<detail>" } ] },
+  "matchingSkills": <string[]> (hard skills from JD found in CV),
+  "missingSkills": <string[]> (hard skills from JD NOT found in CV),
+  "matchingKeywords": <string[]> (exact keyword matches found in CV),
+  "missingKeywords": <string[]> (JD keywords absent from CV),
+  "booleanSearchResult": "pass"|"borderline"|"fail" (would a boolean search for the target title + top 3 hard skills find this CV?),
+  "yearsOfExperience": <number, calculated from dates>,
+  "yearsRequired": <number, estimated from JD>,
+  "keyRecommendations": <string[]> (3-5 specific, actionable CV changes to pass ATS screening)
 }
 Rules:
-- overallScore is the weighted overall fit out of 100.
-- Give 3-4 tips per dimension; tag each "good" (what's working) or "improve" (what to fix).
-- Use the job description and title to judge relevance; note keywords the resume is missing.
-- Return the analysis as a JSON object ONLY, without backticks or any other text.`;
+- overallScore uses the weighted methodology above (Boolean Title 20%, Hard Skills 35%, Years 15%, Keyword Density 15%, Certification 5%, Quantification 10%).
+- Give 3-4 tips per dimension, tagged "good" (what's working) or "improve" (what to fix).
+- Use the job title + description to judge relevance; be concrete about the exact missing skills/keywords.
+- Return the JSON object ONLY, without backticks or any other text.`;
 
 // --- offline stub ----------------------------------------------------------
 function stubResponse(system: string, user: string): string {

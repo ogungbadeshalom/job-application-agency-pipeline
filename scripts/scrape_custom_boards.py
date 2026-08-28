@@ -10,9 +10,11 @@ HiringCafe: Next.js client-side feed behind a protected API — needs a headless
            browser, which won't run on this box. Returns [] (explicit skip).
 """
 import json
+import re
 import sys
 import datetime
 import urllib.request
+import urllib.parse
 import os as _os
 
 _TIMEOUT = 12
@@ -318,9 +320,90 @@ def scrape_ashby(term, old_days):
     return out
 
 
+def scrape_dice(term, old_days):
+    """Dice (US tech board) — from Tailor-AI's diceScraper approach. Search
+    dice.com/jobs for job-detail UUIDs, fetch each detail page, parse the
+    schema.org JSON-LD JobPosting (title/company/location/salary/description).
+    Verified from this VPS: detail pages return clean JSON-LD. Dice serves a
+    JS-heavy search shell, so we only extract the /job-detail/ UUID links, then
+    hit the detail pages (which are datacenter-safe HTML+JSON-LD). Remote-only
+    enforced via the workplaceTypes=Remote filter + per-job remote check."""
+    q = term.strip()
+    base = ("https://www.dice.com/jobs?q=" + urllib.parse.quote(q) +
+            "&filters.workplaceTypes=Remote")
+    seen = set()
+    uuids = []
+    page = 1
+    while len(uuids) < 150 and page <= 5:
+        url = base if page == 1 else base + f"&page={page}"
+        try:
+            html = _fetch(url)
+        except Exception as e:
+            print(f"[warn] dice:page{page} {e}", file=sys.stderr)
+            break
+        found = re.findall(r'href="/job-detail/([a-f0-9-]+)"', html)
+        new = 0
+        for u in found:
+            if u not in seen:
+                seen.add(u)
+                uuids.append(u)
+                new += 1
+        if new == 0:
+            break
+        page += 1
+
+    out = []
+    for u in uuids[:40]:
+        detail_url = f"https://www.dice.com/job-detail/{u}"
+        try:
+            dhtml = _fetch(detail_url)
+        except Exception as e:
+            print(f"[warn] dice:{u[:8]} {e}", file=sys.stderr)
+            continue
+        m = re.search(r'type="application/ld\+json"[^>]*>(.*?)</script>', dhtml, re.S)
+        if not m:
+            continue
+        try:
+            ld = json.loads(m.group(1))
+        except Exception:
+            continue
+        if not isinstance(ld, dict) or ld.get("@type") != "JobPosting":
+            continue
+        title = (ld.get("title") or "").strip()
+        if not _title_matches_ashby(title, term):
+            continue
+        # remote detection: location/description
+        loc = ld.get("jobLocation") or {}
+        addr = loc.get("address") or {}
+        loc_str = " ".join(str(addr.get(k) or "") for k in
+                           ("addressLocality", "addressRegion", "addressCountry"))
+        blob = f"{loc_str} {ld.get('description') or ''}".lower()
+        is_remote = "remote" in blob
+        if not is_remote:
+            continue  # strict remote-only
+        desc = re.sub(r"<[^>]+>", " ", ld.get("description") or "")
+        desc = re.sub(r"\s+", " ", desc).strip()
+        co = ld.get("hiringOrganization") or {}
+        sal = (ld.get("baseSalary") or {}).get("value") or {}
+        out.append({
+            "title": title,
+            "company": (co.get("name") if isinstance(co, dict) else "") or "",
+            "site": "dice",
+            "job_url": detail_url,
+            "location": loc_str.strip() or "Remote",
+            "description": desc[:4000],
+            "date_posted": ld.get("datePosted"),
+            "is_remote": True,
+            "is_expired": False,
+            "is_easy_apply": False,
+        })
+    print(f"[ok] dice: {len(out)} jobs for '{term}'", file=sys.stderr)
+    return out
+
+
 BOARDS = {"jobicy": scrape_jobicy, "hiringcafe": scrape_hiringcafe,
            "greenhouse": scrape_greenhouse, "lever": scrape_lever,
-           "ashby": scrape_ashby}
+           "ashby": scrape_ashby, "dice": scrape_dice}
 
 
 def main():

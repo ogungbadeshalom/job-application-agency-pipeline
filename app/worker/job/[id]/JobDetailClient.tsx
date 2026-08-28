@@ -168,22 +168,57 @@ export default function JobDetailClient({
                     </div>
                   </div>
                   {job.ats_feedback?.overallScore != null && (
-                    <ul className="mt-2 space-y-1">
-                      {job.ats_feedback.skills?.tips
-                        ?.filter((t) => t.type === 'improve')
-                        .concat(
-                          (job.ats_feedback.content?.tips ?? [])
-                            .concat(job.ats_feedback.structure?.tips ?? [])
-                            .concat(job.ats_feedback.ATS?.tips ?? [])
-                            .filter((t, i, a) => t.type === 'improve' && a.indexOf(t) === i)
-                        )
-                        .slice(0, 4)
-                        .map((t, i) => (
-                          <li key={i} className="text-[11px] text-navy-300 leading-snug">
-                            • {t.tip}
-                          </li>
-                        ))}
-                    </ul>
+                    <div className="mt-2 space-y-2">
+                      {job.ats_feedback.booleanSearchResult && (
+                        <div className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border ${
+                          job.ats_feedback.booleanSearchResult === 'pass'
+                            ? 'text-brand-green border-brand-green/40 bg-brand-green/10'
+                            : job.ats_feedback.booleanSearchResult === 'borderline'
+                              ? 'text-amber-400 border-amber-400/40 bg-amber-400/10'
+                              : 'text-brand-red border-red-400/40 bg-red-400/10'
+                        }`}>
+                          Boolean search: {job.ats_feedback.booleanSearchResult.toUpperCase()}
+                        </div>
+                      )}
+                      {job.ats_feedback.missingSkills && job.ats_feedback.missingSkills.length > 0 && (
+                        <div>
+                          <div className="text-[11px] font-semibold text-brand-red uppercase tracking-wide">Missing skills</div>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {job.ats_feedback.missingSkills.slice(0, 8).map((s, i) => (
+                              <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 border border-red-400/30 text-brand-red">{s}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {job.ats_feedback.missingKeywords && job.ats_feedback.missingKeywords.length > 0 && (
+                        <div>
+                          <div className="text-[11px] font-semibold text-amber-400 uppercase tracking-wide">Missing keywords</div>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {job.ats_feedback.missingKeywords.slice(0, 8).map((k, i) => (
+                              <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-amber-400/10 border border-amber-400/30 text-amber-400">{k}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {job.ats_feedback.matchingSkills && job.ats_feedback.matchingSkills.length > 0 && (
+                        <div className="text-[11px] text-navy-400">
+                          <span className="text-brand-green font-semibold">✓ {job.ats_feedback.matchingSkills.length}</span> skills matched
+                        </div>
+                      )}
+                      {job.ats_feedback.yearsOfExperience != null && (
+                        <div className="text-[11px] text-navy-400">
+                          Experience: <span className="text-navy-100 font-semibold">{job.ats_feedback.yearsOfExperience}y</span> vs required{' '}
+                          <span className="text-navy-100 font-semibold">{job.ats_feedback.yearsRequired ?? 'n/a'}y</span>
+                        </div>
+                      )}
+                      {job.ats_feedback.keyRecommendations && job.ats_feedback.keyRecommendations.length > 0 && (
+                        <div className="mt-1 border-t border-navy-700 pt-2">
+                          {job.ats_feedback.keyRecommendations.slice(0, 3).map((r, i) => (
+                            <p key={i} className="text-[11px] text-navy-300 leading-snug">• {r}</p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               )}

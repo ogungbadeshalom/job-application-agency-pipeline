@@ -52,7 +52,10 @@ export async function POST(req: Request) {
 
   let raw: string;
   try {
-    raw = await callAI(RESUME_ATS_SYSTEM, user, { maxTokens: 1500, temperature: 0.2 });
+    // maxTokens 3000 — 1500 was too small and truncated the response mid-JSON
+    // (the missingSkills/matchingSkills arrays + tips routinely need 2-3k tokens),
+    // which produced 'unbalanced braces' and a 502.
+    raw = await callAI(RESUME_ATS_SYSTEM, user, { maxTokens: 3000, temperature: 0.2 });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ error: `AI call failed: ${msg}` }, { status: 502 });

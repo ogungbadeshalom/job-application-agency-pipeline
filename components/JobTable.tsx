@@ -178,8 +178,8 @@ function JobTable({
       if (el) {
         pendingScrollRef.current = null; // consumed
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        el.classList.add('ring-2', 'ring-brand-green/60');
-        setTimeout(() => el.classList.remove('ring-2', 'ring-brand-green/60'), 2200);
+        el.classList.add('ring-accent');
+        setTimeout(() => el.classList.remove('ring-accent'), 2200);
       } else if (tries < 40) {
         tries += 1;
         requestAnimationFrame(tick);

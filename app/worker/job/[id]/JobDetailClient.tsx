@@ -41,6 +41,30 @@ export default function JobDetailClient({
     router.refresh();
   }
 
+  // ATS fitness scan: ask the AI to score the resume against this job's JD,
+  // then persist + display the result. One at a time, capped.
+  const [atsBusy, setAtsBusy] = useState(false);
+  const [atsError, setAtsError] = useState<string | null>(null);
+  async function runAtsScan() {
+    setAtsBusy(true);
+    setAtsError(null);
+    try {
+      const res = await fetch('/api/ats-scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId: job.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || `Scan failed (${res.status})`);
+      updateJob({ ats_score: data?.score?.overallScore, ats_feedback: data?.score ?? null });
+    } catch (e) {
+      setAtsError(e instanceof Error ? e.message : 'Scan failed.');
+      setAtsBusy(false);
+    } finally {
+      setAtsBusy(false);
+    }
+  }
+
   // Navigate back to the queue WITHOUT auto-scrolling to top. The queue's
   // scroll-restore hook reads sessionStorage and puts the worker back where
   // they left off. Without scroll:false, Next resets to the top (job #1).
@@ -93,6 +117,77 @@ export default function JobDetailClient({
               {job.company}
               {job.location ? ` · ${job.location}` : ''}
             </p>
+
+            {/* ATS fitness scan — resume-vs-JD score + tips (client-facing value) */}
+            <div className="mt-3 rounded-md border border-navy-700 bg-navy-800/60 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-navy-400">
+                  ATS Fit
+                </span>
+                <button
+                  onClick={runAtsScan}
+                  disabled={atsBusy}
+                  className="px-2.5 py-1 text-xs font-semibold rounded-md bg-brand-green/20 text-brand-green border border-brand-green/30 hover:bg-brand-green/30 disabled:opacity-50"
+                >
+                  {atsBusy ? 'Scanning…' : job.ats_score != null ? 'Re-scan' : 'Scan ATS'}
+                </button>
+              </div>
+
+              {atsError && (
+                <p className="mt-2 text-xs text-brand-red">{atsError}</p>
+              )}
+
+              {job.ats_score != null && (
+                <div className="mt-2">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`text-2xl font-bold ${
+                        job.ats_score >= 70
+                          ? 'text-brand-green'
+                          : job.ats_score >= 45
+                            ? 'text-amber-400'
+                            : 'text-brand-red'
+                      }`}
+                    >
+                      {job.ats_score}
+                      <span className="text-xs text-navy-500 font-normal">/100</span>
+                    </div>
+                    <div className="h-2 flex-1 rounded bg-navy-700 overflow-hidden">
+                      <div
+                        className="h-full rounded"
+                        style={{
+                          width: `${job.ats_score}%`,
+                          background:
+                            job.ats_score >= 70
+                              ? 'var(--brand-green)'
+                              : job.ats_score >= 45
+                                ? 'var(--amber-400)'
+                                : 'var(--brand-red)',
+                        }}
+                      />
+                    </div>
+                  </div>
+                  {job.ats_feedback?.overallScore != null && (
+                    <ul className="mt-2 space-y-1">
+                      {job.ats_feedback.skills?.tips
+                        ?.filter((t) => t.type === 'improve')
+                        .concat(
+                          (job.ats_feedback.content?.tips ?? [])
+                            .concat(job.ats_feedback.structure?.tips ?? [])
+                            .concat(job.ats_feedback.ATS?.tips ?? [])
+                            .filter((t, i, a) => t.type === 'improve' && a.indexOf(t) === i)
+                        )
+                        .slice(0, 4)
+                        .map((t, i) => (
+                          <li key={i} className="text-[11px] text-navy-300 leading-snug">
+                            • {t.tip}
+                          </li>
+                        ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3 text-sm">

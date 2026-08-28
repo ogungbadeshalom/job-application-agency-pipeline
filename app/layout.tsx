@@ -8,12 +8,12 @@ export const metadata: Metadata = {
   description: 'Multi-tenant job-bidding agency platform',
 };
 
-// Apply the saved accent (green default / red) before first paint so there's no
-// flash of the wrong color. Matches the ThemeToggle's localStorage key.
+// Apply the saved accent before first paint (no color flash). Default is RED
+// (globals.css :root); only a saved 'green' choice adds the green override attr.
 const accentScript = `
 try {
   var a = localStorage.getItem('jobbidder.accent');
-  if (a === 'red') document.documentElement.setAttribute('data-accent', 'red');
+  if (a === 'green') document.documentElement.setAttribute('data-accent', 'green');
 } catch (e) {}
 `;
 

@@ -4,21 +4,9 @@
 
 :root {
   color-scheme: dark;
-  /* Brand accent — default GREEN (current style). Overridable per-user to RED
-     via a data-accent="red" attribute on <html> (see .accent-red block below).
-     This is what makes the theme revertible: green is the default everywhere. */
-  --accent: #3fb950;
-  --accent-dark: #238636;
-  --accent-strong: #56d364;
-  --accent-glow: rgba(63, 185, 80, 0.25);
-  --accent-soft: rgba(63, 185, 80, 0.08);
-  --accent-border: rgba(63, 185, 80, 0.35);
-  --accent-deep: rgba(63, 185, 80, 0.16);
-}
-
-/* RED accent theme override — applied by adding data-accent="red" to <html>.
-   Reverting is as simple as removing it (or toggling back to green). */
-html[data-accent='red'] {
+  /* Brand accent — default RED (current style per request). GREEN is available
+     as an opt-in override via the Settings → Appearance → Accent color control
+     (data-accent="green" below). */
   --accent: #f85149;        /* brand.red */
   --accent-dark: #da3633;
   --accent-strong: #ff7b72;
@@ -26,6 +14,18 @@ html[data-accent='red'] {
   --accent-soft: rgba(248, 81, 73, 0.09);
   --accent-border: rgba(248, 81, 73, 0.4);
   --accent-deep: rgba(248, 81, 73, 0.16);
+}
+
+/* GREEN accent theme override — applied by adding data-accent="green" to <html>.
+   Reverting the default back to green is just choosing Green in Settings. */
+html[data-accent='green'] {
+  --accent: #3fb950;
+  --accent-dark: #238636;
+  --accent-strong: #56d364;
+  --accent-glow: rgba(63, 185, 80, 0.25);
+  --accent-soft: rgba(63, 185, 80, 0.08);
+  --accent-border: rgba(63, 185, 80, 0.35);
+  --accent-deep: rgba(63, 185, 80, 0.16);
 }
 
 html,

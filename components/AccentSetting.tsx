@@ -10,21 +10,22 @@ import { useEffect, useState } from 'react';
  */
 const KEY = 'jobbidder.accent';
 
+// Default accent is RED (globals.css :root). Green is the opt-in override.
 export default function AccentSetting() {
-  const [accent, setAccent] = useState<'green' | 'red'>('green');
+  const [accent, setAccent] = useState<'green' | 'red'>('red');
 
   useEffect(() => {
     const saved = localStorage.getItem(KEY);
-    const a = saved === 'red' ? 'red' : 'green';
+    const a = saved === 'green' ? 'green' : 'red'; // anything else is red (default)
     setAccent(a);
-    if (a === 'red') document.documentElement.setAttribute('data-accent', 'red');
+    if (a === 'green') document.documentElement.setAttribute('data-accent', 'green');
     else document.documentElement.removeAttribute('data-accent');
   }, []);
 
   function choose(a: 'green' | 'red') {
     setAccent(a);
     localStorage.setItem(KEY, a);
-    if (a === 'red') document.documentElement.setAttribute('data-accent', 'red');
+    if (a === 'green') document.documentElement.setAttribute('data-accent', 'green');
     else document.documentElement.removeAttribute('data-accent');
   }
 

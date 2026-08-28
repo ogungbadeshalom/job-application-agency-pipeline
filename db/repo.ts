@@ -128,8 +128,10 @@ function mapJob(r: Record<string, unknown>): Job {
   };
 }
 
-// A job is flagged "NEW" if created within the last 2 days (fresh scrape).
-const NEW_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
+// A job is flagged "NEW" if created within the last 24h (genuinely fresh scrape
+// — NOT everything in the queue). Narrowed from 2 days so the badge stays a real
+// "just landed" signal; previously nearly every row was new, which diluted it.
+const NEW_WINDOW_MS = 24 * 60 * 60 * 1000;
 function isNewJob(createdAt: unknown): boolean {
   if (!createdAt) return false;
   const t = typeof createdAt === 'string' ? new Date(createdAt) : (createdAt as Date);

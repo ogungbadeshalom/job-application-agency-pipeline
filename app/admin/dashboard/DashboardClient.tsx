@@ -57,14 +57,14 @@ export default function DashboardClient({
         <div className="flex items-center gap-2 flex-wrap sm:ml-auto">
           <button
             onClick={() => setExportOpen(true)}
-            title="Experimental — scrape jobs to a spreadsheet (no queue changes)"
+            title="Export jobs to a spreadsheet (no queue changes)"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-brand-yellow/15 text-brand-yellow border border-brand-yellow/30 hover:bg-brand-yellow/25 transition-colors"
           >
-            ⬇ Experimental
+            ⬇ Export
           </button>
           <button
             onClick={() => setRefillOpen(true)}
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium rounded-md bg-brand-green text-navy-950 hover:bg-brand-greenDark shadow-[0_4px_14px_-4px_rgba(63,185,80,0.4)] transition-colors"
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium rounded-md bg-brand-green text-navy-950 hover:bg-brand-greenDark shadow-[0_4px_14px_-4px_var(--accent-glow)] transition-colors"
           >
             <Refresh size={15} /> Refill Jobs
           </button>

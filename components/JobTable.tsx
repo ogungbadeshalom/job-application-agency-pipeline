@@ -267,9 +267,12 @@ function JobTable({
               <tr>
                 <td
                   colSpan={cols.length}
-                  className="px-3 py-10 text-center text-navy-500 text-sm"
+                  className="px-3 py-14 text-center"
                 >
-                  No jobs found.
+                  <div className="text-navy-300 text-sm font-medium">No jobs found</div>
+                  <div className="text-navy-500 text-xs mt-1">
+                    Try widening your search or clearing the filters.
+                  </div>
                 </td>
               </tr>
             )}
@@ -281,19 +284,19 @@ function JobTable({
                   {mode !== 'admin' && <Cell>{rowNum}</Cell>}
                   {mode === 'admin' && (
                     <Cell className="min-w-[260px] max-w-[380px]">
-                      <span className="text-navy-100 flex items-center gap-1.5">
+                      <span className="flex items-center gap-1.5">
                         {job.url ? (
                           <a
                             href={job.url}
                             target="_blank"
                             rel="noreferrer"
                             title={job.title || 'Untitled'}
-                            className="truncate font-medium text-navy-100 hover:text-brand-blue hover:underline"
+                            className="truncate text-[13.5px] font-semibold text-navy-100 hover:text-brand-blue hover:underline"
                           >
                             {job.title || 'Untitled'}
                           </a>
                         ) : (
-                          <span className="truncate font-medium" title={job.title || 'Untitled'}>
+                          <span className="truncate text-[13.5px] font-semibold" title={job.title || 'Untitled'}>
                             {job.title || 'Untitled'}
                           </span>
                         )}
@@ -370,7 +373,7 @@ function JobTable({
                     <StatusBadge status={job.status} />
                   </Cell>
                   {mode === 'worker' && (
-                    <Cell className="text-navy-500 text-xs whitespace-nowrap">
+                    <Cell className="text-navy-400 text-xs whitespace-nowrap">
                       <span title={job.created_at ? new Date(job.created_at).toLocaleString() : ''}>
                         {fmtDate(job.created_at)}
                       </span>
@@ -378,7 +381,7 @@ function JobTable({
                   )}
 
                   {mode === 'admin' && (
-                    <Cell className="text-navy-500 text-xs whitespace-nowrap">
+                    <Cell className="text-navy-400 text-xs whitespace-nowrap">
                       {fmtDate(job.created_at)}
                     </Cell>
                   )}
@@ -474,11 +477,12 @@ function Dot({ ok, title }: { ok: boolean; title: string }) {
   );
 }
 
-// Small green "NEW" pill next to freshly-scraped job titles (with a live accent
-// dot on first appearance, per DESIGN.md).
+// Small green "NEW" pill next to freshly-scraped job titles. Borderless by
+// request (the old border/ring looked like a white outline — removed). Uses the
+// theme accent + a subtle live dot on first appearance.
 function NewBadge() {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-brand-green/30 bg-brand-green/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-green">
+    <span className="inline-flex items-center gap-1 rounded-full bg-brand-green/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-green">
       <span className="new-pulse h-1.5 w-1.5 rounded-full bg-brand-green" aria-hidden="true" />
       New
     </span>

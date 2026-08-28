@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
-import ThemeToggle from '@/components/ThemeToggle';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -26,7 +25,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="app-bg bg-navy-950 text-navy-100 antialiased">
         {children}
-        <ThemeToggle />
       </body>
     </html>
   );

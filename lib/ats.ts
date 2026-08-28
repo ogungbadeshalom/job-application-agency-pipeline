@@ -47,6 +47,10 @@ export function parseAtsScore(raw: string): AtsScore {
 
   const obj = JSON.parse(text.slice(start, end)) as Record<string, unknown>;
   const gu = (k: string): ScoreGroup => scoreGroup(obj[k]);
+  const strArr = (v: unknown): string[] =>
+    Array.isArray(v) ? v.map((x) => String(x || '')).filter(Boolean) : [];
+  const toBool = (v: unknown): 'pass' | 'borderline' | 'fail' | undefined =>
+    v === 'pass' || v === 'borderline' || v === 'fail' ? v : undefined;
   return {
     overallScore: num(obj.overallScore),
     ATS: gu('ATS'),
@@ -54,5 +58,13 @@ export function parseAtsScore(raw: string): AtsScore {
     content: gu('content'),
     structure: gu('structure'),
     skills: gu('skills'),
+    matchingSkills: strArr(obj.matchingSkills),
+    missingSkills: strArr(obj.missingSkills),
+    matchingKeywords: strArr(obj.matchingKeywords),
+    missingKeywords: strArr(obj.missingKeywords),
+    booleanSearchResult: toBool(obj.booleanSearchResult),
+    yearsOfExperience: typeof obj.yearsOfExperience === 'number' ? obj.yearsOfExperience : undefined,
+    yearsRequired: typeof obj.yearsRequired === 'number' ? obj.yearsRequired : undefined,
+    keyRecommendations: strArr(obj.keyRecommendations),
   };
 }

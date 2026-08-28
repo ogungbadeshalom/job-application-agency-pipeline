@@ -26,8 +26,9 @@ const config: Config = {
           100: '#e6edf3', // primary text
         },
         brand: {
-          green: '#3fb950',
-          greenDark: '#238636',
+          green: 'var(--accent)',
+          greenDark: 'var(--accent-dark)',
+          greenStrong: 'var(--accent-strong)',
           blue: '#58a6ff',
           yellow: '#d29922',
           red: '#f85149',
@@ -40,7 +41,7 @@ const config: Config = {
       },
       boxShadow: {
         panel: '0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.24)',
-        'panel-accent': '0 8px 28px -8px rgba(63,185,80,0.18)',
+        'panel-accent': '0 8px 28px -8px var(--accent-glow)',
       },
       transitionTimingFunction: {
         'out-quart': 'cubic-bezier(0.25, 1, 0.5, 1)',

@@ -9,11 +9,14 @@ export const metadata: Metadata = {
 };
 
 // Apply the saved accent before first paint (no color flash). Default is RED
-// (globals.css :root); only a saved 'green' choice adds the green override attr.
+// (globals.css :root); a saved choice of any other color sets the matching
+// data-accent attribute so the theme applies without flashing the wrong hue.
+// Keep this list in sync with the ACCENTS array in AccentSetting.tsx.
 const accentScript = `
 try {
-  var a = localStorage.getItem('jobbidder.accent');
-  if (a === 'green') document.documentElement.setAttribute('data-accent', 'green');
+  var _a = localStorage.getItem('jobbidder.accent');
+  var _valid = ['green','blue','purple','orange','cyan'];
+  if (_valid.indexOf(_a) !== -1) document.documentElement.setAttribute('data-accent', _a);
 } catch (e) {}
 `;
 

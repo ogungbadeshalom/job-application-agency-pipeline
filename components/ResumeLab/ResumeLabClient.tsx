@@ -13,7 +13,7 @@ export default function ResumeLabClient({
   nav,
   clientProfiles,
 }: {
-  user: { full_name: string; email: string; role: Role };
+  user: { full_name: string; email: string; role: Role; accent: string };
   nav: NavItem[];
   clientProfiles: Profile[];
 }) {

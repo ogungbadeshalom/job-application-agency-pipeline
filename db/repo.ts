@@ -47,6 +47,7 @@ function mapUser(r: Record<string, unknown>): User {
     role: r.role as User['role'],
     full_name: r.full_name as string,
     profile_id: (r.profile_id as string) ?? null,
+    accent: (r.accent as string) ?? '',
     disabled_at: r.disabled_at ? (r.disabled_at as Date).toISOString() : null,
     created_at: (r.created_at as Date).toISOString(),
   };
@@ -242,7 +243,7 @@ export const db = {
   },
   async updateUser(
     id: string,
-    patch: { password_hash?: string; full_name?: string; email?: string }
+    patch: { password_hash?: string; full_name?: string; email?: string; accent?: string }
   ): Promise<User | null> {
     const sets: string[] = [];
     const params: unknown[] = [];
@@ -259,6 +260,11 @@ export const db = {
       params
     );
     return row ? mapUser(row) : null;
+  },
+  // Set just the user's accent color preference ('' = default). Used by the
+  // per-user Settings → Appearance control.
+  async setAccent(id: string, accent: string): Promise<User | null> {
+    return this.updateUser(id, { accent });
   },
   async disableUser(id: string): Promise<User | null> {
     const row = await one(
@@ -284,6 +290,7 @@ export const db = {
     password_hash: string;
     role: User['role'];
     full_name: string;
+    accent: string;
   } | null> {
     const row = await one(
       `select * from users where lower(email) = lower($1) and disabled_at is null`,
@@ -296,6 +303,7 @@ export const db = {
       password_hash: row.password_hash as string,
       role: row.role as User['role'],
       full_name: row.full_name as string,
+      accent: (row.accent as string) ?? '',
     };
   },
 

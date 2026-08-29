@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 import { Logout, Menu, Close } from './Icon';
-import AccentSwatches from './AccentSwatches';
 import type { Role } from '@/lib/types';
 import { APP_VERSION } from '@/lib/version';
 
@@ -82,6 +81,20 @@ export default function DashboardLayout({
                       </Link>
         );
       })}
+      <div className="pt-2 mt-2 border-t border-navy-800">
+        <Link
+          href="/settings"
+          onClick={onNavigate}
+          aria-current={active === '/settings' ? 'page' : undefined}
+          className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors border-l-2 w-full ${
+            active === '/settings'
+              ? 'bg-brand-green/10 text-white border-brand-green'
+              : 'border-transparent text-navy-300 hover:text-white hover:bg-brand-green/5'
+          }`}
+        >
+          <span className="w-full truncate leading-snug">Settings</span>
+        </Link>
+      </div>
     </nav>
   );
 
@@ -114,10 +127,6 @@ export default function DashboardLayout({
             <NavLinks />
           </div>
           <div className="px-2 py-2 border-t border-navy-800">
-            <div className="px-1 pb-2 flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-wider text-navy-500">Accent</span>
-              <AccentSwatches initialAccent={user.accent} />
-            </div>
             <div className="px-1 pb-1 truncate text-xs text-navy-300" title={user.full_name}>
               {user.full_name}
             </div>
@@ -177,10 +186,6 @@ export default function DashboardLayout({
             )}
             <NavLinks onNavigate={() => setMenuOpen(false)} />
             <div className="p-3 border-t border-navy-800">
-              <div className="flex items-center justify-between px-1 pb-2">
-                <span className="text-[10px] uppercase tracking-wider text-navy-500">Accent</span>
-                <AccentSwatches initialAccent={user.accent} />
-              </div>
               <div className="px-2 py-2 text-sm text-navy-400 truncate">{user.full_name}</div>
               <button
                 onClick={logout}

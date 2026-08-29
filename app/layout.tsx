@@ -8,14 +8,14 @@ export const metadata: Metadata = {
   description: 'Multi-tenant job-bidding agency platform',
 };
 
-// Apply the saved accent before first paint (no color flash). Default is RED
+// Apply the saved accent before first paint (no color flash). Default is GREEN
 // (globals.css :root); a saved choice of any other color sets the matching
 // data-accent attribute so the theme applies without flashing the wrong hue.
-// Keep this list in sync with the ACCENTS array in AccentSetting.tsx.
+// Keep this list in sync with the ACCENTS array in lib/accent.ts.
 const accentScript = `
 try {
   var _a = localStorage.getItem('jobbidder.accent');
-  var _valid = ['green','blue','purple','orange','cyan'];
+  var _valid = ['red','blue','purple','orange','cyan'];
   if (_valid.indexOf(_a) !== -1) document.documentElement.setAttribute('data-accent', _a);
 } catch (e) {}
 `;

@@ -4,12 +4,23 @@
 
 :root {
   color-scheme: dark;
-  /* Brand accent — default RED (current style per request). Additional colors
-     are offered via the Settings → Appearance → Accent color control, which
-     sets a matching data-accent="<color>" attribute on <html> below. Each
-     theme defines the full accent variable set (base, dark, strong, plus the
-     alpha-graded glow/soft/border/deep layers used across the UI). */
-  --accent: #f85149;                                  /* brand.red */
+  /* Brand accent — default GREEN. Additional colors are offered via the
+     Settings → Appearance → Accent color control, which sets a matching
+     data-accent="<color>" attribute on <html> below. Each theme defines the
+     full accent variable set (base, dark, strong, plus the alpha-graded
+     glow/soft/border/deep layers used across the UI). */
+  --accent: #3fb950;                                  /* brand.green */
+  --accent-dark: #238636;
+  --accent-strong: #56d364;
+  --accent-glow: rgba(63, 185, 80, 0.25);
+  --accent-soft: rgba(63, 185, 80, 0.08);
+  --accent-border: rgba(63, 185, 80, 0.35);
+  --accent-deep: rgba(63, 185, 80, 0.16);
+}
+
+/* Red */
+html[data-accent='red'] {
+  --accent: #f85149;
   --accent-dark: #da3633;
   --accent-strong: #ff7b72;
   --accent-glow: rgba(248, 81, 73, 0.28);

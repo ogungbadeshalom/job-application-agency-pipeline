@@ -7,13 +7,13 @@
 //   - app/api/me/accent  server-side validation
 //   - app/layout.tsx     pre-paint script (kept in sync manually)
 //
-// `''` = the app default (RED, the :root value in globals.css). When a user
+// `''` = the app default (GREEN, the :root value in globals.css). When a user
 // picks a non-default color we set data-accent="<value>" on <html>; for the
 // default we REMOVE the attribute so globals.css :root wins.
 
 export const ACCENTS = [
-  { value: 'red', label: 'Red', color: '#f85149' },
   { value: 'green', label: 'Green', color: '#3fb950' },
+  { value: 'red', label: 'Red', color: '#f85149' },
   { value: 'blue', label: 'Blue', color: '#58a6ff' },
   { value: 'purple', label: 'Purple', color: '#bc8cff' },
   { value: 'orange', label: 'Orange', color: '#f0883e' },
@@ -22,8 +22,8 @@ export const ACCENTS = [
 
 export type AccentValue = (typeof ACCENTS)[number]['value'];
 
-/** The default accent: '' renders as the globals.css :root value (RED). */
-export const DEFAULT_ACCENT = 'red';
+/** The default accent: '' renders as the globals.css :root value (GREEN). */
+export const DEFAULT_ACCENT = 'green';
 export const DEFAULT_ACCENT_VALUE = '' as const;
 
 export const STORAGE_KEY = 'jobbidder.accent';
@@ -34,7 +34,7 @@ export function isAccentValue(v: string | null): v is AccentValue {
 
 /**
  * Resolve any string to a valid accent value. '' (default) maps to the default,
- * unknown strings fall back to '' (RED). Returns a value safe to assign to the
+ * unknown strings fall back to '' (GREEN). Returns a value safe to assign to the
  * DOM `data-accent` attribute / store on the user row.
  */
 export function normalizeAccent(v: string | null | undefined): string {
@@ -42,7 +42,7 @@ export function normalizeAccent(v: string | null | undefined): string {
   return DEFAULT_ACCENT_VALUE;
 }
 
-/** Apply an accent to the DOM. Pass '' to reset to the default (RED). */
+/** Apply an accent to the DOM. Pass '' to reset to the default (GREEN). */
 export function applyAccent(accent: string) {
   const value = normalizeAccent(accent);
   if (value === DEFAULT_ACCENT_VALUE) {

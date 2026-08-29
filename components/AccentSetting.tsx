@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import {
   ACCENTS,
+  DEFAULT_ACCENT,
+  DEFAULT_ACCENT_VALUE,
   STORAGE_KEY,
   applyAccent,
   normalizeAccent,
@@ -17,6 +19,7 @@ import {
  * Palette + validation live in lib/accent.ts.
  */
 export default function AccentSetting() {
+  // Stored/effective accent. '' means "use the app default" (GREEN in :root).
   const [accent, setAccent] = useState('');
 
   // Apply the current accent to the DOM.
@@ -58,6 +61,10 @@ export default function AccentSetting() {
     }).catch(() => {});
   }
 
+  // Display accent: map '' (default) to the DEFAULT_ACCENT value so the swatch
+  // for the default color reads as selected.
+  const displayAccent = accent === DEFAULT_ACCENT_VALUE ? DEFAULT_ACCENT : accent;
+
   return (
     <section className="panel overflow-hidden">
       <div className="p-3 border-b border-navy-700">
@@ -72,7 +79,7 @@ export default function AccentSetting() {
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
           {ACCENTS.map((a) => {
-            const active = accent === a.value;
+            const active = displayAccent === a.value;
             return (
               <button
                 key={a.value}

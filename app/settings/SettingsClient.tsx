@@ -28,7 +28,7 @@ export default function SettingsClient({
             <h3 className="text-sm font-semibold text-navy-200">Admin controls</h3>
             <p className="text-sm text-navy-400 mt-1">
               AI configuration, earnings pool, backups, team, and maintenance live
-              in the dashboard's{' '}
+              in the dashboard&apos;s{' '}
               <a
                 href="/admin/dashboard#settings"
                 className="text-brand-blue hover:underline"

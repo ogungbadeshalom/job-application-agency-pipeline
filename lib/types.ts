@@ -14,6 +14,7 @@ export interface User {
   role: Role;
   full_name: string;
   profile_id: string | null;
+  accent: string; // per-user accent color: '' (default/red) or green/blue/purple/orange/cyan
   disabled_at: string | null;
   created_at: string;
 }

@@ -44,7 +44,12 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="text-brand-green text-2xl mb-2">●</div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/icon.png"
+            alt="Job Bidder"
+            className="h-14 w-14 mx-auto mb-3 object-contain"
+          />
           <h1 className="text-2xl font-semibold text-navy-100">Job Bidder</h1>
           <p className="text-sm text-navy-400 mt-1">Sign in with your credentials</p>
         </div>

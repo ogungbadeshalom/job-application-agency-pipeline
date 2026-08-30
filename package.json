@@ -11,7 +11,9 @@
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
     "db:migrate": "tsx db/migrate.ts",
-    "db:seed": "tsx db/seed.ts"
+    "db:seed": "tsx db/seed.ts",
+    "refill:remote": "tsx scripts/refill_andrew_linkedin_remote.ts",
+    "refill:andrew": "tsx scripts/refill_andrew_expand.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.115.0",

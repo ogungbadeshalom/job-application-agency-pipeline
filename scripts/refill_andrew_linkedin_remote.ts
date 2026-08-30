@@ -1,13 +1,17 @@
-/* REMOTE-ONLY LinkedIn refill for Andrew (data engineer) using the
- * Agent-Reach LinkedIn MCP (logged-in). LinkedIn's own remote filter
+/* REMOTE-ONLY LinkedIn refill — the DEFAULT refill path.
+ *
+ * Uses the Agent-Reach LinkedIn MCP (logged-in). LinkedIn's own remote filter
  * (f_WT=2 / work_type="remote") returns only remote postings, and
  * get_job_details returns the FULL description for the role-fit + remote gate.
  *
- * This is the fix for on-site jobs slipping into the queue: every job here is
+ * This is the fix for on-site jobs slipping into the queue: every job added is
  * (a) selected as work_type=remote by LinkedIn AND (b) re-checked against its
- * real description before insert.
+ * real description before insert. It also AUTO-CLEANS on-site-location jobs
+ * already in the profile's queue, so the queue only ever holds remote (with
+ * descriptions) once the run finishes.
  *
- *   npx tsx scripts/refill_andrew_linkedin_remote.ts [maxJobs]
+ *   npm run refill:remote             # default (40 jobs)
+ *   npm run refill:remote -- 10       # or with a maxJobs argument
  *
  * Requires the `linkedin` MCP server (mcporter) to be healthy.
  */
@@ -151,7 +155,27 @@ async function main() {
     console.log(`after role-fit gate: ${pool.length}`);
   }
 
-  // 4. Audit-record + dedupe + insert.
+  // 4. Auto-clean (#6): before inserting fresh, purge any on-site-location jobs
+  //    that accumulated for this profile, so the queue only ever holds remote.
+  const clean = await query(
+    `delete from jobs
+     where profile_id = $1
+       and status = 'saved'
+       and coalesce(location, '') <> ''
+       and lower(location) not like '%remote%'
+       and (
+             location ~ ',[ ]+[A-Z]{2}$'
+          or location ~ ',[ ]+[A-Za-z]+,[ ]+(United States|USA|US|Canada)$'
+          or lower(location) like '%on-site%'
+          or lower(location) like '%on site%'
+          or lower(location) like '%hybrid%'
+          or lower(location) like '%metropolitan area%'
+       )`,
+    [PROFILE_ID]
+  );
+  if (clean.rowCount && clean.rowCount > 0) console.log(`auto-cleaned ${clean.rowCount} on-site job(s)`);
+
+  // 5. Audit-record + dedupe + insert.
   const runRow = await query<{ id: string }>(
     `insert into scrape_runs (triggered_by, profile_ids, sites, search_terms, location,
        results_wanted, hours_old, status, jobs_found, jobs_added, error_message, started_at)

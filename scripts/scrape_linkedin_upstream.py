@@ -44,7 +44,7 @@ try:
         results_wanted=int(args.get("results_wanted", 30)),
         hours_old=int(args.get("hours_old", 72)),
         is_remote=bool(args.get("is_remote", True)),
-        linkedin_fetch_description=False,
+        linkedin_fetch_description=True,
         **kw,
     )
     if df is None or df.empty:

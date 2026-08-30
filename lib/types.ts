@@ -14,6 +14,7 @@ export interface User {
   role: Role;
   full_name: string;
   profile_id: string | null;
+  accent: string; // per-user accent color: '' (default/red) or green/blue/purple/orange/cyan
   disabled_at: string | null;
   created_at: string;
 }
@@ -71,6 +72,33 @@ export interface Job {
   updated_at: string;
   last_viewed_at: string | null;
   is_new?: boolean;
+  ats_score?: number | null;
+  ats_feedback?: AtsScore | null;
+}
+
+// Structured ATS evaluation (from https://github.com/adrianhajdin/ai-resume-analyzer
+// schema): rate a resume against a job description across several dimensions and
+// give concrete good/improve tips. Stored on the job when a worker scans ATS.
+export interface AtsScore {
+  overallScore: number; // 0-100
+  ATS: ScoreGroup;
+  toneAndStyle: ScoreGroup;
+  content: ScoreGroup;
+  structure: ScoreGroup;
+  skills: ScoreGroup;
+  // Tailor-AI methodology fields (weighted ATS analysis)
+  matchingSkills?: string[];
+  missingSkills?: string[];
+  matchingKeywords?: string[];
+  missingKeywords?: string[];
+  booleanSearchResult?: 'pass' | 'borderline' | 'fail';
+  yearsOfExperience?: number;
+  yearsRequired?: number;
+  keyRecommendations?: string[];
+}
+export interface ScoreGroup {
+  score: number; // 0-100
+  tips?: { type: 'good' | 'improve'; tip: string; explanation?: string }[];
 }
 
 export interface ScrapeRun {

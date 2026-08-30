@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { requireRole } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { roleGuidesForProfiles } from '@/lib/roleGuide';
 import QueueClient from './QueueClient';
 
 // Start of the current week (Monday 00:00 local).
@@ -35,7 +36,7 @@ export default async function WorkerQueuePage({
   const rawClient = typeof searchParams?.client === 'string' ? searchParams.client : '';
   const initialClientId = profiles.some((p) => p.id === rawClient) ? rawClient : 'all';
   const profileIds = profiles.map((p) => p.id);
-  const jobs = await db.listJobs({ profile_ids: profileIds });
+  const jobs = await db.listJobsSlim({ profile_ids: profileIds });
   const allProfiles = await db.listProfiles();
   // weekly stats across ALL the worker's clients + broken down per client, so
   // the queue's client switcher can show each client's own applied/skipped.
@@ -69,6 +70,10 @@ export default async function WorkerQueuePage({
     weeklyCapNaira: Object.values(earningsByClient).reduce((s, e) => s + e.weeklyCapNaira, 0),
   };
 
+  // Role guide: the roles each assigned client's resume supports, so workers
+  // know what to apply for and don't skip valid titles recklessly.
+  const clientRoles = roleGuidesForProfiles(profiles);
+
   const nav = [
     { href: '/worker/queue', label: 'Queue', badge: jobs.filter((j) => j.status === 'saved').length },
     { href: '/worker/history', label: 'History' },
@@ -88,6 +93,7 @@ export default async function WorkerQueuePage({
       clientStats={clientStats}
       weeklyEarnings={allEarnings}
       earningsByClient={earningsByClient}
+      clientRoles={clientRoles}
     />
   );
 }

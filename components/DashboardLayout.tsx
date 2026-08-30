@@ -41,7 +41,7 @@ export default function DashboardLayout({
   children,
   actions,
 }: {
-  user: { full_name: string; email: string; role: Role };
+  user: { full_name: string; email: string; role: Role; accent: string };
   nav: NavItem[];
   active: string;
   children: React.ReactNode;
@@ -66,21 +66,35 @@ export default function DashboardLayout({
             href={n.href}
             onClick={onNavigate}
             aria-current={isActive ? 'page' : undefined}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors border-l-2 w-full ${
-              isActive
-                ? 'bg-brand-green/10 text-white border-brand-green'
-                : 'border-transparent text-navy-300 hover:text-white hover:bg-brand-green/5'
-            }`}
-          >
-            <span className="flex-1 truncate">{n.label}</span>
-            {typeof n.badge === 'number' && n.badge > 0 && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-navy-900/70 text-brand-green">
-                {n.badge}
-              </span>
-            )}
-          </Link>
+            className={`flex flex-col items-start gap-0.5 px-3 py-2 rounded-md text-sm font-medium transition-colors border-l-2 w-full ${
+                        isActive
+                          ? 'bg-brand-green/10 text-white border-brand-green'
+                          : 'border-transparent text-navy-300 hover:text-white hover:bg-brand-green/5'
+                      }`}
+                      >
+                        <span className="w-full truncate leading-snug">{n.label}</span>
+                        {typeof n.badge === 'number' && n.badge > 0 && (
+                          <span className="text-[10px] px-1.5 py-px rounded-full bg-navy-900/70 text-brand-green leading-none">
+                            {n.badge.toLocaleString()} applied
+                          </span>
+                        )}
+                      </Link>
         );
       })}
+      <div className="pt-2 mt-2 border-t border-navy-800">
+        <Link
+          href="/settings"
+          onClick={onNavigate}
+          aria-current={active === '/settings' ? 'page' : undefined}
+          className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors border-l-2 w-full ${
+            active === '/settings'
+              ? 'bg-brand-green/10 text-white border-brand-green'
+              : 'border-transparent text-navy-300 hover:text-white hover:bg-brand-green/5'
+          }`}
+        >
+          <span className="w-full truncate leading-snug">Settings</span>
+        </Link>
+      </div>
     </nav>
   );
 

@@ -41,6 +41,30 @@ export default function JobDetailClient({
     router.refresh();
   }
 
+  // ATS fitness scan: ask the AI to score the resume against this job's JD,
+  // then persist + display the result. One at a time, capped.
+  const [atsBusy, setAtsBusy] = useState(false);
+  const [atsError, setAtsError] = useState<string | null>(null);
+  async function runAtsScan() {
+    setAtsBusy(true);
+    setAtsError(null);
+    try {
+      const res = await fetch('/api/ats-scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId: job.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || `Scan failed (${res.status})`);
+      updateJob({ ats_score: data?.score?.overallScore, ats_feedback: data?.score ?? null });
+    } catch (e) {
+      setAtsError(e instanceof Error ? e.message : 'Scan failed.');
+      setAtsBusy(false);
+    } finally {
+      setAtsBusy(false);
+    }
+  }
+
   // Navigate back to the queue WITHOUT auto-scrolling to top. The queue's
   // scroll-restore hook reads sessionStorage and puts the worker back where
   // they left off. Without scroll:false, Next resets to the top (job #1).
@@ -93,6 +117,112 @@ export default function JobDetailClient({
               {job.company}
               {job.location ? ` · ${job.location}` : ''}
             </p>
+
+            {/* ATS fitness scan — resume-vs-JD score + tips (client-facing value) */}
+            <div className="mt-3 rounded-md border border-navy-700 bg-navy-800/60 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-navy-400">
+                  ATS Fit
+                </span>
+                <button
+                  onClick={runAtsScan}
+                  disabled={atsBusy}
+                  className="px-2.5 py-1 text-xs font-semibold rounded-md bg-brand-green/20 text-brand-green border border-brand-green/30 hover:bg-brand-green/30 disabled:opacity-50"
+                >
+                  {atsBusy ? 'Scanning…' : job.ats_score != null ? 'Re-scan' : 'Scan ATS'}
+                </button>
+              </div>
+
+              {atsError && (
+                <p className="mt-2 text-xs text-brand-red">{atsError}</p>
+              )}
+
+              {job.ats_score != null && (
+                <div className="mt-2">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`text-2xl font-bold ${
+                        job.ats_score >= 70
+                          ? 'text-brand-green'
+                          : job.ats_score >= 45
+                            ? 'text-amber-400'
+                            : 'text-brand-red'
+                      }`}
+                    >
+                      {job.ats_score}
+                      <span className="text-xs text-navy-500 font-normal">/100</span>
+                    </div>
+                    <div className="h-2 flex-1 rounded bg-navy-700 overflow-hidden">
+                      <div
+                        className="h-full rounded"
+                        style={{
+                          width: `${job.ats_score}%`,
+                          background:
+                            job.ats_score >= 70
+                              ? 'var(--brand-green)'
+                              : job.ats_score >= 45
+                                ? 'var(--amber-400)'
+                                : 'var(--brand-red)',
+                        }}
+                      />
+                    </div>
+                  </div>
+                  {job.ats_feedback?.overallScore != null && (
+                    <div className="mt-2 space-y-2">
+                      {job.ats_feedback.booleanSearchResult && (
+                        <div className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border ${
+                          job.ats_feedback.booleanSearchResult === 'pass'
+                            ? 'text-brand-green border-brand-green/40 bg-brand-green/10'
+                            : job.ats_feedback.booleanSearchResult === 'borderline'
+                              ? 'text-amber-400 border-amber-400/40 bg-amber-400/10'
+                              : 'text-brand-red border-red-400/40 bg-red-400/10'
+                        }`}>
+                          Boolean search: {job.ats_feedback.booleanSearchResult.toUpperCase()}
+                        </div>
+                      )}
+                      {job.ats_feedback.missingSkills && job.ats_feedback.missingSkills.length > 0 && (
+                        <div>
+                          <div className="text-[11px] font-semibold text-brand-red uppercase tracking-wide">Missing skills</div>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {job.ats_feedback.missingSkills.slice(0, 8).map((s, i) => (
+                              <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 border border-red-400/30 text-brand-red">{s}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {job.ats_feedback.missingKeywords && job.ats_feedback.missingKeywords.length > 0 && (
+                        <div>
+                          <div className="text-[11px] font-semibold text-amber-400 uppercase tracking-wide">Missing keywords</div>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {job.ats_feedback.missingKeywords.slice(0, 8).map((k, i) => (
+                              <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-amber-400/10 border border-amber-400/30 text-amber-400">{k}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {job.ats_feedback.matchingSkills && job.ats_feedback.matchingSkills.length > 0 && (
+                        <div className="text-[11px] text-navy-400">
+                          <span className="text-brand-green font-semibold">✓ {job.ats_feedback.matchingSkills.length}</span> skills matched
+                        </div>
+                      )}
+                      {job.ats_feedback.yearsOfExperience != null && (
+                        <div className="text-[11px] text-navy-400">
+                          Experience: <span className="text-navy-100 font-semibold">{job.ats_feedback.yearsOfExperience}y</span> vs required{' '}
+                          <span className="text-navy-100 font-semibold">{job.ats_feedback.yearsRequired ?? 'n/a'}y</span>
+                        </div>
+                      )}
+                      {job.ats_feedback.keyRecommendations && job.ats_feedback.keyRecommendations.length > 0 && (
+                        <div className="mt-1 border-t border-navy-700 pt-2">
+                          {job.ats_feedback.keyRecommendations.slice(0, 3).map((r, i) => (
+                            <p key={i} className="text-[11px] text-navy-300 leading-snug">• {r}</p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3 text-sm">

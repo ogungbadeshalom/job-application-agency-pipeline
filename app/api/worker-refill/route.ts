@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { isUuid } from '@/lib/validate';
-import { runJobSpy, dedupeAndMap } from '@/lib/scrape';
+import { runJobSpy, dedupeAndMap, scrapeProgress, latestRunByWorker } from '@/lib/scrape';
 import { filterJobsByResume } from '@/lib/aiJobMatch';
 import type { Job, ProfilePreset, ScrapeResultJob } from '@/lib/types';
 
@@ -19,7 +19,7 @@ const RESULTS_WANTED = 80;
 // locations only; descriptions blocked), so it yields ~0 strict-remote jobs and
 // wastes a worker refill. Lever/Indeed/RemoteOK/Remotive also excluded (dead/banned).
 const DEFAULT_SITES = ['greenhouse', 'builtin', 'jobicy'];
-const AVAILABLE_BOARDS = ['greenhouse', 'builtin', 'jobicy', 'workingnomads'];
+const AVAILABLE_BOARDS = ['greenhouse', 'builtin', 'jobicy', 'workingnomads', 'ashby', 'dice'];
 
 // Single-flight: only one worker-refill scrape may run at a time across workers,
 // so two people sharing a profile (e.g. Erry) can't stack concurrent JobSpy
@@ -124,14 +124,28 @@ export async function POST(req: Request) {
         const terms = Array.from(new Set(searchTerms.filter(Boolean)));
         if (!terms.length) throw new Error('No search terms provided.');
 
-        const allRaw: ScrapeResultJob[] = await runJobSpy({
-          sites: sites || [],
-          search_terms: terms,
-          location,
-          results_wanted: resultsWanted,
-          hours_old: hoursOld,
-          is_remote: true, // worker refills are always remote-only
-        });
+        // Seed the live progress record so the UI can poll it the moment the
+        // scrape starts. Written by onProgress as the subprocess streams steps.
+        scrapeProgress[run.id] = {
+          totalSteps: Math.max((sites || []).length * terms.length, 1),
+          step: 0,
+          current: 'Starting…',
+          jobsFound: 0,
+          done: false,
+        };
+        latestRunByWorker[session.user.id] = { runId: run.id, profileId };
+
+        const allRaw: ScrapeResultJob[] = await runJobSpy(
+          {
+            sites: sites || [],
+            search_terms: terms,
+            location,
+            results_wanted: resultsWanted,
+            hours_old: hoursOld,
+            is_remote: true, // worker refills are always remote-only
+          },
+          (p) => { scrapeProgress[run.id] = p; } // live overwrite as steps complete
+        );
 
         // AI role-fit gate: only keep jobs that genuinely match the client's
         // resume (level + role family + skills), so off-target roles (Director/
@@ -158,6 +172,9 @@ export async function POST(req: Request) {
           completed_at: new Date().toISOString(),
         });
 
+        // Mark progress done so the poller shows completion, then let it expire.
+        delete scrapeProgress[run.id];
+
         return NextResponse.json({
           scrape_run_id: run.id,
           jobs_found: allRaw.length,
@@ -166,6 +183,7 @@ export async function POST(req: Request) {
         });
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
+        delete scrapeProgress[run.id];
         await db.updateScrapeRun(run.id, {
           status: 'failed',
           error_message: msg,
@@ -177,5 +195,6 @@ export async function POST(req: Request) {
       // Always release the single-flight lock so the next refill can proceed,
       // even if the run failed before the scrape_run row was created.
       refillInFlight = false;
+      if (session?.user?.id) delete latestRunByWorker[session.user.id];
     }
   }

@@ -29,6 +29,7 @@ create table if not exists users (
   role          user_role not null default 'client',
   full_name     text not null default '',
   profile_id    uuid,                       -- for clients: their profiles.id
+  accent        text not null default '',   -- per-user accent color ('', red, green, blue, purple, orange, cyan)
   disabled_at   timestamptz,                -- soft-disable: account can't log in
   created_at    timestamptz not null default now()
 );

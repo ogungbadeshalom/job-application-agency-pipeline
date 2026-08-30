@@ -13,8 +13,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  let body: any = {};
-  try { body = await req.json(); } catch { /* ignore */ }
+  let body: { worker_user_id?: unknown; profile_ids?: unknown } = {};
+  try { body = await req.json() as { worker_user_id?: unknown; profile_ids?: unknown }; } catch { /* ignore */ }
 
   const workerId = body.worker_user_id as string | undefined;
   if (!isUuid(workerId)) {

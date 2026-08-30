@@ -102,7 +102,7 @@ export default function DashboardLayout({
     <Link href={active} onClick={onNavigate} className="flex items-center gap-2 px-2 min-w-0">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/icon.png"
+        src="/icon.png?v=2"
         alt="Job Bidder"
         className="h-7 w-7 shrink-0 rounded-md object-contain ring-1 ring-white/10"
       />

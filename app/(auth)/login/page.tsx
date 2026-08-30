@@ -46,7 +46,7 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/icon.png"
+            src="/icon.png?v=2"
             alt="Job Bidder"
             className="h-16 w-16 mx-auto mb-4 object-contain rounded-2xl ring-1 ring-white/15 shadow-lg shadow-black/30"
           />

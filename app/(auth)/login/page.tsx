@@ -48,7 +48,7 @@ export default function LoginPage() {
           <img
             src="/icon.png"
             alt="Job Bidder"
-            className="h-14 w-14 mx-auto mb-3 object-contain"
+            className="h-16 w-16 mx-auto mb-4 object-contain rounded-2xl ring-1 ring-white/15 shadow-lg shadow-black/30"
           />
           <h1 className="text-2xl font-semibold text-navy-100">Job Bidder</h1>
           <p className="text-sm text-navy-400 mt-1">Sign in with your credentials</p>

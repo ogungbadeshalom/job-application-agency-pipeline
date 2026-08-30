@@ -108,6 +108,8 @@ create table if not exists jobs (
   proof_of_submission      text,
   notes                    text,
   scrape_run_id            uuid references scrape_runs(id) on delete set null,
+  verified_remote          boolean not null default false,  -- pipeline confirmed remote (desc + link)
+  easy_apply               boolean not null default false,  -- LinkedIn Easy Apply (excluded from refills)
   last_viewed_at           timestamptz,
   created_at               timestamptz not null default now(),
   updated_at               timestamptz not null default now()

@@ -120,6 +120,8 @@ function mapJob(r: Record<string, unknown>): Job {
     proof_of_submission: (r.proof_of_submission as string) ?? null,
     notes: (r.notes as string) ?? null,
     scrape_run_id: (r.scrape_run_id as string) ?? null,
+    verified_remote: Boolean(r.verified_remote),
+    easy_apply: Boolean(r.easy_apply),
     created_at: (r.created_at as Date).toISOString(),
     updated_at: (r.updated_at as Date).toISOString(),
     last_viewed_at: r.last_viewed_at ? (r.last_viewed_at as Date).toISOString() : null,
@@ -168,6 +170,8 @@ function mapJobSlim(r: Record<string, unknown>): Job {
     proof_of_submission: hasProof ? ' ' : null,
     notes: (r.notes as string) ?? null,
     scrape_run_id: (r.scrape_run_id as string) ?? null,
+    verified_remote: Boolean(r.verified_remote),
+    easy_apply: Boolean(r.easy_apply),
     created_at: (r.created_at as Date).toISOString(),
     updated_at: (r.updated_at as Date).toISOString(),
     last_viewed_at: r.last_viewed_at ? (r.last_viewed_at as Date).toISOString() : null,
@@ -583,12 +587,13 @@ export const db = {
     // tailored_resume / proof_of_submission text.
     let sql =
       `select id, profile_id, title, company, board, url,
-              compensation_min, compensation_max, compensation_currency, location,
-              status, notes, scrape_run_id, created_at, updated_at, last_viewed_at, submitted_at,
-              (tailored_resume is not null and tailored_resume <> '') as has_tailored_resume,
-              (proof_of_submission is not null and proof_of_submission <> '') as has_proof_of_submission,
-              (description is not null and description <> '') as has_description
-       from jobs ${whereSql} order by created_at desc`;
+                   compensation_min, compensation_max, compensation_currency, location,
+                   status, notes, scrape_run_id, verified_remote, easy_apply,
+                   created_at, updated_at, last_viewed_at, submitted_at,
+                   (tailored_resume is not null and tailored_resume <> '') as has_tailored_resume,
+                   (proof_of_submission is not null and proof_of_submission <> '') as has_proof_of_submission,
+                   (description is not null and description <> '') as has_description
+            from jobs ${whereSql} order by created_at desc`;
     // Keep the legal `limit` from listJobs (e.g. expire/cleanup probes) but lists
     // never use it — we return the whole filtered set so client-side filtering +
     // pagination keep working exactly as before.
@@ -697,8 +702,8 @@ export const db = {
            (profile_id, title, company, board, url, description,
             compensation_min, compensation_max, compensation_currency, location, status,
             tailored_resume, tailored_resume_pdf_path, submitted_at, proof_of_submission,
-            notes, scrape_run_id)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+            notes, scrape_run_id, verified_remote, easy_apply)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
          returning *`,
         [
           j.profile_id,
@@ -718,6 +723,8 @@ export const db = {
           j.proof_of_submission,
           cleanText(j.notes) ?? null,
           j.scrape_run_id,
+          j.verified_remote ?? false,
+          j.easy_apply ?? false,
         ]
       );
       created.push(mapJob(row!));

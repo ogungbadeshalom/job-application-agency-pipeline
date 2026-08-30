@@ -80,11 +80,11 @@ async function searchRemoteJobs(term: string): Promise<string[]> {
   return Array.isArray(out.job_ids) ? out.job_ids.map(String) : [];
 }
 
-async function fetchJobDetail(jobId: string): Promise<{ title: string; company: string; description: string; workType: string } | null> {
+async function fetchJobDetail(jobId: string): Promise<{ title: string; company: string; description: string; workType: string; easyApply: boolean } | null> {
   const out = await mcpCall<DetailResult>(`linkedin.get_job_details(job_id: "${jobId}")`);
   const job = out.sections?.job_posting ?? '';
   if (!job) return null;
-  // job_posting layout: company\n\ntitle\n\nlocation · ...\nRemote/Fully remote\n...
+  // job_posting layout: company\n\ntitle\n\nlocation · ...\nRemote/Fully remote\n...\nEasy Apply|Apply
   const lines = job.split('\n').map((l) => l.trim()).filter(Boolean);
   const title = lines[1] ?? `LinkedIn Job ${jobId}`;
   const company = lines[0] ?? '';
@@ -93,9 +93,12 @@ async function fetchJobDetail(jobId: string): Promise<{ title: string; company: 
   const isRemote = /\bremote\b|fully remote|100% remote|work from home|wfh/i.test(head);
   const isOnSite = /\bon[- ]?site\b|hybrid|in[- ]office\b/i.test(head);
   const workType = isRemote ? 'remote' : isOnSite ? 'on-site' : 'unknown';
+  // Easy Apply = the posting's apply button says "Easy Apply" (vs a regular
+  // "Apply" / external ATS). We strictly exclude these — user doesn't want them.
+  const easyApply = /easy\s*apply/i.test(job);
   const descIdx = job.search(/about the job/i);
   const description = (descIdx !== -1 ? job.slice(descIdx) : job).trim();
-  return { title, company, description, workType };
+  return { title, company, description, workType, easyApply };
 }
 
 async function main() {
@@ -123,6 +126,10 @@ async function main() {
     try {
       const d = await fetchJobDetail(id);
       if (!d || d.workType !== 'remote') continue; // strict remote-only
+      if (d.easyApply) {
+        console.log(`  [x] ${id}: easy apply — excluded`);
+        continue; // strictly exclude Easy Apply (user requirement)
+      }
       raw.push({
         title: d.title,
         company: d.company,
@@ -142,7 +149,7 @@ async function main() {
       }
     }
   }
-  console.log(`\nafter remote gate (work_type=remote + description): ${raw.length} jobs`);
+  console.log(`\nafter remote gate + easy-apply exclusion: ${raw.length} jobs`);
 
   // 3. Role-fit gate using Andrew's resume.
   const { query } = await import('../db/pool');
@@ -185,6 +192,14 @@ async function main() {
   const scrapeRunId = runRow.rows[0].id;
 
   const fresh = await dedupeAndMap(pool, PROFILE_ID, scrapeRunId);
+  // These came from the Agent-Reach pipeline: LinkedIn work_type=remote AND the
+  // real description was fetched + re-checked — so mark them verified_remote so
+  // workers can trust they qualify without re-checking. easy_apply is false here
+  // because those were strictly excluded above.
+  for (const j of fresh) {
+    j.verified_remote = true;
+    j.easy_apply = false;
+  }
   let added = 0;
   if (fresh.length > 0) {
     const created = await db.createJobs(fresh as any);

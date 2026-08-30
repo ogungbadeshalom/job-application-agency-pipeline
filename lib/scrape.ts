@@ -61,6 +61,8 @@ export async function dedupeAndMap(
     proof_of_submission: null,
     notes: null,
     scrape_run_id: scrapeRunId,
+    verified_remote: false, // default; the remote Agent-Reach refill sets true post-map
+    easy_apply: false,
     created_at: now,
     updated_at: now,
     last_viewed_at: null,

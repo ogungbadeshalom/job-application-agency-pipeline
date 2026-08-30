@@ -68,6 +68,8 @@ export interface Job {
   proof_of_submission: string | null;
   notes: string | null;
   scrape_run_id: string | null;
+  verified_remote: boolean; // pipeline confirmed remote via description + link
+  easy_apply: boolean;      // LinkedIn "Easy Apply" (excluded from refills)
   created_at: string;
   updated_at: string;
   last_viewed_at: string | null;

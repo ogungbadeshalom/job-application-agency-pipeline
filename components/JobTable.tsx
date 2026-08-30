@@ -330,6 +330,7 @@ function JobTable({
                           <span>{job.title || 'Untitled'}</span>
                         )}
                         {job.is_new && <NewBadge />}
+                        {mode === 'worker' && job.verified_remote && <VerifiedBadge />}
                       </span>
                     </Cell>
                   )}
@@ -489,6 +490,27 @@ function NewBadge() {
   );
 }
 
+// Green "Verified" pill shown to workers on jobs the pipeline already confirmed
+// as remote (description + link checked). Tells them it's safe to apply without
+// manually re-checking the posting. Borderless per the no-badge-border rule.
+function VerifiedBadge() {
+  return (
+    <span
+      title="System verified this job is remote (description + link checked)"
+      className="inline-flex items-center gap-1 rounded-full bg-brand-green/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-green"
+    >
+      <svg className="h-2.5 w-2.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        <path
+          fillRule="evenodd"
+          d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z"
+          clipRule="evenodd"
+        />
+      </svg>
+      Verified
+    </span>
+  );
+}
+
 // Compact, tappable job card for phones — replaces the dense table columns on
 // small screens. Mode-aware: shows the fields that matter for each role.
 function MobileJobCard({
@@ -540,6 +562,7 @@ function MobileJobCard({
               <span className="font-medium text-navy-100 text-[15px] leading-snug">{job.title || 'Untitled'}</span>
             )}
             {job.is_new && <NewBadge />}
+            {mode === 'worker' && job.verified_remote && <VerifiedBadge />}
           </div>
           <div className="text-sm text-navy-400 truncate">
             {job.company || '—'}

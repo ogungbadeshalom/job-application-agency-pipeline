@@ -95,6 +95,20 @@ export default function ClientJobsClient({
               <StatusBadge status={selected.status} />
               <span className="text-xs text-navy-500 capitalize">{selected.board}</span>
               <span className="text-xs text-navy-500">Applied {fmtApplied(selected.submitted_at)}</span>
+              {selected.ats_score != null && (
+                <span
+                  className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${
+                    selected.ats_score >= 70
+                      ? 'text-brand-green border-brand-green/40 bg-brand-green/10'
+                      : selected.ats_score >= 45
+                        ? 'text-amber-400 border-amber-400/40 bg-amber-400/10'
+                        : 'text-brand-red border-red-400/40 bg-red-400/10'
+                  }`}
+                  title={selected.ats_feedback?.overallScore != null ? 'ATS fit score' : undefined}
+                >
+                  ATS {selected.ats_score}/100
+                </span>
+              )}
               <a
                 href={selected.url}
                 target="_blank"

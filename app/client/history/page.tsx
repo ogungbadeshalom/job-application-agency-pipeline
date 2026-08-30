@@ -7,6 +7,6 @@ export default async function ClientHistoryPage() {
   const user = await requireRole('client').catch(() => null);
   if (!user || !user.profile_id) redirect('/login');
 
-  const jobs = await db.listJobs({ profile_id: user.profile_id, status: 'applied' });
+  const jobs = await db.listJobsSlim({ profile_id: user.profile_id, status: 'applied' });
   return <ClientHistoryClient user={user} jobs={jobs} />;
 }

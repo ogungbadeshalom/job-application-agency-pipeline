@@ -22,6 +22,45 @@ const REJECT_TITLE_RE = new RegExp(
   'i'
 );
 
+// Enterprise/big-tech companies the user does NOT want applied to. Refills at
+// these giants (GitLab, GitHub, Vercel, Airbnb, Affirm, Coinbase, Reddit,
+// Dropbox, Twilio, Stripe, Datadog, and the FAANG/cap set) flood the queue with
+// roles a worker can easily lose time on, and the user explicitly said to
+// exclude enterprise jobs. Matched case-insensitively on the company name, so a
+// job from any of these never enters a queue at refill time.
+const ENTERPRISE_COMPANIES = new Set<string>([
+  'gitlab', 'github', 'git hub', 'vercel', 'airbnb',
+  'affirm', 'coinbase', 'reddit', 'dropbox', 'twilio', 'stripe', 'datadog',
+  'amazon', 'aws', 'google', 'microsoft', 'meta', 'apple', 'netflix',
+  'oracle', 'salesforce', 'snowflake', 'linkedin', 'uber', 'lyft', 'shopify',
+  'square', 'block', 'paypal', 'intuit', 'adobe', 'atlassian', 'slack',
+  'palantir', 'snap', 'pinterest', 'spotify', 'doordash', 'instacart',
+  'airtable', 'notion', 'figma', 'canva', 'zapier', 'retool', 'linear',
+  'jpmorgan', 'goldman', 'morgan stanley', 'capital one', 'chase',
+  'boeing', 'lockheed', 'northrop', 'raytheon',
+]);
+
+// Strip common legal/brand suffixes so "GitLab, Inc." or "Vercel Inc." still match.
+function normalizeCompany(s: string): string {
+  return (s || '')
+    .toLowerCase()
+    .replace(/\binc\b|\bcorp\b|\bcorporation\b|\bllc\b|\bltd\b|\bco\b|,|-|\./g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isEnterpriseCompany(s: string): boolean {
+  const norm = normalizeCompany(s);
+  if (ENTERPRISE_COMPANIES.has(norm)) return true;
+  // Match multi-word entries as substrings ("morgan stanley" inside the name).
+  // Iterate with forEach to stay compatible with the repo's TS target.
+  let match = false;
+  ENTERPRISE_COMPANIES.forEach((c) => {
+    if (c.includes(' ') && norm.includes(c)) match = true;
+  });
+  return match;
+}
+
 // A job title must contain at least one of the client's role-family keywords,
 // otherwise it's probably a different function entirely.
 function domainKeywords(resumeText: string): string[] {
@@ -83,6 +122,12 @@ export async function filterJobsByResume(
   const borderline: ScrapeResultJob[] = [];
 
   for (const j of jobs) {
+    // Hard enterprise-company reject (user rule): never apply to GitLab, GitHub,
+    // Vercel, Airbnb, Affirm, Coinbase, Reddit, Dropbox, Twilio, Stripe, plus the
+    // FAANG/cap set. Checked FIRST so enterprise jobs never even reach the title gate.
+    if (isEnterpriseCompany((j.company as string) || '')) {
+      continue; // reject enterprise company
+    }
     const title = (j.title as string) || '';
     // Hard rule-based reject: obvious non-fit level/function.
     if (REJECT_TITLE_RE.test(title)) {

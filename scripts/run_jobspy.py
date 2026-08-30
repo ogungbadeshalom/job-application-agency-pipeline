@@ -204,10 +204,33 @@ def _scrape_linkedin_upstream(site, term, location, results_wanted, hours_old, i
     import subprocess as _subprocess
     import tempfile as _tempfile
     script = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "scrape_linkedin_upstream.py")
+    # Upstream JobSpy's LinkedIn scraper requires a valid COUNTRY name (e.g.
+    # "usa", "united states", "worldwide"); a bare "Remote" (our Remote-only
+    # toggle value) makes it throw 'Invalid country string' and return 0 jobs.
+    # Detect non-country pseudo-locations and coerce them to a real country for
+    # the upstream call. This is what makes LinkedIn actually yield volume.
+    _lc = (location or "").strip().lower()
+    _COUNTRY_LOCS = {
+        "remote": "usa",
+        "worldwide": "worldwide",
+        "usa": "usa",
+        "us": "usa",
+        "united states": "usa",
+        "united states of america": "usa",
+        "us/canada": "usa",
+        "usa/ca": "usa",
+    }
+    if _lc in _COUNTRY_LOCS:
+        _up_loc = _COUNTRY_LOCS[_lc]
+    elif _lc and _lc not in ("", "any"):
+        # Pass through named countries unchanged (e.g. "canada", "germany").
+        _up_loc = location
+    else:
+        _up_loc = "usa"
     args = {
         "site": site,
         "term": term,
-        "location": location,
+        "location": _up_loc,
         "results_wanted": min(int(results_wanted or 0), 40),
         "hours_old": int(hours_old or 72),
         "is_remote": bool(is_remote),

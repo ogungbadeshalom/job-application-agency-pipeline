@@ -4,6 +4,84 @@
 
 :root {
   color-scheme: dark;
+  /* Brand accent — default GREEN. Additional colors are offered via the
+     Settings → Appearance → Accent color control, which sets a matching
+     data-accent="<color>" attribute on <html> below. Each theme defines the
+     full accent variable set (base, dark, strong, plus the alpha-graded
+     glow/soft/border/deep layers used across the UI). */
+  --accent: #3fb950;                                  /* brand.green */
+  --accent-dark: #238636;
+  --accent-strong: #56d364;
+  --accent-glow: rgba(63, 185, 80, 0.25);
+  --accent-soft: rgba(63, 185, 80, 0.08);
+  --accent-border: rgba(63, 185, 80, 0.35);
+  --accent-deep: rgba(63, 185, 80, 0.16);
+}
+
+/* Red */
+html[data-accent='red'] {
+  --accent: #f85149;
+  --accent-dark: #da3633;
+  --accent-strong: #ff7b72;
+  --accent-glow: rgba(248, 81, 73, 0.28);
+  --accent-soft: rgba(248, 81, 73, 0.09);
+  --accent-border: rgba(248, 81, 73, 0.4);
+  --accent-deep: rgba(248, 81, 73, 0.16);
+}
+
+/* Green */
+html[data-accent='green'] {
+  --accent: #3fb950;
+  --accent-dark: #238636;
+  --accent-strong: #56d364;
+  --accent-glow: rgba(63, 185, 80, 0.25);
+  --accent-soft: rgba(63, 185, 80, 0.08);
+  --accent-border: rgba(63, 185, 80, 0.35);
+  --accent-deep: rgba(63, 185, 80, 0.16);
+}
+
+/* Blue */
+html[data-accent='blue'] {
+  --accent: #58a6ff;
+  --accent-dark: #1f6feb;
+  --accent-strong: #79c0ff;
+  --accent-glow: rgba(88, 166, 255, 0.28);
+  --accent-soft: rgba(88, 166, 255, 0.09);
+  --accent-border: rgba(88, 166, 255, 0.4);
+  --accent-deep: rgba(88, 166, 255, 0.16);
+}
+
+/* Purple */
+html[data-accent='purple'] {
+  --accent: #bc8cff;
+  --accent-dark: #8957e5;
+  --accent-strong: #d2a8ff;
+  --accent-glow: rgba(188, 140, 255, 0.28);
+  --accent-soft: rgba(188, 140, 255, 0.09);
+  --accent-border: rgba(188, 140, 255, 0.4);
+  --accent-deep: rgba(188, 140, 255, 0.16);
+}
+
+/* Orange */
+html[data-accent='orange'] {
+  --accent: #f0883e;
+  --accent-dark: #d6800c;
+  --accent-strong: #ffa657;
+  --accent-glow: rgba(240, 136, 62, 0.28);
+  --accent-soft: rgba(240, 136, 62, 0.09);
+  --accent-border: rgba(240, 136, 62, 0.4);
+  --accent-deep: rgba(240, 136, 62, 0.16);
+}
+
+/* Cyan */
+html[data-accent='cyan'] {
+  --accent: #39c5cf;
+  --accent-dark: #0e8a94;
+  --accent-strong: #76e3ea;
+  --accent-glow: rgba(57, 197, 207, 0.28);
+  --accent-soft: rgba(57, 197, 207, 0.09);
+  --accent-border: rgba(57, 197, 207, 0.4);
+  --accent-deep: rgba(57, 197, 207, 0.16);
 }
 
 html,
@@ -57,6 +135,12 @@ body {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.18);
 }
 
+/* Accent ring (theme-aware) — used for row "flash" highlights. Works because
+   the accent is a CSS var now; Tailwind's /opacity modifier can't apply to var(). */
+.ring-accent {
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
 /* Clickable rows */
 .row-hover {
   transition: background-color 160ms ease;
@@ -67,7 +151,7 @@ body {
 
 /* Consistent focus ring (keyboard a11y) */
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
-  outline: 2px solid rgba(63, 185, 80, 0.55);
+  outline: 2px solid var(--accent-glow);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -88,7 +172,7 @@ button:not(:disabled):active {
 /* Subtle ambient background — break the flat void on large surfaces */
 .app-bg {
   background-image:
-    radial-gradient(1200px 600px at 15% -10%, rgba(63, 185, 80, 0.05), transparent),
+    radial-gradient(1200px 600px at 15% -10%, var(--accent-soft), transparent),
     radial-gradient(900px 500px at 100% 0%, rgba(88, 166, 255, 0.04), transparent);
 }
 
@@ -109,7 +193,7 @@ button:not(:disabled):active {
 .earns-fill {
   background: linear-gradient(
    90deg,
-    #3fb950 0%, #58a6ff 45%, #56d364 60%, #3fb950 100%
+    var(--accent) 0%, #58a6ff 45%, var(--accent-strong) 60%, var(--accent) 100%
   );
   background-size: 200% 100%;
   animation: earnsShimmer 3s linear infinite;

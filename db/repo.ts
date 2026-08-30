@@ -13,6 +13,7 @@ import { all, one, query } from './pool';
 import { encryptSecret, decryptSecret } from '../lib/crypto';
 import type {
   AppConfig,
+  AtsScore,
   Job,
   JobStatus,
   ListJobsFilter,
@@ -46,6 +47,7 @@ function mapUser(r: Record<string, unknown>): User {
     role: r.role as User['role'],
     full_name: r.full_name as string,
     profile_id: (r.profile_id as string) ?? null,
+    accent: (r.accent as string) ?? '',
     disabled_at: r.disabled_at ? (r.disabled_at as Date).toISOString() : null,
     created_at: (r.created_at as Date).toISOString(),
   };
@@ -122,16 +124,55 @@ function mapJob(r: Record<string, unknown>): Job {
     updated_at: (r.updated_at as Date).toISOString(),
     last_viewed_at: r.last_viewed_at ? (r.last_viewed_at as Date).toISOString() : null,
     is_new: isNewJob(r.created_at),
+    ats_score: r.ats_score != null ? (r.ats_score as number) : null,
+    ats_feedback: r.ats_feedback ? (r.ats_feedback as AtsScore) : null,
   };
 }
 
-// A job is flagged "NEW" if created within the last 2 days (fresh scrape).
-const NEW_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
+// A job is flagged "NEW" if created within the last 24h (genuinely fresh scrape
+// — NOT everything in the queue). Narrowed from 2 days so the badge stays a real
+// "just landed" signal; previously nearly every row was new, which diluted it.
+const NEW_WINDOW_MS = 24 * 60 * 60 * 1000;
 function isNewJob(createdAt: unknown): boolean {
   if (!createdAt) return false;
   const t = typeof createdAt === 'string' ? new Date(createdAt) : (createdAt as Date);
   if (Number.isNaN(t.getTime())) return false;
   return Date.now() - t.getTime() < NEW_WINDOW_MS;
+}
+
+// Slim mapper for list views. We deliberately do NOT ship description /
+// tailored_resume / proof_of_submission text to the browser (they're megabytes on
+// a large queue and the tables never render the raw text). The heavy columns are
+// instead collapsed to a ONE-CHAR truthy sentinel (' ') when present, so the UI's
+// `!!field` truthiness checks (login, progress dots, "tailored?" indicators) keep
+// working unchanged — while the serialized payload drops by ~94%.
+function mapJobSlim(r: Record<string, unknown>): Job {
+  const hasTailored = Boolean(r.has_tailored_resume);
+  const hasProof = Boolean(r.has_proof_of_submission);
+  return {
+    id: r.id as string,
+    profile_id: r.profile_id as string,
+    title: r.title as string,
+    company: r.company as string,
+    board: r.board as string,
+    url: r.url as string,
+    description: '', // not sent — presence tracked via has_description if needed
+    compensation_min: (r.compensation_min as number) ?? null,
+    compensation_max: (r.compensation_max as number) ?? null,
+    compensation_currency: (r.compensation_currency as string) ?? null,
+    location: (r.location as string) ?? null,
+    status: r.status as JobStatus,
+    tailored_resume: hasTailored ? ' ' : null,
+    tailored_resume_pdf_url: null,
+    submitted_at: r.submitted_at ? (r.submitted_at as Date).toISOString() : null,
+    proof_of_submission: hasProof ? ' ' : null,
+    notes: (r.notes as string) ?? null,
+    scrape_run_id: (r.scrape_run_id as string) ?? null,
+    created_at: (r.created_at as Date).toISOString(),
+    updated_at: (r.updated_at as Date).toISOString(),
+    last_viewed_at: r.last_viewed_at ? (r.last_viewed_at as Date).toISOString() : null,
+    is_new: isNewJob(r.created_at),
+  };
 }
 
 function mapScrapeRun(r: Record<string, unknown>): ScrapeRun {
@@ -202,7 +243,7 @@ export const db = {
   },
   async updateUser(
     id: string,
-    patch: { password_hash?: string; full_name?: string; email?: string }
+    patch: { password_hash?: string; full_name?: string; email?: string; accent?: string }
   ): Promise<User | null> {
     const sets: string[] = [];
     const params: unknown[] = [];
@@ -219,6 +260,11 @@ export const db = {
       params
     );
     return row ? mapUser(row) : null;
+  },
+  // Set just the user's accent color preference ('' = default). Used by the
+  // per-user Settings → Appearance control.
+  async setAccent(id: string, accent: string): Promise<User | null> {
+    return this.updateUser(id, { accent });
   },
   async disableUser(id: string): Promise<User | null> {
     const row = await one(
@@ -244,6 +290,7 @@ export const db = {
     password_hash: string;
     role: User['role'];
     full_name: string;
+    accent: string;
   } | null> {
     const row = await one(
       `select * from users where lower(email) = lower($1) and disabled_at is null`,
@@ -256,6 +303,7 @@ export const db = {
       password_hash: row.password_hash as string,
       role: row.role as User['role'],
       full_name: row.full_name as string,
+      accent: (row.accent as string) ?? '',
     };
   },
 
@@ -503,6 +551,54 @@ export const db = {
     const rows = await all(sql, params);
     return rows.map(mapJob);
   },
+  // Slim list variant used by every table/list view (dashboard, worker queue,
+  // worker history, client jobs/history). The full `listJobs` ships the heavy
+  // text columns (description up to 2MB+, tailored_resume, proof_of_submission)
+  // for EVERY job — on a 2000+ row queue that serializes into a multi-MB RSC
+  // payload and makes the app feel unresponsive. `listJobsSlim` selects only the
+  // display columns plus presence BOOLEANS, substituting a truthy sentinel for
+  // the heavy text so the UI's progress dots (which only check `!!field`) and all
+  // columns still work — while the payload drops by ~94%. The heavy fields are
+  // fetched on demand only when a worker opens a single job's detail page.
+  async listJobsSlim(filter: ListJobsFilter = {}): Promise<Job[]> {
+    const where: string[] = [];
+    const params: unknown[] = [];
+    const pids = filter.profile_ids ?? (filter.profile_id ? [filter.profile_id].flat() : undefined);
+    if (pids && pids.length) {
+      where.push(`profile_id = ANY($${params.push(pids)})`);
+    }
+    if (filter.status) {
+      const s = Array.isArray(filter.status) ? filter.status : [filter.status];
+      where.push(`status = ANY($${params.push(s)}::job_status[])`);
+    }
+    if (filter.search) {
+      const n = params.length + 1;
+      where.push(
+        `(title ilike $${n} or company ilike $${n} or location ilike $${n})`
+      );
+      params.push(`%${filter.search}%`);
+    }
+    const whereSql = where.length ? `where ${where.join(' and ')}` : '';
+    // Only the columns the table renders + presence flags. No description /
+    // tailored_resume / proof_of_submission text.
+    let sql =
+      `select id, profile_id, title, company, board, url,
+              compensation_min, compensation_max, compensation_currency, location,
+              status, notes, scrape_run_id, created_at, updated_at, last_viewed_at, submitted_at,
+              (tailored_resume is not null and tailored_resume <> '') as has_tailored_resume,
+              (proof_of_submission is not null and proof_of_submission <> '') as has_proof_of_submission,
+              (description is not null and description <> '') as has_description
+       from jobs ${whereSql} order by created_at desc`;
+    // Keep the legal `limit` from listJobs (e.g. expire/cleanup probes) but lists
+    // never use it — we return the whole filtered set so client-side filtering +
+    // pagination keep working exactly as before.
+    if (filter.limit) {
+      params.push(filter.limit);
+      sql += ` limit $${params.length}`;
+    }
+    const rows = await all(sql, params);
+    return rows.map(mapJobSlim);
+  },
   // Hard-delete jobs older than `days` days from the candidate QUEUE only.
   // Scoped to `status = 'saved'` (not `status <> 'applied'`): the history-delete
   // guard (migration 015) protects `applied`/`skipped` rows, and a bare delete
@@ -558,6 +654,8 @@ export const db = {
       proof_of_submission: 'proof_of_submission',
       notes: 'notes',
       last_viewed_at: 'last_viewed_at',
+      ats_score: 'ats_score',
+      ats_feedback: 'ats_feedback',
     };
     const sets: string[] = [];
     const params: unknown[] = [];

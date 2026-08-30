@@ -10,9 +10,11 @@ HiringCafe: Next.js client-side feed behind a protected API — needs a headless
            browser, which won't run on this box. Returns [] (explicit skip).
 """
 import json
+import re
 import sys
 import datetime
 import urllib.request
+import urllib.parse
 import os as _os
 
 _TIMEOUT = 12
@@ -130,17 +132,21 @@ def scrape_hiringcafe(term: str, old_days: int) -> list:
 # term (word-level on title) + remote (remote detection best-effort). Good
 # companies respond even when a specific slug 404s -> we skip it silently.
 GREENHOUSE_ORGS = [
-    "stripe", "datadog", "figma", "notion", "gusto", "monzo", "newrelic",
-    "pagerduty", "airtable", "vercel", "planetscale", "wisetack",
-    # broaden: more mid/large firms that post engineering/data roles
+    # Non-enterprise orgs that post US-remote software/AI/ML roles. Enterprise
+    # giants (stripe/datadog/figma/twilio/dropbox/etc.) are deliberately NOT
+    # listed here — they're filtered by the enterprise blocklist anyway, so
+    # leaving them out saves 30+ no-op API calls per refill.
+    "gusto", "monzo", "newrelic", "pagerduty", "planetscale", "wisetack",
     "hashicorp", "remitly", "dbtlabs", "contenda", "supabase", "render",
-    "shopify", "sentry", "twilio", "deel", "box", "dropbox", "reddit",
-    "brex", "coinbase", "chime", "wise", "stripe-2",
-    "amplitude", "asana", "anthropic", "vercel",
-    # v2.48: more data/ML-heavy orgs (verified return jobs from this box)
-    "okta", "gitlab", "elastic", "mongodb", "databricks", "roblox",
-    "pinterest", "airbnb", "lyft", "dropbox", "robinhood", "sofi",
-    "affirm", "twitch", "mercury", "zscaler", "fastly",
+    "sentry", "deel", "box", "wise", "amplitude", "mercari", "discord",
+    # v2.48 base: data/ML-heavy non-enterprise orgs (verified return jobs)
+    "okta", "elastic", "mongodb", "zscaler", "fastly", "transloadit",
+    # v2.71: expanded non-enterprise US-remote SWE/AI supply (verified from this box)
+    "postman", "checkr", "veriff", "skyscanner", "webflow", "mattermost",
+    "verkada", "purestorage", "glance", "singlestore", "neo4j", "prisma",
+    "cloudflare", "circleci",
+    # more non-enterprise remote-friendly engineering orgs (response-verified)
+    "canonical", "nango", "athenahealth", "betterment",
 ]
 LEVER_ORGS = ["leverdemo"]
 
@@ -239,8 +245,165 @@ def scrape_lever(term: str, old_days: int) -> list:
     return out
 
 
+# Ashby board API — clean JSON with an explicit isRemote + workplaceType + jobUrl.
+# Verified from this VPS (late 2026): API is datacenter-safe and returns remote
+# US roles for these non-enterprise orgs. Enterprise giants on Ashby (openai,
+# notion, vercel, linear, ramp, quora, supabase) are excluded here — most are
+# already filtered by the enterprise blocklist anyway.
+ASHBY_ORGS = [
+    "xero", "bastion", "cursor", "ditto", "sourcegraph", "methodology", "toggl",
+    "smartcar", "orkes", "losant", "chainalysis", "hasura", "prisma", "upstash",
+]
+
+def _title_matches_ashby(title, term):
+    if not term:
+        return True
+    t = title.strip().lower()
+    term = term.strip().lower()
+    if term in t:
+        return True
+    # loose word match for multi-word terms (mirrors greenhouse logic)
+    kb = ("data", "software", "engineer", "developer", "full", "back", "front",
+          "ai", "ml", "platform", "llm", "infra", "backend")
+    if any(k in t for k in kb):
+        words = [w for w in term.split() if len(w) > 3]
+        return any(w in t for w in words)
+    return False
+
+def scrape_ashby(term, old_days):
+    out = []
+    for org in ASHBY_ORGS:
+        url = f"https://api.ashbyhq.com/posting-api/job-board/{org}"
+        try:
+            payload = json.loads(_fetch(url))
+        except Exception as e:
+            print(f"[warn] ashby:{org} {e}", file=sys.stderr)
+            continue
+        for j in payload.get("jobs", []):
+            if not j.get("isRemote"):
+                continue  # strict: only explicitly-remote roles
+            # The isRemote flag alone is unreliable (some orgs set it true even
+            # for city/on-site roles, e.g. Xero's AU/NZ/CA entries). Require a
+            # US or generic-Remote location too, so strict-remote-only holds.
+            loc = (j.get("location") or "").strip()
+            address = ((j.get("address") or {}).get("postalAddress") or {})
+            country = (address.get("addressCountry") or "").lower()
+            loc_l = loc.lower()
+            is_us_remote = (
+                country == "united states"
+                or "united states" in loc_l
+                or loc_l.startswith("us")
+                or loc_l in ("remote", "anywhere", "global", "usa")
+            )
+            non_us_region = any(r in loc_l or r in country for r in
+                                ("australia", "au:", "new zealand", "nz:", "europe",
+                                 "canada", "can:", "germany", "uk", "london",
+                                 "india", "singapore", "poland", "netherlands"))
+            if non_us_region and not is_us_remote:
+                continue  # limit AU/NZ/EU/CA to US-remote only
+            title = j.get("title") or ""
+            if not _title_matches_ashby(title, term):
+                continue
+            out.append({
+                "title": title,
+                "company": org,
+                "site": "ashby",
+                "job_url": j.get("jobUrl") or j.get("applyUrl") or "",
+                "location": loc or "Remote",
+                "description": "",
+                "date_posted": j.get("publishedAt"),
+                "is_remote": True,
+                "is_expired": False,
+                "is_easy_apply": False,
+            })
+    print(f"[ok] ashby: {len(out)} jobs for '{term}'", file=sys.stderr)
+    return out
+
+
+def scrape_dice(term, old_days):
+    """Dice (US tech board) — from Tailor-AI's diceScraper approach. Search
+    dice.com/jobs for job-detail UUIDs, fetch each detail page, parse the
+    schema.org JSON-LD JobPosting (title/company/location/salary/description).
+    Verified from this VPS: detail pages return clean JSON-LD. Dice serves a
+    JS-heavy search shell, so we only extract the /job-detail/ UUID links, then
+    hit the detail pages (which are datacenter-safe HTML+JSON-LD). Remote-only
+    enforced via the workplaceTypes=Remote filter + per-job remote check."""
+    q = term.strip()
+    base = ("https://www.dice.com/jobs?q=" + urllib.parse.quote(q) +
+            "&filters.workplaceTypes=Remote")
+    seen = set()
+    uuids = []
+    page = 1
+    while len(uuids) < 150 and page <= 5:
+        url = base if page == 1 else base + f"&page={page}"
+        try:
+            html = _fetch(url)
+        except Exception as e:
+            print(f"[warn] dice:page{page} {e}", file=sys.stderr)
+            break
+        found = re.findall(r'href="/job-detail/([a-f0-9-]+)"', html)
+        new = 0
+        for u in found:
+            if u not in seen:
+                seen.add(u)
+                uuids.append(u)
+                new += 1
+        if new == 0:
+            break
+        page += 1
+
+    out = []
+    for u in uuids[:40]:
+        detail_url = f"https://www.dice.com/job-detail/{u}"
+        try:
+            dhtml = _fetch(detail_url)
+        except Exception as e:
+            print(f"[warn] dice:{u[:8]} {e}", file=sys.stderr)
+            continue
+        m = re.search(r'type="application/ld\+json"[^>]*>(.*?)</script>', dhtml, re.S)
+        if not m:
+            continue
+        try:
+            ld = json.loads(m.group(1))
+        except Exception:
+            continue
+        if not isinstance(ld, dict) or ld.get("@type") != "JobPosting":
+            continue
+        title = (ld.get("title") or "").strip()
+        if not _title_matches_ashby(title, term):
+            continue
+        # remote detection: location/description
+        loc = ld.get("jobLocation") or {}
+        addr = loc.get("address") or {}
+        loc_str = " ".join(str(addr.get(k) or "") for k in
+                           ("addressLocality", "addressRegion", "addressCountry"))
+        blob = f"{loc_str} {ld.get('description') or ''}".lower()
+        is_remote = "remote" in blob
+        if not is_remote:
+            continue  # strict remote-only
+        desc = re.sub(r"<[^>]+>", " ", ld.get("description") or "")
+        desc = re.sub(r"\s+", " ", desc).strip()
+        co = ld.get("hiringOrganization") or {}
+        sal = (ld.get("baseSalary") or {}).get("value") or {}
+        out.append({
+            "title": title,
+            "company": (co.get("name") if isinstance(co, dict) else "") or "",
+            "site": "dice",
+            "job_url": detail_url,
+            "location": loc_str.strip() or "Remote",
+            "description": desc[:4000],
+            "date_posted": ld.get("datePosted"),
+            "is_remote": True,
+            "is_expired": False,
+            "is_easy_apply": False,
+        })
+    print(f"[ok] dice: {len(out)} jobs for '{term}'", file=sys.stderr)
+    return out
+
+
 BOARDS = {"jobicy": scrape_jobicy, "hiringcafe": scrape_hiringcafe,
-           "greenhouse": scrape_greenhouse, "lever": scrape_lever}
+           "greenhouse": scrape_greenhouse, "lever": scrape_lever,
+           "ashby": scrape_ashby, "dice": scrape_dice}
 
 
 def main():

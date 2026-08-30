@@ -8,7 +8,7 @@ export default async function AdminDashboardPage() {
   if (!user) redirect('/login');
 
   const [jobs, profiles, users, scrapeRuns] = await Promise.all([
-    db.listJobs(),
+    db.listJobsSlim(),
     db.listProfiles(),
     db.listUsers(),
     db.listScrapeRuns(),

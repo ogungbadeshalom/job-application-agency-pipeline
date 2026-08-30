@@ -16,6 +16,8 @@ const REFILL_BOARDS = [
   { site: 'builtin', label: 'BuiltIn' },
   { site: 'jobicy', label: 'Jobicy' },
   { site: 'workingnomads', label: 'WorkingNomads' },
+  { site: 'ashby', label: 'Ashby' },
+  { site: 'dice', label: 'Dice' },
 ];
 
 export default function QueueClient({
@@ -31,6 +33,7 @@ export default function QueueClient({
   clientStats,
   weeklyEarnings,
   earningsByClient,
+  clientRoles,
 }: {
   user: User;
   nav: { href: string; label: string; badge?: number }[];
@@ -50,6 +53,13 @@ export default function QueueClient({
   weeklyEarnings?: { earnedNaira: number; weeklyCapNaira: number; countThisWeek: number };
   /** Earnings per client (for the client switcher). */
   earningsByClient?: Record<string, { earnedNaira: number; weeklyCapNaira: number; countThisWeek: number }>;
+  /** Role guide per assigned client (which roles the resume supports). */
+  clientRoles?: Record<string, {
+    headline: string;
+    families: { id: string; label: string; exampleTitles: string[]; skipNote: string }[];
+    exampleTitles: string[];
+    skipNote: string;
+  }>;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -58,6 +68,7 @@ export default function QueueClient({
   // Worker self-refill state
   const [refillState, setRefillState] = useState<{
     preset: string; boards: string[]; busy: boolean; msg: string | null; error: string | null; done: boolean;
+    progress: { step: number; totalSteps: number; current: string; jobsFound: number } | null;
   }>({
     preset: '',
     boards: [],
@@ -65,6 +76,7 @@ export default function QueueClient({
     msg: null,
     error: null,
     done: false,
+    progress: null,
   });
   // Local copy of the jobs list used for OPTIMISTIC quick-actions: flipping a
   // job's status re-renders instantly instead of waiting for a full
@@ -121,6 +133,18 @@ export default function QueueClient({
       : queueTab === 'skipped'
         ? filteredJobs.filter((j) => j.status === 'skipped')
         : filteredJobs.filter((j) => j.status !== 'applied' && j.status !== 'skipped');
+
+  // Role guide for the currently selected client. On the 'all' aggregate, show
+  // the guide when the worker has exactly ONE client (defaults to 'all' but the
+  // guide still makes sense); hide it only when mixing multiple clients.
+  const activeRoleGuide =
+    clientRoles == null
+      ? undefined
+      : clientId !== 'all'
+        ? clientRoles[clientId]
+        : (clientProfiles ?? []).length === 1
+          ? clientRoles[clientProfiles![0].id]
+          : undefined;
 
   // Weekly cards follow the switcher: 'all' shows the aggregate, a specific
   // client shows that client's own applied/skipped/quota for the week.
@@ -270,19 +294,26 @@ export default function QueueClient({
   }, []);
 
   // Worker self-refill: POST /api/worker-refill with the selected client + preset.
-  // Only for a real (non-'all') client. Rate-limited server-side (30 min).
+  // For a single-client worker, the default 'all' view maps to that one client.
+  // Rate-limited server-side (30 min).
   async function doRefill() {
-    if (clientId === 'all' || !clientId) {
+    const refillProfileId =
+      clientId !== 'all' && clientId
+        ? clientId
+        : (clientProfiles ?? []).length === 1
+          ? clientProfiles![0].id
+          : null;
+    if (!refillProfileId) {
       setRefillState((s) => ({ ...s, error: 'Select a client first.', msg: null }));
       return;
     }
-    setRefillState((s) => ({ ...s, busy: true, error: null, msg: null, done: false }));
+    setRefillState((s) => ({ ...s, busy: true, error: null, msg: null, done: false, progress: null }));
     try {
       const res = await fetch('/api/worker-refill', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-        profileId: clientId,
+        profileId: refillProfileId,
         presetId: refillState.preset || undefined,
         sites: refillState.boards.length ? refillState.boards : undefined,
       }),
@@ -309,6 +340,82 @@ export default function QueueClient({
   }
 
   const selProfile = clientId !== 'all' ? clientProfiles?.find((p) => p.id === clientId) : undefined;
+
+  // ---- Manual "Add Job" (worker-sourced application) ----
+  const [addOpen, setAddOpen] = useState(false);
+  const [addState, setAddState] = useState<{
+    url: string; title: string; company: string; description: string; busy: boolean; error: string | null; msg: string | null;
+  }>({ url: '', title: '', company: '', description: '', busy: false, error: null, msg: null });
+  const resetAdd = () => setAddState({ url: '', title: '', company: '', description: '', busy: false, error: null, msg: null });
+
+  async function addManualJob() {
+    const profileId =
+      clientId !== 'all' && clientId
+        ? clientId
+        : (clientProfiles ?? []).length === 1
+          ? clientProfiles![0].id
+          : null;
+    if (!profileId) {
+      setAddState((s) => ({ ...s, error: 'Select a client first.', msg: null }));
+      return;
+    }
+    if (!addState.url.trim()) {
+      setAddState((s) => ({ ...s, error: 'Paste a job posting URL.', msg: null }));
+      return;
+    }
+    setAddState((s) => ({ ...s, busy: true, error: null, msg: null }));
+    try {
+      const res = await fetch('/api/jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profile_id: profileId,
+          url: addState.url.trim(),
+          title: addState.title.trim(),
+          company: addState.company.trim(),
+          description: addState.description.trim(),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setAddState((s) => ({ ...s, busy: false, error: data?.error || `Add failed (${res.status})`, msg: null }));
+        return;
+      }
+      setAddState((s) => ({ ...s, busy: false, msg: '✓ Added to your queue.', error: null }));
+      resetAdd();
+      setAddOpen(false);
+      router.refresh();
+    } catch {
+      setAddState((s) => ({ ...s, busy: false, error: 'Network error — please retry.', msg: null }));
+    }
+  }
+
+  // Poll live refill progress while a refill is running, so the worker sees real
+  // progress (current board/search, job count) instead of a blanket time estimate.
+  useEffect(() => {
+    if (!refillState.busy || refillState.done) return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await fetch('/api/worker-refill/progress', { cache: 'no-store' });
+        if (cancelled) return;
+        if (res.ok) {
+          const data = await res.json().catch(() => ({}));
+          const p = data?.progress;
+          if (p && typeof p.totalSteps === 'number') {
+            setRefillState((s) =>
+              s.busy ? { ...s, progress: { step: p.step ?? 0, totalSteps: p.totalSteps, current: p.current ?? '', jobsFound: p.jobsFound ?? 0 } } : s
+            );
+          }
+        }
+      } catch { /* transient poll error — ignore, keep trying */ }
+    };
+    poll();
+    const iv = setInterval(poll, 2000);
+    return () => { cancelled = true; clearInterval(iv); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refillState.busy, refillState.done]);
+
   const presets = ((selProfile?.presets ?? []) as { id: string; name: string }[]).slice().sort((a, b) => {
     // General first — it's the broad one-click refill most workers want; the
     // specific role-family presets come after for targeted refinement.
@@ -351,8 +458,10 @@ export default function QueueClient({
               ))}
             </div>
           )}
-          {/* Worker self-refill */}
-          {clientId !== 'all' && (
+          {/* Worker self-refill — shown when a specific client is selected, or
+              when the worker has exactly ONE client (defaults to 'all' but the
+              refill is against that single client, so show it). */}
+          {(clientId !== 'all' || (clientProfiles ?? []).length === 1) && (
             <div className="flex flex-col items-stretch sm:items-end gap-1.5 w-full sm:w-auto">
               <div className="flex flex-wrap items-center gap-2">
                 <label className="text-xs text-navy-500">Preset</label>
@@ -372,6 +481,13 @@ export default function QueueClient({
                   className="px-3 py-1.5 text-xs font-semibold rounded-md bg-brand-green/20 text-brand-green border border-brand-green/30 hover:bg-brand-green/30 disabled:opacity-50"
                 >
                   {refillState.busy ? 'Refilling…' : 'Refill'}
+                </button>
+                <button
+                  onClick={() => { resetAdd(); setAddOpen(true); }}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-md bg-navy-700 text-navy-100 border border-navy-600 hover:bg-navy-600"
+                  title="Add a job you found yourself (paste the posting link)"
+                >
+                  ＋ Add Job
                 </button>
               </div>
               {/* Board selector: workers pick which boards to scrape. */}
@@ -402,16 +518,34 @@ export default function QueueClient({
               </div>
             </div>
           )}
-          {/* Refill feedback: loading bar while busy, then success / 0-new / error */}
+          {/* Refill feedback: live progress while busy, then success / 0-new / error */}
           {refillState.busy && (
-            <div className="mt-2 w-full sm:w-72">
+            <div className="mt-2 w-full sm:w-80">
               <div className="flex items-center gap-2 text-xs text-navy-300">
                 <span className="inline-block h-3 w-3 rounded-full border-2 border-brand-green/40 border-t-brand-green animate-spin" />
-                Refilling… fetching jobs (can take 1–3 min)
+                <span>
+                  {refillState.progress && refillState.progress.totalSteps > 0
+                    ? `Scraping… ${refillState.progress.current || 'working'}`
+                    : 'Starting scraper…'}
+                </span>
               </div>
-              <div className="mt-1 h-1.5 rounded-full bg-navy-800 overflow-hidden">
-                <div className="h-full bg-brand-green width-indeterminate" />
-              </div>
+              {/* Real progress: step/totalStep + jobs found so far */}
+              {refillState.progress && refillState.progress.totalSteps > 0 && (
+                <div className="mt-1.5">
+                  <div className="flex justify-between text-[10px] text-navy-400 mb-0.5">
+                    <span>
+                      Step {Math.min(refillState.progress.step + 1, refillState.progress.totalSteps)} of {refillState.progress.totalSteps}
+                    </span>
+                    <span>{refillState.progress.jobsFound} jobs found</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-navy-800 overflow-hidden">
+                    <div
+                      className="h-full bg-brand-green transition-all duration-500"
+                      style={{ width: `${Math.min(100, ((refillState.progress.step + 1) / refillState.progress.totalSteps) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
           {refillState.done && !refillState.busy && refillState.msg && !refillState.error && (
@@ -433,6 +567,41 @@ export default function QueueClient({
             )}
           </p>
         </div>
+        {/* Roles you can apply for — guides the worker so valid titles aren't skipped recklessly */}
+        {activeRoleGuide && (
+          <div className="mt-3 rounded-md border border-brand-green/30 bg-brand-green/5 px-3 py-2.5">
+            <div className="flex items-center gap-1.5 text-brand-green">
+              <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <span className="text-xs font-semibold uppercase tracking-wide">Roles you can apply for</span>
+              {activeRoleGuide.headline && (
+                <span className="ml-1 normal-case tracking-normal text-[11px] text-navy-300 font-normal">
+                  — {activeRoleGuide.headline}
+                </span>
+              )}
+            </div>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {activeRoleGuide.families.map((f) => (
+                <span key={f.id} className="rounded-full bg-brand-green/15 text-brand-green border border-brand-green/30 px-2 py-0.5 text-[11px] font-medium">
+                  {f.label}
+                </span>
+              ))}
+            </div>
+            {activeRoleGuide.exampleTitles.length > 0 && (
+              <p className="mt-1.5 text-[11px] text-navy-300">
+                <span className="text-navy-200 font-medium">Example titles: </span>
+                {activeRoleGuide.exampleTitles.join(' · ')}
+              </p>
+            )}
+            {activeRoleGuide.skipNote && (
+              <p className="mt-1 text-[11px] text-navy-400">
+                <span className="text-navy-300 font-medium">Skip if: </span>
+                {activeRoleGuide.skipNote}
+              </p>
+            )}
+          </div>
+        )}
         {/* Internal queue tabs: Working (excludes applied) vs Applied */}
         <div className="mt-2 flex items-center gap-1">
           {(
@@ -557,6 +726,92 @@ export default function QueueClient({
         gotoJobId={pendingJump?.id}
         gotoJobNonce={pendingJump?.n ?? 0}
       />
+
+      {/* Manual "Add Job" modal — worker pastes a posting link they found
+          themselves; it enters the queue as `saved` (Working tab). */}
+      {addOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/70 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-md rounded-lg border border-navy-700 bg-navy-900 p-5 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-navy-100">Add a job you found</h2>
+              <button
+                onClick={() => setAddOpen(false)}
+                className="text-navy-400 hover:text-navy-200 text-lg leading-none"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-navy-400 mb-1">Job posting URL *</label>
+                <input
+                  value={addState.url}
+                  onChange={(e) => setAddState((s) => ({ ...s, url: e.target.value, error: null }))}
+                  placeholder="https://company.com/careers/123"
+                  className="w-full rounded-md bg-navy-800 border border-navy-700 px-3 py-2 text-sm text-navy-100 placeholder-navy-500 focus:border-brand-green/50 focus:outline-none"
+                />
+                <p className="text-[10px] text-navy-500 mt-1">Tip: title &amp; company auto-fill from the link if available.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-navy-400 mb-1">Title</label>
+                  <input
+                    value={addState.title}
+                    onChange={(e) => setAddState((s) => ({ ...s, title: e.target.value }))}
+                    placeholder="Auto-fetched"
+                    className="w-full rounded-md bg-navy-800 border border-navy-700 px-3 py-2 text-sm text-navy-100 placeholder-navy-500 focus:border-brand-green/50 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-navy-400 mb-1">Company</label>
+                  <input
+                    value={addState.company}
+                    onChange={(e) => setAddState((s) => ({ ...s, company: e.target.value }))}
+                    placeholder="Auto-fetched"
+                    className="w-full rounded-md bg-navy-800 border border-navy-700 px-3 py-2 text-sm text-navy-100 placeholder-navy-500 focus:border-brand-green/50 focus:outline-none"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-navy-400 mb-1">Notes / description (optional)</label>
+                <textarea
+                  value={addState.description}
+                  onChange={(e) => setAddState((s) => ({ ...s, description: e.target.value }))}
+                  rows={2}
+                  placeholder="Optional — auto-fetched from the page if available."
+                  className="w-full rounded-md bg-navy-800 border border-navy-700 px-3 py-2 text-sm text-navy-100 placeholder-navy-500 focus:border-brand-green/50 focus:outline-none resize-none"
+                />
+              </div>
+              {addState.error && (
+                <div className="text-xs rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-brand-red">
+                  {addState.error}
+                </div>
+              )}
+              {addState.msg && (
+                <div className="text-xs rounded-md border border-brand-green/30 bg-brand-green/10 px-3 py-2 text-brand-green">
+                  {addState.msg}
+                </div>
+              )}
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  onClick={() => setAddOpen(false)}
+                  className="px-3 py-1.5 text-xs font-medium rounded-md border border-navy-700 text-navy-300 hover:text-navy-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={addManualJob}
+                  disabled={addState.busy}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-md bg-brand-green text-navy-950 hover:bg-brand-green/90 disabled:opacity-50"
+                >
+                  {addState.busy ? 'Adding…' : 'Add to queue'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

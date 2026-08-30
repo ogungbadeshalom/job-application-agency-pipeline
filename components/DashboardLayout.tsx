@@ -104,7 +104,7 @@ export default function DashboardLayout({
       <img
         src="/icon.png"
         alt="Job Bidder"
-        className="h-6 w-6 shrink-0 rounded-sm object-contain"
+        className="h-7 w-7 shrink-0 rounded-md object-contain ring-1 ring-white/10"
       />
       <span className="min-w-0 leading-tight">
         <span className="font-semibold tracking-tight block leading-snug">Job Bidder</span>

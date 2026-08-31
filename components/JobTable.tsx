@@ -18,6 +18,7 @@ const BOARD_LABELS: Record<string, string> = {
   zip_recruiter: 'ZipRecruiter',
   remoteok: 'RemoteOK',
   builtin: 'BuiltIn',
+  sprout: 'Sprout Social',
 };
 
 interface Column {

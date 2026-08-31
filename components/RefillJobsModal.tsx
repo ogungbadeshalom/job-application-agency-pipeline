@@ -25,6 +25,7 @@ export const SITE_OPTIONS: { name: string; site: string; disabled?: boolean; not
   { name: 'WorkingNomads', site: 'workingnomads' },
   { name: 'Jobicy', site: 'jobicy', note: 'remote-only aggregator' },
   { name: 'HiringCafe', site: 'hiringcafe', note: 'opt-in, uses headless browser (slow)' },
+  { name: 'Sprout Social', site: 'sprout', note: 'ATS careers board (Remote US data roles)' },
   { name: 'Glassdoor', site: 'glassdoor', disabled: true, note: 'currently unavailable' },
   { name: 'ZipRecruiter', site: 'zip_recruiter', disabled: true, note: 'currently unavailable' },
 ];

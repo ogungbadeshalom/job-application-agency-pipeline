@@ -401,9 +401,64 @@ def scrape_dice(term, old_days):
     return out
 
 
+def scrape_sprout(term, old_days):
+    """Sprout Social careers (sproutsocial.com/careers/open-positions/).
+
+    Next.js site. The open-positions page embeds a __NEXT_DATA__ JSON blob with
+    departmentsData.departments[].jobs[] — title/location/url per opening.
+    Remote-only enforced by location name. Matches the record shape used by the
+    rest of the pipeline (like ashby/dice).
+    """
+    url = "https://sproutsocial.com/careers/open-positions/"
+    try:
+        html = _fetch(url)
+    except Exception as e:
+        print(f"[warn] sprout {e}", file=sys.stderr)
+        return []
+    m = re.search(r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', html, re.S)
+    if not m:
+        print("[warn] sprout: no __NEXT_DATA__", file=sys.stderr)
+        return []
+    try:
+        data = json.loads(m.group(1))
+        depts = data["props"]["pageProps"]["departmentsData"]["departments"]
+    except Exception as e:
+        print(f"[warn] sprout: parse {e}", file=sys.stderr)
+        return []
+    t = term.strip().lower()
+    words = [w for w in t.split() if len(w) > 3] if t else []
+    out = []
+    for d in depts:
+        for j in d.get("jobs", []):
+            title = (j.get("title") or "").strip()
+            loc = ((j.get("location") or {}).get("name") or "").strip()
+            # Strict remote-only (US/CAN remote ok; skip hybrid/onsite/other-country office).
+            loc_l = loc.lower()
+            if not ("remote" in loc_l):
+                continue
+            if any(r in loc_l for r in ("hybrid", "in-office", "on-site", "poland", "ireland")):
+                continue
+            if words and not any(w in title.lower() for w in words):
+                continue
+            out.append({
+                "title": title,
+                "company": j.get("company_name") or "Sprout Social",
+                "site": "sprout",
+                "job_url": j.get("absolute_url") or f"https://sproutsocial.com/careers/open-positions/{j.get('id')}",
+                "location": loc or "Remote",
+                "description": "",
+                "date_posted": j.get("first_published"),
+                "is_remote": True,
+                "is_expired": False,
+                "is_easy_apply": False,
+            })
+    print(f"[ok] sprout: {len(out)} jobs for '{term}'", file=sys.stderr)
+    return out
+
+
 BOARDS = {"jobicy": scrape_jobicy, "hiringcafe": scrape_hiringcafe,
            "greenhouse": scrape_greenhouse, "lever": scrape_lever,
-           "ashby": scrape_ashby, "dice": scrape_dice}
+           "ashby": scrape_ashby, "dice": scrape_dice, "sprout": scrape_sprout}
 
 
 def main():

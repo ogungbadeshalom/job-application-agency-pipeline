@@ -46,6 +46,31 @@ export async function POST(req: Request) {
     return s && s.length > n ? s.slice(0, n) + '\n…' : s;
   }
   const jdInline = cap(job.description || '(no description available)', 4000);
+  // If the Resume Lab has structured content (incl. per-experience bullet
+  // counts), inject it as the authoritative source + tell the AI the exact
+  // bullet count required for each experience entry (in order).
+  const structured = profile.resume_data;
+  let structuredBlock = '';
+  let bulletRuleBlock = '';
+  if (structured && structured.experience && structured.experience.length) {
+    structuredBlock = [
+      'STRUCTURED RESUME (user-edited content — use this as authoritative):',
+      `Title: ${structured.contact?.title || ''}`,
+      `Summary: ${structured.summary || ''}`,
+    ].join('\n');
+    if (structured.experience.length > 0) {
+      structuredBlock += '\nExperience (keep these companies/roles; order matters):';
+      structured.experience.forEach((e, i) => {
+        structuredBlock += `\n  ${i + 1}. ${e.role || ''} @ ${e.company || ''} (${e.dates || ''})`;
+      });
+    }
+    // Bullet-point counts per experience entry, in order.
+    const counts = structured.experience.map((e) => Math.max(0, Math.min(10, e.bullets?.length ?? 0)));
+    bulletRuleBlock =
+      'BULLET-POINT REQUIREMENT (STRICT — must comply exactly): ' +
+      counts.map((n, i) => `experience #${i + 1} must have exactly ${n} bullet points`).join('; ') +
+      '. Do not add or drop bullets beyond this count for each entry.';
+  }
   const user = [
     'JOB DESCRIPTION:',
     jdInline,
@@ -54,7 +79,11 @@ export async function POST(req: Request) {
     '',
     'BASE RESUME:',
     profile.base_resume_text,
-  ].join('\n');
+    '',
+    structuredBlock,
+    '',
+    bulletRuleBlock,
+  ].filter((l) => l.trim() !== '').join('\n');
 
   let raw: string;
   try {
@@ -73,6 +102,18 @@ export async function POST(req: Request) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ error: `AI returned invalid JSON: ${msg}` }, { status: 502 });
+  }
+
+  // Enforce the Resume Lab's configured bullet counts on the AI output, so a
+  // tailored PDF reflects the editor (e.g. 9/8/5 bullets per experience entry).
+  // Matches by company name (case-insensitive) since the model may reorder.
+  if (profile.resume_data?.experience?.length) {
+    try {
+      data = enforceBulletCounts(data, profile.resume_data.experience);
+    } catch (e) {
+      // Non-fatal: if enforcement fails, keep the AI output rather than erroring.
+      console.warn('[tailor] bullet-count enforcement skipped:', (e as Error).message);
+    }
   }
 
   // Render + persist the PDF for download, honoring the client's design preset.
@@ -154,4 +195,39 @@ function parseResumeJson(raw: string): ResumeData {
   };
   if (!data.name && data.experience.length === 0) throw new Error('missing name/experience');
   return data;
+}
+
+// Force each AI-tailored experience entry to carry the exact bullet-point count
+// configured in the Resume Lab (profiles.resume_data.experience[].bullets.length).
+// Companies/roles are matched case-insensitively because the model may reorder
+// or relabel entries; entries that can't be matched keep their current bullets.
+function enforceBulletCounts(
+  data: ResumeData,
+  configured: { role?: string; company?: string; bullets?: string[] }[]
+): ResumeData {
+  // Normalize a company/role string for fuzzy matching.
+  const norm = (s?: string) =>
+    (s || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+  const desiredByCompany = new Map<string, number>();
+  for (const c of configured) {
+    if (!c.bullets) continue;
+    const key = norm(c.company) || norm(c.role);
+    if (key) desiredByCompany.set(key, c.bullets.length);
+  }
+
+  const experience = data.experience.map((e) => {
+    const key = norm(e.company) || norm(e.role);
+    const desired = desiredByCompany.get(key);
+    if (!desired || desired <= 0) return e; // no config for this entry — leave it
+    const bullets = e.bullets || [];
+    // Build exactly `desired` bullets: reuse existing text up to that count,
+    // pad with blanks if the model gave fewer, drop extras if it gave more.
+    const enforced = Array.from({ length: desired }, (_, k) => bullets[k] ?? '').filter((b) => b.trim() !== '');
+    // If we trimmed blanks and dropped below desired, pad with a placeholder so
+    // the count is exact and the editor can fill the blanks.
+    while (enforced.length < desired) enforced.push('');
+    return { ...e, bullets: enforced };
+  });
+
+  return { ...data, experience };
 }

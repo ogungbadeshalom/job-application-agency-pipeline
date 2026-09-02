@@ -28,6 +28,17 @@ export interface ResumeData {
     dates: string;
     bullets: string[];
   }[];
+  education: {
+    school: string;
+    degree: string;
+    dates: string;
+    detail: string;
+  }[];
+  certifications: {
+    name: string;
+    issuer: string;
+    year: string;
+  }[];
   skills: string[];
 }
 
@@ -189,6 +200,38 @@ function ResumeDoc({ d, preset }: { d: ResumeData; preset: ResumePreset }) {
           </View>
         ))}
 
+        {(d.education && d.education.length > 0) && (
+          <>
+            <Text style={styles.sectionT}>Education</Text>
+            {(d.education || []).map((e, ei) => (
+              <View key={ei} style={styles.expBlock}>
+                <View style={styles.roleRow}>
+                  <Text style={styles.roleText}>{e.degree || e.school}</Text>
+                </View>
+                <View style={styles.roleRow}>
+                  <Text style={styles.company}>{e.school}</Text>
+                  <Text style={styles.dates}>{e.dates}</Text>
+                </View>
+                {e.detail ? <Text style={styles.summary}>{e.detail}</Text> : null}
+              </View>
+            ))}
+          </>
+        )}
+
+        {(d.certifications && d.certifications.length > 0) && (
+          <>
+            <Text style={styles.sectionT}>Certifications</Text>
+            {d.certifications.map((c, ci) => (
+              <View key={ci} style={styles.skillRow}>
+                <Text style={styles.skillDot}>{'\u2022'}</Text>
+                <Text style={styles.skills}>
+                  {c.name}{c.issuer ? ` — ${c.issuer}` : ''}{c.year ? ` · ${c.year}` : ''}
+                </Text>
+              </View>
+            ))}
+          </>
+        )}
+
         <Text style={styles.sectionT}>Skills</Text>
         {(d.skills || []).map((s, i) => (
           <View key={i} style={styles.skillRow}>
@@ -223,6 +266,17 @@ export function structuredToResumeData(s: StructuredResume): ResumeData {
       company: e.company || '',
       dates: e.dates || '',
       bullets: (e.bullets || []).filter((b) => b.trim()),
+    })),
+    education: (s.education || []).map((e) => ({
+      school: e.school || '',
+      degree: e.degree || '',
+      dates: e.dates || '',
+      detail: e.detail || '',
+    })),
+    certifications: (s.certifications || []).map((c) => ({
+      name: c.name || '',
+      issuer: c.issuer || '',
+      year: c.year || '',
     })),
     skills: (s.skills || []).filter((x) => x.trim()),
   };

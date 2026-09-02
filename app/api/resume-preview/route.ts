@@ -84,6 +84,8 @@ function previewData(name: string, text: string): ResumeData {
       { role: title, company: 'Current / Most Recent Company', dates: '2022–Present', bullets: ['Led the design and delivery of production systems.', 'Collaborated cross-functionally to ship impactful features.'] },
       { role: title, company: 'Prior Company', dates: '2019–2022', bullets: ['Built and scaled core platforms.', 'Improved reliability and performance.'] },
     ],
+    education: [],
+    certifications: [],
     skills: skills.length ? skills : ['SQL', 'Python', 'Cloud', 'Data Pipelines', 'Collaboration'],
   };
 }

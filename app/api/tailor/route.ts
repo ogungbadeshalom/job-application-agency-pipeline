@@ -64,6 +64,18 @@ export async function POST(req: Request) {
         structuredBlock += `\n  ${i + 1}. ${e.role || ''} @ ${e.company || ''} (${e.dates || ''})`;
       });
     }
+    if (structured.education && structured.education.length > 0) {
+      structuredBlock += '\nEducation:';
+      structured.education.forEach((e) => {
+        structuredBlock += `\n  - ${e.degree || ''}${e.school ? ` @ ${e.school}` : ''}${e.dates ? ` (${e.dates})` : ''}`;
+      });
+    }
+    if (structured.certifications && structured.certifications.length > 0) {
+      structuredBlock += '\nCertifications:';
+      structured.certifications.forEach((cr) => {
+        structuredBlock += `\n  - ${cr.name || ''}${cr.issuer ? ` (${cr.issuer})` : ''}`;
+      });
+    }
     // Bullet-point counts per experience entry, in order.
     const counts = structured.experience.map((e) => Math.max(0, Math.min(10, e.bullets?.length ?? 0)));
     bulletRuleBlock =
@@ -147,6 +159,14 @@ function buildResumeText(d: ResumeData): string {
     lines.push(`${e.role} - ${e.company} (${e.dates})`);
     lines.push(...e.bullets.map((b) => `- ${b}`));
   }
+  if (d.education && d.education.length) {
+    lines.push('EDUCATION');
+    for (const e of d.education) lines.push(`${e.degree} - ${e.school} (${e.dates})${e.detail ? ` - ${e.detail}` : ''}`);
+  }
+  if (d.certifications && d.certifications.length) {
+    lines.push('CERTIFICATIONS');
+    for (const c of d.certifications) lines.push(`${c.name}${c.issuer ? ` - ${c.issuer}` : ''}${c.year ? ` (${c.year})` : ''}`);
+  }
   lines.push('SKILLS', ...d.skills);
   return lines.join('\n');
 }
@@ -190,6 +210,25 @@ function parseResumeJson(raw: string): ResumeData {
             bullets: toArr(e?.bullets),
           }))
           .filter((r: any) => r.company || r.role)
+      : [],
+    education: Array.isArray(obj.education)
+      ? obj.education
+          .map((e: any) => ({
+            school: String(e?.school || '').trim(),
+            degree: String(e?.degree || '').trim(),
+            dates: String(e?.dates || '').trim(),
+            detail: String(e?.detail || '').trim(),
+          }))
+          .filter((r: any) => r.school || r.degree)
+      : [],
+    certifications: Array.isArray(obj.certifications)
+      ? obj.certifications
+          .map((c: any) => ({
+            name: String(c?.name || '').trim(),
+            issuer: String(c?.issuer || '').trim(),
+            year: String(c?.year || '').trim(),
+          }))
+          .filter((r: any) => r.name)
       : [],
     skills: toArr(obj.skills),
   };

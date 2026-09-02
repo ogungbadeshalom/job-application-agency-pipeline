@@ -130,6 +130,17 @@ export default function ResumeLabClient({
     });
     setDirty(true);
   }
+  // Resize an experience entry's bullet array to exactly `n` entries (keeps
+  // existing text in place; drops extras if shrinking, pads blanks if growing).
+  function setExpBulletCount(i: number, n: number) {
+    setData((d) => {
+      const exp = [...d.experience];
+      const bullets = Array.from({ length: Math.max(0, n) }, (_, k) => (exp[i].bullets || [])[k] ?? '');
+      exp[i] = { ...exp[i], bullets };
+      return { ...d, experience: exp };
+    });
+    setDirty(true);
+  }
   function addExp() {
     setData((d) => ({ ...d, experience: [...d.experience, { role: '', company: '', dates: '', location: '', bullets: [''] }] }));
     setDirty(true);
@@ -317,7 +328,7 @@ export default function ResumeLabClient({
               </div>
               {data.experience.length === 0 && <div className="text-xs text-navy-500">No experience yet.</div>}
               {data.experience.map((e, i) => (
-                <ExpCard key={i} exp={e} idx={i} onSet={setExperienceItem} onBullet={setExpBullet} onRemove={removeExp} />
+                <ExpCard key={i} exp={e} idx={i} onSet={setExperienceItem} onBullet={setExpBullet} onBulletCount={setExpBulletCount} onRemove={removeExp} />
               ))}
             </div>
 
@@ -476,14 +487,16 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function ExpCard({
-  exp, idx, onSet, onBullet, onRemove,
+  exp, idx, onSet, onBullet, onBulletCount, onRemove,
 }: {
   exp: ResumeExperienceItem;
   idx: number;
   onSet: (i: number, f: string, v: string | string[]) => void;
   onBullet: (i: number, bi: number, v: string) => void;
+  onBulletCount: (i: number, n: number) => void;
   onRemove: (i: number) => void;
 }) {
+  const count = exp.bullets?.length ?? 0;
   return (
     <div className="mb-3 p-2.5 rounded-md bg-navy-900/60 border border-navy-800 space-y-2">
       <div className="grid grid-cols-2 gap-2">
@@ -491,6 +504,20 @@ function ExpCard({
         <Field label="Company"><input className={inputCls} value={exp.company} onChange={(e) => onSet(idx, 'company', e.target.value)} /></Field>
         <Field label="Dates"><input className={inputCls} value={exp.dates} onChange={(e) => onSet(idx, 'dates', e.target.value)} /></Field>
         <Field label="Location"><input className={inputCls} value={exp.location} onChange={(e) => onSet(idx, 'location', e.target.value)} /></Field>
+      </div>
+      {/* Bullet-point count selector */}
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] uppercase tracking-wide text-navy-500">Bullet points</span>
+        <select
+          value={count}
+          onChange={(e) => onBulletCount(idx, Number(e.target.value))}
+          className="text-xs bg-navy-950 border border-navy-700 rounded-md px-2 py-1 text-navy-200 focus:outline-none focus:border-brand-blue"
+        >
+          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+            <option key={n} value={n}>{n}</option>
+          ))}
+        </select>
+        <span className="text-navy-600 text-xs">per job</span>
       </div>
       {/* bullets */}
       {exp.bullets.map((b, bi) => (

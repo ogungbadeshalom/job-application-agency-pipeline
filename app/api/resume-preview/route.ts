@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { isUuid } from '@/lib/validate';
-import { renderResumePdf, type ResumeData, type ResumePreset, RESUME_PRESETS } from '@/lib/resume-pdf';
+import { renderResumePdf, structuredToResumeData, type ResumeData, type ResumePreset, RESUME_PRESETS } from '@/lib/resume-pdf';
 
 // GET /api/resume-preview?profileId=<id>&preset=<preset>
 // Render a live preview PDF of a client's base resume in the given design preset.
@@ -29,11 +29,18 @@ export async function GET(req: Request) {
   if (session.user.role === 'client' && session.user.profile_id !== profileId) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
-  if (!profile.base_resume_text) {
-    return NextResponse.json({ error: 'This client has no resume uploaded yet.' }, { status: 400 });
+  if (!profile.base_resume_text && !profile.resume_data) {
+    return NextResponse.json({ error: 'This client has no resume yet. Add one in Resume Lab.' }, { status: 400 });
   }
 
-  const data = previewData(profile.name, profile.base_resume_text);
+  // Use the Resume Lab's structured content when the user has saved it;
+  // otherwise fall back to parsing the base-resume prose.
+  let data: ResumeData;
+  if (profile.resume_data) {
+    data = structuredToResumeData(profile.resume_data);
+  } else {
+    data = previewData(profile.name, profile.base_resume_text || '');
+  }
   const buf = await renderResumePdf(data, preset).catch(() => null);
   if (!buf) return NextResponse.json({ error: 'Render failed' }, { status: 500 });
 

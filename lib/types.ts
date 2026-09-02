@@ -1,4 +1,5 @@
 // Shared domain types — mirror the Postgres schema in db/schema.sql.
+import type { StructuredResume } from './resume-presets';
 
 export type Role = 'admin' | 'worker' | 'client';
 
@@ -37,6 +38,7 @@ export interface Profile {
   base_resume_url: string | null;
   base_resume_text: string | null;
   resume_design: string;
+  resume_data: StructuredResume | null;
   scrape_search_terms: string[];
   scrape_location: string | null;
   scrape_sites: string[];

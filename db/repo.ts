@@ -11,6 +11,7 @@
 
 import { all, one, query } from './pool';
 import { encryptSecret, decryptSecret } from '../lib/crypto';
+import type { StructuredResume } from '../lib/resume-presets';
 import type {
   AppConfig,
   AtsScore,
@@ -62,6 +63,7 @@ function mapProfile(r: Record<string, unknown>): Profile {
     base_resume_url: (r.base_resume_path as string) ?? null, // map path -> domain url field
     base_resume_text: (r.base_resume_text as string) ?? null,
     resume_design: (r.resume_design as string) ?? 'classic',
+    resume_data: (r.resume_data as StructuredResume | null) ?? null,
     scrape_search_terms: r.scrape_search_terms as unknown as string[],
     scrape_location: (r.scrape_location as string) ?? null,
     scrape_sites: r.scrape_sites as unknown as string[],
@@ -505,6 +507,7 @@ export const db = {
       scrape_results_wanted: 'scrape_results_wanted',
       scrape_hours_old: 'scrape_hours_old',
       resume_design: 'resume_design',
+      resume_data: 'resume_data', // jsonb — pushed as an object (pg serializes)
       jobs_per_week: 'jobs_per_week',
     } as const;
     for (const [k, col] of Object.entries(allowed)) {
@@ -523,6 +526,15 @@ export const db = {
     const row = await one(
       `update profiles set ${sets.join(', ')} where id = $${params.length} returning *`,
       params
+    );
+    return row ? mapProfile(row) : null;
+  },
+
+  // Persist the Resume Lab's structured resume data (jsonb) for a profile.
+  async setResumeData(id: string, data: StructuredResume): Promise<Profile | null> {
+    const row = await one(
+      `update profiles set resume_data = $2, updated_at = now() where id = $1 and deleted_at is null returning *`,
+      [id, data]
     );
     return row ? mapProfile(row) : null;
   },

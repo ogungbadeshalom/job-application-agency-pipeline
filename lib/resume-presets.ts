@@ -36,3 +36,58 @@ export const RESUME_PRESET_STYLES: Record<ResumePreset, ResumePresetStyle> = {
   bold:    { accent: '#111111', nameSize: 30, titleSize: 15, sectionSize: 15, ruleWidth: 2.5, name: '#111', title: '#111111', body: '#1a1a1a', muted: '#333' },
   minimal: { accent: '#616161', nameSize: 24, titleSize: 13, sectionSize: 12, ruleWidth: 0.6, name: '#111', title: '#616161', body: '#222', muted: '#444' },
 };
+
+// ---- Structured, editable resume content (Resume Lab) --------------------
+// This is the single source of truth for the Resume Lab editor -> preview ->
+// PDF pipeline. Stored per-client as JSON (profiles.resume_data). Sections are
+// plain PascalCase JSON keys so the editor can render them generically.
+
+export interface ResumeContact {
+  name: string;
+  title: string;
+  email: string;
+  phone: string;
+  location: string;
+  linkedin: string;
+  github: string;
+  website: string;
+}
+
+export interface ResumeExperienceItem {
+  role: string;
+  company: string;
+  dates: string;
+  location: string;
+  bullets: string[];
+}
+
+export interface ResumeEducationItem {
+  school: string;
+  degree: string;
+  dates: string;
+  detail: string;
+}
+
+export interface ResumeCertificationItem {
+  name: string;
+  issuer: string;
+  year: string;
+}
+
+export interface StructuredResume {
+  contact: ResumeContact;
+  summary: string;
+  experience: ResumeExperienceItem[];
+  education: ResumeEducationItem[];
+  certifications: ResumeCertificationItem[];
+  skills: string[];
+}
+
+export const EMPTY_STRUCTURED_RESUME: StructuredResume = {
+  contact: { name: '', title: '', email: '', phone: '', location: '', linkedin: '', github: '', website: '' },
+  summary: '',
+  experience: [],
+  education: [],
+  certifications: [],
+  skills: [],
+};

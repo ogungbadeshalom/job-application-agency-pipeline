@@ -12,7 +12,7 @@ import {
   renderToBuffer,
 } from '@react-pdf/renderer';
 
-import type { ResumePreset } from './resume-presets';
+import type { ResumePreset, StructuredResume } from './resume-presets';
 export type { ResumePreset } from './resume-presets';
 export { RESUME_PRESETS, isResumePreset } from './resume-presets';
 
@@ -205,4 +205,25 @@ function ResumeDoc({ d, preset }: { d: ResumeData; preset: ResumePreset }) {
 export async function renderResumePdf(d: ResumeData, preset: ResumePreset = 'classic'): Promise<Buffer> {
   const buf = await renderToBuffer(<ResumeDoc d={d} preset={preset} />);
   return Buffer.from(buf);
+}
+
+// Convert the Resume Lab's structured resume (StructuredResume) into the PDF
+// renderer's ResumeData shape so the downloaded PDF matches the live editor.
+export function structuredToResumeData(s: StructuredResume): ResumeData {
+  const contact = [s.contact?.email, s.contact?.phone, s.contact?.location]
+    .filter(Boolean)
+    .join(' · ');
+  return {
+    name: s.contact?.name || '',
+    title: s.contact?.title || '',
+    contact,
+    summary: s.summary ? s.summary.split(/\r?\n/).map((l) => l.trim()).filter(Boolean) : [],
+    experience: (s.experience || []).map((e) => ({
+      role: e.role || '',
+      company: e.company || '',
+      dates: e.dates || '',
+      bullets: (e.bullets || []).filter((b) => b.trim()),
+    })),
+    skills: (s.skills || []).filter((x) => x.trim()),
+  };
 }

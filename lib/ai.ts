@@ -233,12 +233,14 @@ Rules:
 - The "name", "title", "contact" fields use the candidate's real details (contact = email | linkedin | location).
 - "summary": array of 2-3 short paragraphs.
 - "experience": one entry per role with "role", "company", "dates" (exact range) and "bullets" (3-8 reworded, relevance-ordered; keep facts accurate).
+- "education": one entry per degree/school from the BASE RESUME with "school", "degree", "dates", "detail" (e.g. major/focus). Preserve every education entry; do NOT omit education even for technical roles. Use "" for any field the source lacks.
+- "certifications": array of {"name","issuer","year"} from the BASE RESUME. Use [] if none.
 - "skills": array of 4-8 concise lines, required tools first.
 - Keep every bullet concise so the output stays complete — do not truncate older roles to save space. It is far better to keep all companies with 1-2 bullets each than to drop a company.
 - All fields required.
 
 JSON schema:
-{"name":string,"title":string,"contact":string,"summary":string[],"experience":[{"role":string,"company":string,"dates":string,"bullets":string[]}],"skills":string[]}`;
+{"name":string,"title":string,"contact":string,"summary":string[],"experience":[{"role":string,"company":string,"dates":string,"bullets":string[]}],"education":[{"school":string,"degree":string,"dates":string,"detail":string}],"certifications":[{"name":string,"issuer":string,"year":string}],"skills":string[]}`;
 
 export const QUESTION_HELPER_SYSTEM = `Help a candidate answer application questions.
 Write in first person. Be specific and under 150 words. Use concrete examples drawn from the resume.

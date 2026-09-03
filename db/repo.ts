@@ -758,6 +758,9 @@ export const db = {
     return rows.map(mapScrapeRun);
   },
   // Keep only the newest saved/tailored job per company for a profile queue.
+  // IMPORTANT: never delete MANUAL jobs (board='manual', added by a worker by
+  // hand via POST /api/jobs). Only dedupe scraped jobs so an accidental purge on
+  // refill can't wipe hand-added postings — that wiped Erry's queue (26 -> 19).
   async dedupeQueueByCompany(profileId: string): Promise<number> {
     const res = await query(
       `delete from jobs where id in (
@@ -766,6 +769,7 @@ export const db = {
              partition by profile_id, lower(btrim(company)) order by created_at desc
            ) rn
            from jobs where profile_id = $1 and status in ('saved','tailored')
+             and board != 'manual'          -- NEVER delete manual jobs
          ) t where t.rn > 1
        )`,
       [profileId]

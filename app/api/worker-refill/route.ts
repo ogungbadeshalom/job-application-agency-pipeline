@@ -13,13 +13,21 @@ import type { Job, ProfilePreset, ScrapeResultJob } from '@/lib/types';
 //  - single-flight (only one refill scrape at a time across workers)
 //  - capped result size
 //  - 1 job per company enforced after insertion
-const RESULTS_WANTED = 80;
+const RESULTS_WANTED = 120;
+// Pull a full week (168h) of postings so a refill exposes jobs that slipped
+// past the dedupe window and isn't limited to the last 3 days only.
+const HOURS_OLD = 168;
 // Boards that actually produce US-remote jobs from this server. LinkedIn is
 // EXCLUDED here: its free/guest scrape returns no remote/onsite signal (city
 // locations only; descriptions blocked), so it yields ~0 strict-remote jobs and
 // wastes a worker refill. Lever/Indeed/RemoteOK/Remotive also excluded (dead/banned).
-const DEFAULT_SITES = ['greenhouse', 'builtin', 'jobicy'];
-const AVAILABLE_BOARDS = ['greenhouse', 'builtin', 'jobicy', 'workingnomads', 'ashby', 'dice'];
+// Expanded board set (was greenhouse/builtin/jobicy): adding ashby + workingnomads
+// + dice + hiringcafe gives workers far more supply so a refill isn't deduped to
+// a handful by the three-board default.
+const DEFAULT_SITES = ['greenhouse', 'builtin', 'jobicy', 'ashby', 'workingnomads', 'dice'];
+// Boards the worker may select. hiringcafe is heavy/headless (one launch per
+// batch) but yields unique aggregation too, so it's available on explicit pick.
+const AVAILABLE_BOARDS = ['greenhouse', 'builtin', 'jobicy', 'workingnomads', 'ashby', 'dice', 'hiringcafe'];
 
 // Single-flight: only one worker-refill scrape may run at a time across workers,
 // so two people sharing a profile (e.g. Erry) can't stack concurrent JobSpy
@@ -87,6 +95,32 @@ export async function POST(req: Request) {
       const presets: ProfilePreset[] = (profile.presets ?? []) as ProfilePreset[];
       const preset = presetId ? presets.find((p) => p.id === presetId) : undefined;
       const searchTerms = preset?.search_terms?.length ? preset.search_terms : profile.scrape_search_terms;
+      // Broaden the search set so consecutive refills aren't re-running the
+      // exact same queries (which just refind already-seen postings that the
+      // URL dedupe then drops). Each base term is expanded into nearby
+      // variants; the expanded list is the effective search space. This
+      // materially widens supply at no extra cost (one JobSpy call per term).
+      const EXPANSIONS: Record<string, string[]> = {
+        'software engineer': ['software engineer', 'full stack engineer', 'fullstack', 'backend engineer', 'platform engineer', 'software developer'],
+        'fullstack engineer': ['fullstack engineer', 'full stack engineer', 'software engineer', 'web developer', 'full stack developer'],
+        'software engineer react': ['software engineer react', 'frontend engineer', 'react developer'],
+        'backend engineer': ['backend engineer', 'back-end engineer', 'python backend', 'node.js developer'],
+        'backend engineer node': ['backend engineer node', 'node.js developer', 'typescript developer'],
+        'frontend engineer': ['frontend engineer', 'front-end engineer', 'react developer', 'typescript developer'],
+        'ai engineer': ['ai engineer', 'ai ml engineer', 'machine learning engineer', 'llm engineer', 'ai platform engineer'],
+        'ml engineer': ['ml engineer', 'machine learning engineer', 'mlops engineer', 'ai engineer'],
+        'full stack engineer python': ['full stack engineer python', 'python developer', 'django developer'],
+      };
+      const expandedTerms = new Set<string>();
+      // Deterministic rotation window: widen the dedupe-blind spot by running
+      // variants; also cap total terms to keep each run bounded.
+      for (const t of Array.from(new Set(searchTerms.filter(Boolean)))) {
+        const variants = EXPANSIONS[(t || '').toLowerCase()] ?? [t];
+        variants.forEach((v) => expandedTerms.add(v));
+        // Always also keep the exact term so exact-match supply isn't lost.
+        expandedTerms.add(t);
+      }
+      const termsForScrape = Array.from(expandedTerms).filter(Boolean).slice(0, 24);
       // Boards: worker-selected (if they picked any) > preset > profile default >
       // fallback board list. EVERY source is filtered through AVAILABLE_BOARDS so
       // dead/banned boards (lever/indeed/remotive/remoteok) can never be scraped.
@@ -102,9 +136,9 @@ export async function POST(req: Request) {
       if (!sites.length) sites.push(...DEFAULT_SITES);
       const resultsWanted = Math.min(preset?.results_wanted || RESULTS_WANTED, 150);
       const location = preset?.location || 'Remote';
-      const hoursOld = 72;
+      const hoursOld = HOURS_OLD;
 
-      if (!searchTerms?.length) {
+      if (!termsForScrape?.length) {
         return NextResponse.json({ error: 'This profile has no search terms configured yet.' }, { status: 400 });
       }
 
@@ -112,7 +146,7 @@ export async function POST(req: Request) {
         triggered_by: session.user.id,
         profile_ids: [profileId],
         sites: sites || [],
-        search_terms: searchTerms,
+        search_terms: termsForScrape,
         location,
         results_wanted: resultsWanted,
         hours_old: hoursOld,
@@ -121,7 +155,7 @@ export async function POST(req: Request) {
       });
 
       try {
-        const terms = Array.from(new Set(searchTerms.filter(Boolean)));
+        const terms = Array.from(new Set(termsForScrape.filter(Boolean)));
         if (!terms.length) throw new Error('No search terms provided.');
 
         // Seed the live progress record so the UI can poll it the moment the
@@ -158,8 +192,14 @@ export async function POST(req: Request) {
         const fresh = await dedupeAndMap(matched, profileId, run.id);
         let added = 0;
         if (fresh.length) {
-          await db.createJobs(fresh as Job[]);
-          added = fresh.length;
+          // Bound a single refill so an expanded multi-term scrape can't flood
+          // the queue past what the worker can realistically process in a
+          // session. 30/day keeps volume useful without overwhelming the queue
+          // (the old 3-board/3-day default rarely even reached ~20).
+          const cap = 30;
+          const batch = fresh.slice(0, cap);
+          await db.createJobs(batch as Job[]);
+          added = batch.length;
         }
 
         // Enforce 1 job per company in this profile's queue.

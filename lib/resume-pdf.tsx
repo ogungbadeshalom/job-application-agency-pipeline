@@ -40,6 +40,10 @@ export interface ResumeData {
     year: string;
   }[];
   skills: string[];
+  technicalSkills?: {
+    category: string;
+    items: string;
+  }[];
 }
 
 // Each preset = an accent color + heading treatment + spacing feel.
@@ -181,6 +185,18 @@ function ResumeDoc({ d, preset }: { d: ResumeData; preset: ResumePreset }) {
           <Text key={i} style={styles.summary}>{p}</Text>
         ))}
 
+        {(d.technicalSkills && d.technicalSkills.length > 0) && (
+          <>
+            <Text style={styles.sectionT}>Technical Skills</Text>
+            {(d.technicalSkills || []).map((g, gi) => (
+              <Text key={gi} style={styles.summary}>
+                <Text style={{ fontWeight: 'bold' }}>{g.category}: </Text>
+                {g.items}
+              </Text>
+            ))}
+          </>
+        )}
+
         <Text style={styles.sectionT}>Experience</Text>
         {(d.experience || []).map((e, ei) => (
           <View key={ei} style={styles.expBlock}>
@@ -231,14 +247,6 @@ function ResumeDoc({ d, preset }: { d: ResumeData; preset: ResumePreset }) {
             ))}
           </>
         )}
-
-        <Text style={styles.sectionT}>Skills</Text>
-        {(d.skills || []).map((s, i) => (
-          <View key={i} style={styles.skillRow}>
-            <Text style={styles.skillDot}>{'\u2022'}</Text>
-            <Text style={styles.skills}>{s}</Text>
-          </View>
-        ))}
       </Page>
     </Document>
   );
@@ -279,5 +287,6 @@ export function structuredToResumeData(s: StructuredResume): ResumeData {
       year: c.year || '',
     })),
     skills: (s.skills || []).filter((x) => x.trim()),
+    technicalSkills: (s.technicalSkills || []).map((g) => ({ category: g.category || '', items: g.items || '' })),
   };
 }

@@ -57,6 +57,7 @@ function buildPreviewFromText(name: string, text: string): StructuredResume {
     education: [],
     certifications: [],
     skills: skills.length ? skills : ['SQL', 'Python', 'Cloud', 'Data Pipelines', 'Collaboration'],
+    technicalSkills: [],
   };
 }
 
@@ -412,6 +413,14 @@ export default function ResumeLabClient({
                     {data.summary && <Section style={style} title="Summary" />}
                     {data.summary && <div style={{ fontSize: 10, marginBottom: 7, lineHeight: 1.4 }}>{data.summary}</div>}
 
+                    {data.technicalSkills.length > 0 && <Section style={style} title="Technical Skills" />}
+                    {data.technicalSkills.map((g, gi) => (
+                      <div key={gi} style={{ fontSize: 9.6, marginBottom: 5, lineHeight: 1.35 }}>
+                        <span style={{ fontWeight: 700 }}>{g.category}: </span>
+                        <span>{g.items}</span>
+                      </div>
+                    ))}
+
                     {data.experience.length > 0 && <Section style={style} title="Experience" />}
                     {data.experience.map((e, i) => (
                       <div key={i} style={{ marginBottom: 14 }}>
@@ -446,15 +455,6 @@ export default function ResumeLabClient({
                         {c.name}{c.issuer && <span> — {c.issuer}</span>}{c.year && <span style={{ color: style.muted }}> · {c.year}</span>}
                       </div>
                     ))}
-
-                    {data.skills && data.skills.length > 0 && <Section style={style} title="Skills" />}
-                    <div style={{ paddingLeft: 11 }}>
-                      {data.skills.filter((s) => s.trim()).map((s, i) => (
-                        <div key={i} style={{ fontSize: 9.6, marginBottom: 3 }}>
-                          <span style={{ position: 'absolute', marginLeft: -11 }}>•</span> {s}
-                        </div>
-                      ))}
-                    </div>
                   </div>
                 </div>
               </div>

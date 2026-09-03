@@ -74,6 +74,12 @@ export interface ResumeCertificationItem {
   year: string;
 }
 
+// Grouped skill categories rendered as a TECHNICAL SKILLS section before Experience.
+export interface ResumeTechnicalSkillGroup {
+  category: string;
+  items: string;
+}
+
 export interface StructuredResume {
   contact: ResumeContact;
   summary: string;
@@ -81,6 +87,7 @@ export interface StructuredResume {
   education: ResumeEducationItem[];
   certifications: ResumeCertificationItem[];
   skills: string[];
+  technicalSkills: ResumeTechnicalSkillGroup[];
 }
 
 export const EMPTY_STRUCTURED_RESUME: StructuredResume = {
@@ -90,4 +97,5 @@ export const EMPTY_STRUCTURED_RESUME: StructuredResume = {
   education: [],
   certifications: [],
   skills: [],
+  technicalSkills: [],
 };

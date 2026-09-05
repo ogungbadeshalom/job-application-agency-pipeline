@@ -153,6 +153,15 @@ await check('worker can get a specific tailor-eligible job', async () => {
   const { res } = await api(`/api/jobs/${row.id}`);
   assert(res.status === 200, `status ${res.status}`);
 });
+await check('DATA: every saved job has a clickable URL (no linkless rows)', async () => {
+  const { res, text } = await api('/api/jobs?limit=500');
+  assert(res.status === 200, `status ${res.status}`);
+  const d = JSON.parse(text);
+  const saved = (d.jobs || []).filter((j) => j.status === 'saved');
+  if (saved.length === 0) { console.log('  (no saved jobs — skipping, non-fatal)'); return; }
+  const bad = saved.filter((j) => !j.url || !String(j.url).startsWith('http'));
+  assert(bad.length === 0, `${bad.length} saved job(s) without clickable URLs (e.g. "${bad[0]?.title?.slice(0, 40)}" board=${bad[0]?.board})`);
+});
 
 // Resume generator (the exact thing that broke) — worker-tailor on a real saved job
 await check('RESUME: worker Tailor returns text + PDF (POST /api/tailor)', async () => {

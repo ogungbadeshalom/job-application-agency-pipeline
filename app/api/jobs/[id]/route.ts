@@ -73,6 +73,25 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     patch.submitted_at = new Date().toISOString();
   }
 
+  // Apply-time duplicate guard: refuse to mark applied if this posting (same
+  // normalized URL OR same company+title) is already applied for the profile.
+  // Prevents double-submitting to one employer when near-duplicate queue rows
+  // exist. Only fires on the saved->applied transition (re-patching notes on an
+  // already-applied row has patch.status undefined here and is unaffected).
+  if (patch.status === ('applied' as JobStatus) && job!.status !== 'applied') {
+    const dup = await db.hasAppliedDuplicate(job!.profile_id, {
+      url: job!.url,
+      company: job!.company,
+      title: job!.title,
+    });
+    if (dup) {
+      return NextResponse.json(
+        { error: 'This job (or a duplicate of it) is already marked as applied. Skip it instead.' },
+        { status: 409 }
+      );
+    }
+  }
+
   const updated = await db.updateJob(params.id, patch);
   return NextResponse.json({ job: updated });
 }

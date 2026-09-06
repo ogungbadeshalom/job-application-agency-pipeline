@@ -744,13 +744,65 @@ export const db = {
     }
     return created;
   },
-  async dedupeJobsByURL(profileId: string, incoming: { url: string }[]): Promise<boolean[]> {
+  async dedupeJobsByURL(profileId: string, incoming: { url: string; company?: string | null; title?: string | null }[]): Promise<boolean[]> {
     const existing = new Set(
       (await all('select url from jobs where profile_id = $1 and url is not null', [profileId])).map(
         (r) => normalizeJobURL(r.url as string)
       )
     );
-    return incoming.map((j) => !existing.has(normalizeJobURL(j.url)));
+    // Also treat as duplicate if a company+title variant is already APPLIED for
+    // this profile (prevents re-scraping/re-applying to the same posting that
+    // arrived under a different URL). Only applied matters — saved/tailored rows
+    // are legitimately distinct queue entries.
+    const appliedPairs = new Set(
+      (
+        await all(
+          `select company, title from jobs
+           where profile_id = $1 and status = 'applied'`,
+          [profileId]
+        )
+      ).map((r) => `${String(r.company || '').trim().toLowerCase()}||${String(r.title || '').trim().toLowerCase()}`)
+    );
+    return incoming.map((j) => {
+      if (existing.has(normalizeJobURL(j.url))) return false;
+      const pair = `${String(j.company || '').trim().toLowerCase()}||${String(j.title || '').trim().toLowerCase()}`;
+      return !appliedPairs.has(pair);
+    });
+  },
+
+  // Apply-time duplicate guard: true if this job is already applied for the
+  // profile (same normalized URL OR same company+title, case-insensitive).
+  // Prevents a worker double-submitting to one posting when near-duplicate rows
+  // exist in the queue.
+  async hasAppliedDuplicate(
+    profileId: string,
+    job: { url?: string | null; company?: string | null; title?: string | null }
+  ): Promise<boolean> {
+    if (!profileId || !job) return false;
+    // Same posting via normalized URL (catches exact + tracking-variant URLs).
+    if (job.url && String(job.url).trim() !== '') {
+      const norm = normalizeJobURL(String(job.url));
+      if (norm !== EMPTY_URL) {
+        const appliedUrls = await all<{ url: string }>(
+          `select url from jobs where profile_id = $1 and status = 'applied' and url is not null`,
+          [profileId]
+        );
+        if (appliedUrls.some((r) => normalizeJobURL(r.url as string) === norm)) return true;
+      }
+    }
+    // Same company + same title (case-insensitive) — catches URL variants that
+    // normalize differently but are the same posting.
+    if (job.company && job.title) {
+      const hit = await one<{ n: string }>(
+        `select count(*)::text n from jobs
+         where profile_id = $1 and status = 'applied'
+           and lower(coalesce(company,'')) = lower($2)
+           and lower(coalesce(title,'')) = lower($3)`,
+        [profileId, String(job.company).trim(), String(job.title).trim()]
+      );
+      if (hit && Number(hit.n) > 0) return true;
+    }
+    return false;
   },
 
   // scrape runs

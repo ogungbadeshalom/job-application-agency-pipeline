@@ -30,7 +30,7 @@ export async function dedupeAndMap(
 ): Promise<Job[]> {
   const mask = await db.dedupeJobsByURL(
     profileId,
-    raw.map((r) => ({ url: r.job_url }))
+    raw.map((r) => ({ url: r.job_url, company: r.company, title: r.title }))
   );
   const fresh = raw.filter((_, i) => mask[i]);
   const seenThisBatch = new Set<string>();

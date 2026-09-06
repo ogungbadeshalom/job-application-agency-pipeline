@@ -162,6 +162,22 @@ await check('DATA: every saved job has a clickable URL (no linkless rows)', asyn
   const bad = saved.filter((j) => !j.url || !String(j.url).startsWith('http'));
   assert(bad.length === 0, `${bad.length} saved job(s) without clickable URLs (e.g. "${bad[0]?.title?.slice(0, 40)}" board=${bad[0]?.board})`);
 });
+await check('DATA: no duplicate APPLIED postings (same company+title)', async () => {
+  const { res, text } = await api('/api/jobs?limit=500');
+  assert(res.status === 200, `status ${res.status}`);
+  const d = JSON.parse(text);
+  const applied = (d.jobs || []).filter((j) => j.status === 'applied');
+  if (applied.length === 0) { console.log('  (no applied jobs — skipping, non-fatal)'); return; }
+  const seen = new Set();
+  const dups = applied.filter((j) => {
+    const k = `${String(j.company || '').trim().toLowerCase()}||${String(j.title || '').trim().toLowerCase()}`;
+    if (!j.company || !j.title) return false;
+    if (seen.has(k)) return true;
+    seen.add(k);
+    return false;
+  });
+  assert(dups.length === 0, `${dups.length} duplicate applied posting(s) (e.g. "${dups[0]?.title?.slice(0, 40)}" at ${dups[0]?.company})`);
+});
 
 // Resume generator (the exact thing that broke) — worker-tailor on a real saved job
 await check('RESUME: worker Tailor returns text + PDF (POST /api/tailor)', async () => {

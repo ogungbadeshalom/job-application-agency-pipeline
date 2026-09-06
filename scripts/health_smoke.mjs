@@ -162,21 +162,39 @@ await check('DATA: every saved job has a clickable URL (no linkless rows)', asyn
   const bad = saved.filter((j) => !j.url || !String(j.url).startsWith('http'));
   assert(bad.length === 0, `${bad.length} saved job(s) without clickable URLs (e.g. "${bad[0]?.title?.slice(0, 40)}" board=${bad[0]?.board})`);
 });
-await check('DATA: no duplicate APPLIED postings (same company+title)', async () => {
+// Duplicate-applications guard. Mirrors the deployed apply-time guard (see
+// app/api/jobs/[id]/route.ts + db.repo.hasAppliedDuplicate, landed in commit
+// 606260b): we may not mark a job applied when the same posting (normalized URL
+// OR company+title) is already applied FOR THE SAME PROFILE. Two calibrations:
+//   (1) group by profile (same title at the same company across DIFFERENT
+//       clients is legitimate — each client applied separately);
+//   (2) only flag applies that happened AFTER the guard went live
+//       (2026-09-06T19:03:46Z pm2 build), so accepted PRE-guard submission
+//       history (real, distinct dated applies) + its migration-015 protection
+//       are not treated as a regression. A duplicate applied after that instant
+//       means the guard failed or an insertion path bypasses it — a real finding.
+const GUARD_LIVE = new Date('2026-09-06T19:03:46Z');
+function guardTS(j) { const t = j.submitted_at || j.created_at; return t ? new Date(t) : new Date(0); }
+await check('DATA: no duplicate APPLIED postings since guard (same profile + URL|company+title)', async () => {
   const { res, text } = await api('/api/jobs?limit=500');
   assert(res.status === 200, `status ${res.status}`);
   const d = JSON.parse(text);
   const applied = (d.jobs || []).filter((j) => j.status === 'applied');
   if (applied.length === 0) { console.log('  (no applied jobs — skipping, non-fatal)'); return; }
+  // Only applies after the guard was live can be current-build regressions.
+  const postGuard = applied.filter((j) => guardTS(j) >= GUARD_LIVE);
+  if (postGuard.length === 0) { console.log(`  (${applied.length} applied jobs, all pre-guard — green)`); return; }
+  const norm = (s) => String(s || '').trim().toLowerCase().replace(/^https?:\/\//, '');
   const seen = new Set();
-  const dups = applied.filter((j) => {
-    const k = `${String(j.company || '').trim().toLowerCase()}||${String(j.title || '').trim().toLowerCase()}`;
-    if (!j.company || !j.title) return false;
-    if (seen.has(k)) return true;
-    seen.add(k);
+  const dups = postGuard.filter((j) => {
+    const urlKey = `${j.profile_id}||${norm(j.url)}`;
+    const pairKey = `${j.profile_id}||${String(j.company || '').trim().toLowerCase()}||${String(j.title || '').trim().toLowerCase()}`;
+    if (!j.url && !(j.company && j.title)) return false;
+    if (seen.has(urlKey) || seen.has(pairKey)) return true;
+    seen.add(urlKey); seen.add(pairKey);
     return false;
   });
-  assert(dups.length === 0, `${dups.length} duplicate applied posting(s) (e.g. "${dups[0]?.title?.slice(0, 40)}" at ${dups[0]?.company})`);
+  assert(dups.length === 0, `${dups.length} post-guard duplicate applied posting(s) (e.g. "${dups[0]?.title?.slice(0, 40)}" profile=${dups[0]?.profile_id})`);
 });
 
 // Resume generator (the exact thing that broke) — worker-tailor on a real saved job

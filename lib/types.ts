@@ -46,6 +46,7 @@ export interface Profile {
   scrape_hours_old: number;
   presets: ProfilePreset[];
   jobs_per_week: number;
+  allow_resume_download: boolean;
   deleted_at: string | null;
   created_at: string;
   updated_at: string;

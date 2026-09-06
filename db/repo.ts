@@ -71,6 +71,7 @@ function mapProfile(r: Record<string, unknown>): Profile {
     scrape_hours_old: r.scrape_hours_old as number,
     presets: (r.presets as unknown as ProfilePreset[]) ?? [],
     jobs_per_week: r.jobs_per_week as number ?? 20,
+    allow_resume_download: (r.allow_resume_download as boolean) ?? true,
     deleted_at: r.deleted_at ? (r.deleted_at as Date).toISOString() : null,
     created_at: (r.created_at as Date).toISOString(),
     updated_at: (r.updated_at as Date).toISOString(),

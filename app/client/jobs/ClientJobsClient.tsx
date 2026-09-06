@@ -19,6 +19,10 @@ export default function ClientJobsClient({
 }) {
   const [selected, setSelected] = useState<Job | null>(null);
 
+  // If the client's profile has allow_resume_download = false, hide the PDF
+  // download button (the /api/pdf endpoint is also gated server-side).
+  const canDownload = (profiles[0]?.allow_resume_download ?? true) !== false;
+
   const nav = [
     { href: '/client/jobs', label: 'My Applications', badge: jobs.length },
     { href: '/client/resume-lab', label: 'Resume Lab' },
@@ -123,12 +127,14 @@ export default function ClientJobsClient({
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-semibold text-navy-200">Tailored Resume</h3>
-                  <button
-                    onClick={() => downloadPdf(selected)}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md bg-navy-800 text-navy-200 hover:bg-navy-750"
-                  >
-                    <Download size={13} /> PDF
-                  </button>
+                  {canDownload && (
+                    <button
+                      onClick={() => downloadPdf(selected)}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md bg-navy-800 text-navy-200 hover:bg-navy-750"
+                    >
+                      <Download size={13} /> PDF
+                    </button>
+                  )}
                 </div>
                 <pre className="text-xs text-navy-300 whitespace-pre-wrap font-mono bg-navy-950 border border-navy-800 rounded-md p-3 max-h-72 overflow-y-auto">
                   {selected.tailored_resume}

@@ -433,7 +433,7 @@ export default function QueueClient({
             {actionError}
           </div>
         )}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div data-onboard="queue-header" className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-xl font-semibold text-pretty text-navy-100">My Queue</h1>
           {/* Client switcher — shown only when this worker handles >1 client */}
           {(clientProfiles ?? []).length > 1 && (
@@ -463,7 +463,7 @@ export default function QueueClient({
               when the worker has exactly ONE client (defaults to 'all' but the
               refill is against that single client, so show it). */}
           {(clientId !== 'all' || (clientProfiles ?? []).length === 1) && (
-            <div className="flex flex-col items-stretch sm:items-end gap-1.5 w-full sm:w-auto">
+            <div data-onboard="refill" className="flex flex-col items-stretch sm:items-end gap-1.5 w-full sm:w-auto">
               <div className="flex flex-wrap items-center gap-2">
                 <label className="text-xs text-navy-500">Preset</label>
                 <select
@@ -604,7 +604,7 @@ export default function QueueClient({
           </div>
         )}
         {/* Internal queue tabs: Working (excludes applied) vs Applied */}
-        <div className="mt-2 flex items-center gap-1">
+        <div data-onboard="queue-tabs" className="mt-2 flex items-center gap-1">
           {(
             [
               { id: 'working' as const, label: 'Working' },
@@ -648,7 +648,7 @@ export default function QueueClient({
       </div>
 
       {/* Weekly quota banner — reflects the selected client (or all) */}
-      <div className="panel p-4 mb-4 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+      <div data-onboard="stats" className="panel p-4 mb-4 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <div>
           <div className="th-uppercase">
             Applied this week
@@ -719,6 +719,7 @@ export default function QueueClient({
 
       <ContinueBanner jobs={tabJobs} onJump={requestJump} />
 
+      <div data-onboard="queue-table">
       <JobTable
         jobs={tabJobs}
         profiles={profiles}
@@ -727,6 +728,7 @@ export default function QueueClient({
         gotoJobId={pendingJump?.id}
         gotoJobNonce={pendingJump?.n ?? 0}
       />
+      </div>
 
       {/* Manual "Add Job" modal — worker pastes a posting link they found
           themselves; it enters the queue as `saved` (Working tab). */}

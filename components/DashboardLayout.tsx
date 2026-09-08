@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 import { Logout, Menu, Close } from './Icon';
+import OnboardingTour from './OnboardingTour';
 import type { Role } from '@/lib/types';
 import { APP_VERSION } from '@/lib/version';
 
@@ -82,6 +83,13 @@ export default function DashboardLayout({
         );
       })}
       <div className="pt-2 mt-2 border-t border-navy-800">
+        <button
+          onClick={() => window.dispatchEvent(new Event('jobbidder:open-onboarding'))}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-navy-300 hover:text-white hover:bg-brand-green/5 border-l-2 border-transparent text-left"
+        >
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-navy-800 text-[11px] font-bold text-brand-green ring-1 ring-navy-600">?</span>
+          <span className="w-full truncate leading-snug">How it works</span>
+        </button>
         <Link
           href="/settings"
           onClick={onNavigate}
@@ -150,6 +158,14 @@ export default function DashboardLayout({
           <Logo onNavigate={() => setMenuOpen(false)} />
           <div className="flex items-center gap-1.5">
             <button
+              onClick={() => window.dispatchEvent(new Event('jobbidder:open-onboarding'))}
+              title="How it works"
+              aria-label="How it works"
+              className="p-2 rounded-md text-navy-400 hover:text-navy-100 hover:bg-navy-800"
+            >
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-navy-800 text-[11px] font-bold text-brand-green ring-1 ring-navy-600">?</span>
+            </button>
+            <button
               onClick={logout}
               title="Sign out"
               aria-label="Sign out"
@@ -209,6 +225,7 @@ export default function DashboardLayout({
         {children}
       </main>
       </div>
+      <OnboardingTour role={user.role} />
     </div>
   );
 }

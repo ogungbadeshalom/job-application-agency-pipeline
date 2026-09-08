@@ -750,15 +750,15 @@ export const db = {
         (r) => normalizeJobURL(r.url as string)
       )
     );
-    // Also treat as duplicate if a company+title variant is already APPLIED for
-    // this profile (prevents re-scraping/re-applying to the same posting that
-    // arrived under a different URL). Only applied matters — saved/tailored rows
-    // are legitimately distinct queue entries.
-    const appliedPairs = new Set(
+    // Also treat as duplicate if a company+title variant already exists for this
+    // profile in ANY status — no duplicate job ENTRIES at all (per requester:
+    // not just applied; same posting arriving under a different URL, or re-scraped
+    // later, must not create a second queue entry).
+    const existingPairs = new Set(
       (
         await all(
           `select company, title from jobs
-           where profile_id = $1 and status = 'applied'`,
+           where profile_id = $1`,
           [profileId]
         )
       ).map((r) => `${String(r.company || '').trim().toLowerCase()}||${String(r.title || '').trim().toLowerCase()}`)
@@ -766,7 +766,8 @@ export const db = {
     return incoming.map((j) => {
       if (existing.has(normalizeJobURL(j.url))) return false;
       const pair = `${String(j.company || '').trim().toLowerCase()}||${String(j.title || '').trim().toLowerCase()}`;
-      return !appliedPairs.has(pair);
+      if (!j.company || !j.title) return true; // no name pair -> not dedupable by name
+      return !existingPairs.has(pair);
     });
   },
 

@@ -65,7 +65,7 @@ async function main() {
   );
   const scrapeRunId = runRow.rows[0].id;
 
-  const fresh = await dedupeAndMap(pool as any, PROFILE_ID, scrapeRunId);
+  const { fresh } = await dedupeAndMap(pool as any, PROFILE_ID, scrapeRunId);
   console.log(`new (non-duplicate): ${fresh.length}`);
   let added = 0;
   if (fresh.length) {

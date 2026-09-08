@@ -148,14 +148,19 @@ export async function POST(req: Request) {
 
     // Dedupe + insert per profile, gated by each profile's resume role-fit.
     let totalAdded = 0;
+    let totalDupSkipped = 0;
+    let totalRoleFiltered = 0;
     for (const profile of targetProfiles) {
       let pool = allRaw;
       // AI role-fit gate: only keep jobs matching this client's resume so
       // off-target roles (Director/PM/Sales/Compliance/adjacent) never enter.
       if (profile.base_resume_text) {
+        const before = pool.length;
         pool = await filterJobsByResume(allRaw, profile.base_resume_text);
+        totalRoleFiltered += before - pool.length;
       }
-      const fresh = await dedupeAndMap(pool, profile.id, run.id);
+      const { fresh, skippedDuplicates } = await dedupeAndMap(pool, profile.id, run.id);
+      totalDupSkipped += skippedDuplicates;
       if (fresh.length) {
         await db.createJobs(fresh as Job[]);
         totalAdded += fresh.length;
@@ -169,10 +174,20 @@ export async function POST(req: Request) {
       completed_at: new Date().toISOString(),
     });
 
+    const duplicateNotes =
+      totalDupSkipped > 0
+        ? `${totalDupSkipped} already in the queue (skipped, duplicates prevented).`
+        : '';
+    const roleNotes =
+      totalRoleFiltered > 0 ? `${totalRoleFiltered} didn't match the resume/role fit.` : '';
     return NextResponse.json({
       scrape_run_id: run.id,
       jobs_found: allRaw.length,
       jobs_added: totalAdded,
+      skipped_duplicates: totalDupSkipped,
+      message: [totalAdded ? `Added ${totalAdded} new job${totalAdded === 1 ? '' : 's'}.` : 'No new jobs added.', duplicateNotes, roleNotes]
+        .filter(Boolean)
+        .join(' '),
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

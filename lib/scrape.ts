@@ -27,12 +27,13 @@ export async function dedupeAndMap(
   raw: ScrapeResultJob[],
   profileId: string,
   scrapeRunId: string
-): Promise<Job[]> {
+): Promise<{ fresh: Job[]; skippedDuplicates: number }> {
   const mask = await db.dedupeJobsByURL(
     profileId,
     raw.map((r) => ({ url: r.job_url, company: r.company, title: r.title }))
   );
   const fresh = raw.filter((_, i) => mask[i]);
+  const skippedDuplicates = raw.length - fresh.length;
   const seenThisBatch = new Set<string>();
   const deduped = fresh.filter((r) => {
     const u = String(r.job_url ?? '').trim();
@@ -42,7 +43,9 @@ export async function dedupeAndMap(
     return true;
   });
   const now = new Date().toISOString();
-  return deduped.map((r) => ({
+  return {
+    skippedDuplicates: skippedDuplicates + (fresh.length - deduped.length),
+    fresh: deduped.map((r) => ({
     id: '',
     profile_id: profileId,
     title: r.title || 'Untitled',
@@ -66,7 +69,8 @@ export async function dedupeAndMap(
     created_at: now,
     updated_at: now,
     last_viewed_at: null,
-  }));
+  })),
+  };
 }
 
 export interface ScrapeRunProgress {

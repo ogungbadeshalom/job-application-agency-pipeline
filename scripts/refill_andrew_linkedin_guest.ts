@@ -53,7 +53,7 @@ async function main() {
   );
   const runId = run.rows[0].id;
 
-  const fresh = await dedupeAndMap(mapped as any, PROFILE_ID, runId);
+  const { fresh } = await dedupeAndMap(mapped as any, PROFILE_ID, runId);
   let added = 0;
   if (fresh.length > 0) {
     const created = await db.createJobs(fresh as any);

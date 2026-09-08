@@ -142,7 +142,7 @@ async function main() {
   );
   const scrapeRunId = runRow.rows[0].id;
 
-  const fresh = await dedupeAndMap(pool, PROFILE_ID, scrapeRunId);
+  const { fresh } = await dedupeAndMap(pool, PROFILE_ID, scrapeRunId);
   for (const j of fresh) { j.verified_remote = true; j.easy_apply = false; }
   let added = 0;
   if (fresh.length > 0) { const created = await db.createJobs(fresh as any); added = created.length; }

@@ -189,8 +189,9 @@ export async function POST(req: Request) {
           matched = await filterJobsByResume(allRaw, profile.base_resume_text);
         }
 
-        const fresh = await dedupeAndMap(matched, profileId, run.id);
+        const { fresh, skippedDuplicates } = await dedupeAndMap(matched, profileId, run.id);
         let added = 0;
+        let duplicateSkipped = skippedDuplicates;
         if (fresh.length) {
           // Bound a single refill so an expanded multi-term scrape can't flood
           // the queue past what the worker can realistically process in a
@@ -200,6 +201,7 @@ export async function POST(req: Request) {
           const batch = fresh.slice(0, cap);
           await db.createJobs(batch as Job[]);
           added = batch.length;
+          duplicateSkipped += fresh.length - batch.length;
         }
 
         // Enforce 1 job per company in this profile's queue.
@@ -219,7 +221,9 @@ export async function POST(req: Request) {
           scrape_run_id: run.id,
           jobs_found: allRaw.length,
           jobs_added: added,
+          skipped_duplicates: duplicateSkipped,
           deduped_by_company: deduped,
+          message: [added ? `Added ${added} job${added === 1 ? '' : 's'}.` : 'No new jobs added.', duplicateSkipped ? `${duplicateSkipped} duplicates skipped (already in queue).` : '', deduped ? `${deduped} duplicate-by-company removed.` : ''].filter(Boolean).join(' '),
         });
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);

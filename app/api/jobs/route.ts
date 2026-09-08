@@ -49,12 +49,32 @@ export async function POST(req: Request) {
   // Auto-fetch title/company/description from the posted link (best-effort).
   const meta = await fetchPageMeta(url);
 
+  const title = (typeof body.title === 'string' && body.title.trim() ? body.title.trim() : meta.title) || 'Untitled';
+  const company = (typeof body.company === 'string' && body.company.trim() ? body.company.trim() : meta.company) || '';
+
+  // Second-pass duplicate check: now that we know company+title, reject if this
+  // posting already exists in the queue under a different URL (same company+title).
+  if (company && title) {
+    const existing = await db.listJobs({ profile_id: profileId, status: ['saved', 'tailored', 'applied', 'skipped'] });
+    const alreadyExists = existing.some(
+      (j) =>
+        String(j.company || '').trim().toLowerCase() === company.trim().toLowerCase() &&
+        String(j.title || '').trim().toLowerCase() === title.trim().toLowerCase()
+    );
+    if (alreadyExists) {
+      return NextResponse.json(
+        { error: `That job already exists in this client's queue: "${company} — ${title}" (added manually or via a prior scrape).` },
+        { status: 409 }
+      );
+    }
+  }
+
   const [job] = await db.createJobs([
     {
       id: '',
       profile_id: profileId,
-      title: (typeof body.title === 'string' && body.title.trim() ? body.title.trim() : meta.title) || 'Untitled',
-      company: (typeof body.company === 'string' && body.company.trim() ? body.company.trim() : meta.company) || '',
+      title,
+      company,
       board: 'manual',
       url,
       description: (typeof body.description === 'string' && body.description.trim()

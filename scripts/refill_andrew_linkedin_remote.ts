@@ -191,7 +191,7 @@ async function main() {
   );
   const scrapeRunId = runRow.rows[0].id;
 
-  const fresh = await dedupeAndMap(pool, PROFILE_ID, scrapeRunId);
+  const { fresh } = await dedupeAndMap(pool, PROFILE_ID, scrapeRunId);
   // These came from the Agent-Reach pipeline: LinkedIn work_type=remote AND the
   // real description was fetched + re-checked — so mark them verified_remote so
   // workers can trust they qualify without re-checking. easy_apply is false here

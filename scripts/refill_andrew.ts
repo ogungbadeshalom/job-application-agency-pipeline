@@ -98,7 +98,7 @@ async function main() {
   const scrapeRunId = runRow.rows[0].id;
 
   // 5. Dedupe against existing jobs by URL + insert.
-  const fresh = await dedupeAndMap(pool, PROFILE_ID, scrapeRunId);
+  const { fresh } = await dedupeAndMap(pool, PROFILE_ID, scrapeRunId);
   console.log(`new (non-duplicate) jobs: ${fresh.length}`);
 
   let added = 0;

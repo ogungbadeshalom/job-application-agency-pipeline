@@ -63,14 +63,14 @@ export default function ClientJobsClient({
 
   return (
     <DashboardLayout user={user} nav={nav} active="/client/jobs">
-      <div className="mb-4">
+      <div data-onboard="client-header" className="mb-4">
         <h1 className="text-xl font-semibold text-navy-100">My Jobs</h1>
         <p className="text-sm text-navy-400">
           Jobs tailored and applied to on your behalf. Read-only.
         </p>
       </div>
 
-      <div className="panel p-4 mb-4 flex items-center gap-4">
+      <div data-onboard="client-count" className="panel p-4 mb-4 flex items-center gap-4">
         <div className="text-4xl font-bold text-brand-green">{jobs.length}</div>
         <div>
           <div className="font-semibold text-navy-100">jobs for you</div>
@@ -78,6 +78,7 @@ export default function ClientJobsClient({
         </div>
       </div>
 
+      <div data-onboard="client-table">
       <JobTable
         jobs={jobs}
         profiles={profiles}
@@ -85,6 +86,7 @@ export default function ClientJobsClient({
         onQuickAction={() => {}}
         onRowClick={setSelected}
       />
+      </div>
 
       <Modal
         open={!!selected}

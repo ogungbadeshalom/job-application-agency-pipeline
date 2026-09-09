@@ -188,10 +188,16 @@ await check('DATA: no duplicate APPLIED postings since guard (same profile + URL
   const seen = new Set();
   const dups = postGuard.filter((j) => {
     const urlKey = `${j.profile_id}||${norm(j.url)}`;
-    const pairKey = `${j.profile_id}||${String(j.company || '').trim().toLowerCase()}||${String(j.title || '').trim().toLowerCase()}`;
-    if (!j.url && !(j.company && j.title)) return false;
-    if (seen.has(urlKey) || seen.has(pairKey)) return true;
-    seen.add(urlKey); seen.add(pairKey);
+    // Mirror db.hasAppliedDuplicate: company+title pair-key dedup applies ONLY
+    // when BOTH are truthy (repo.ts guards `if (job.company && job.title)`).
+    // Manual postings with an empty company but placeholder title "Untitled" are
+    // distinct postings (different URLs/companies) — collapsing them on the pair
+    // key is a false positive.
+    const hasPair = Boolean(j.company && j.title);
+    const pairKey = hasPair ? `${j.profile_id}||${String(j.company).trim().toLowerCase()}||${String(j.title).trim().toLowerCase()}` : null;
+    if (!j.url && !hasPair) return false;
+    if (seen.has(urlKey) || (pairKey && seen.has(pairKey))) return true;
+    seen.add(urlKey); if (pairKey) seen.add(pairKey);
     return false;
   });
   assert(dups.length === 0, `${dups.length} post-guard duplicate applied posting(s) (e.g. "${dups[0]?.title?.slice(0, 40)}" profile=${dups[0]?.profile_id})`);

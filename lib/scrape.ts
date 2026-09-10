@@ -79,6 +79,9 @@ export interface ScrapeRunProgress {
   current: string;           // human-readable current step, e.g. "BuiltIn — data engineer"
   jobsFound: number;         // cumulative jobs found so far
   done: boolean;
+  // Per-step breakdown so a UI can show exactly what was scraped, not just a
+  // bar. localStorage-safe shape (no functions). Appended as each step lands.
+  log?: { site: string; term: string; count: number; status?: string }[];
 }
 
 // In-memory live scraper progress, keyed by scrape_run_id. Populated by
@@ -91,6 +94,11 @@ export const scrapeProgress: Record<string, ScrapeRunProgress> = {};
 // Track the in-flight scrape run per worker so the queue UI can discover which
 // run_id to poll for live progress without waiting for the POST to resolve.
 export const latestRunByWorker: Record<string, { runId: string; profileId: string }> = {};
+
+// Same idea for the ADMIN /api/scrape path: lets the admin Refill modal poll
+// live progress (and the failing-step log) without knowing the run id in
+// advance, since the POST only returns it once the whole scrape completes.
+export const latestAdminRun: Record<string, { runId: string }> = {};
 
 // Spawn the Python JobSpy script and parse its JSON output. When `onProgress`
 // is provided, the subprocess's stderr is streamed live — each "[ok] site: N
@@ -118,6 +126,7 @@ export async function runJobSpy(
       let stderr = '';
       let step = 0;
       let jobsFound = 0;
+      const log: NonNullable<ScrapeRunProgress['log']> = [];
       const onLine = (line: string) => {
         // Emit live progress from "[ok] <site>: <N> jobs for '<term>'" lines.
         const m = line.match(/\[ok\]\s+(.+?):\s+(\d+)\s+jobs?\s+for\s+'([^']+)'/);
@@ -127,17 +136,41 @@ export async function runJobSpy(
           const term = m[3];
           jobsFound += n;
           step += 1; // each completed (site, term) advances the progress step
+          log.push({ site, term, count: n, status: 'ok' });
           const p: ScrapeRunProgress = {
             totalSteps,
             step,
             current: `${site} — ${term}`,
             jobsFound,
             done: false,
+            log: log.slice(-100), // cap the log so memory stays flat on huge runs
           };
           if (onProgress) {
             try {
               onProgress(p);
             } catch { /* ignore subscriber errors */ }
+          }
+          return;
+        }
+        // "[warn] <term> / <site>: <msg>" — a board/term failed. Log it as an
+        // errored step (count 0) so the UI shows what failed, not silence.
+        const w = line.match(/\[warn\]\s+([^/]+?)\s*\/\s*([^:]+):\s*(.*)/);
+        if (w) {
+          const term = w[1].trim();
+          const site = w[2].trim();
+          const msg = (w[3] || '').trim().slice(0, 120);
+          step += 1;
+          log.push({ site: site || 'unknown', term: term || '?', count: 0, status: `failed — ${msg}` });
+          const p: ScrapeRunProgress = {
+            totalSteps,
+            step,
+            current: `${site || term || 'step'} failed`,
+            jobsFound,
+            done: false,
+            log: log.slice(-100),
+          };
+          if (onProgress) {
+            try { onProgress(p); } catch { /* ignore */ }
           }
         }
       };
@@ -169,7 +202,7 @@ export async function runJobSpy(
         if (code === 0) {
           if (onProgress) {
             try {
-              onProgress({ totalSteps, step: totalSteps, current: 'Finalizing', jobsFound, done: true });
+              onProgress({ totalSteps, step, current: 'Finalizing', jobsFound, done: true, log: log.slice(-100) });
             } catch { /* ignore */ }
           }
           finish(null);

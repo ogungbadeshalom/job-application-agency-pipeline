@@ -10,6 +10,7 @@ import AIConfigPanel from './AIConfigPanel';
 import MaintenancePanel from './MaintenancePanel';
 import EarningsConfigPanel from './EarningsConfigPanel';
 import BackupsPanel from './BackupsPanel';
+import AutoRefillPanel from './AutoRefillPanel';
 import AccentSetting from '@/components/AccentSetting';
 
 export default function SettingsTab({ users, scrapeRuns }: { users: User[]; scrapeRuns: ScrapeRun[] }) {
@@ -44,6 +45,7 @@ export default function SettingsTab({ users, scrapeRuns }: { users: User[]; scra
   return (
     <div className="space-y-6">
       <AccentSetting />
+      <AutoRefillPanel />
       <AIConfigPanel />
       <EarningsConfigPanel />
       <BackupsPanel />

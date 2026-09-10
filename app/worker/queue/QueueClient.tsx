@@ -87,6 +87,37 @@ export default function QueueClient({
   useEffect(() => {
     setJobsState(jobs);
   }, [jobs]);
+  // Real-time signal that the admin-toggled DAILY AUTO-REFILL is running. While
+  // active, the manual Refill button is disabled + a banner shows "in progress",
+  // so a worker can't stack a manual scrape on the nightly one (which caused
+  // duplicate entries). Polls the lightweight status endpoint every 3s.
+  const [autoRefill, setAutoRefill] = useState<{
+    active: boolean; currentName: string | null; currentStep: string;
+    totalJobsAdded: number; totalProfiles: number; message: string;
+  }>({ active: false, currentName: null, currentStep: 'Idle', totalJobsAdded: 0, totalProfiles: 0, message: 'Idle' });
+  useEffect(() => {
+    let dead = false;
+    const poll = async () => {
+      if (dead) return;
+      try {
+        const r = await fetch('/api/auto-refill/status');
+        if (r.ok) {
+          const d = await r.json();
+          setAutoRefill({
+            active: !!d.active,
+            currentName: d.currentName ?? null,
+            currentStep: d.currentStep ?? 'Idle',
+            totalJobsAdded: d.totalJobsAdded ?? 0,
+            totalProfiles: d.totalProfiles ?? 0,
+            message: d.message ?? 'Idle',
+          });
+        }
+      } catch {}
+      if (!dead) setTimeout(poll, 3000);
+    };
+    poll();
+    return () => { dead = true; };
+  }, []);
   // On initial mount with a specific client, default the preset to its
   // "General" preset so the one-click broad refill is preselected.
   useEffect(() => {
@@ -308,6 +339,11 @@ export default function QueueClient({
       setRefillState((s) => ({ ...s, error: 'Select a client first.', msg: null }));
       return;
     }
+    // Don't let a worker stack a manual refill on the running nightly scan.
+    if (autoRefill.active) {
+      setRefillState((s) => ({ ...s, error: 'Auto-refill is in progress — new jobs will arrive in a moment.', msg: null }));
+      return;
+    }
     setRefillState((s) => ({ ...s, busy: true, error: null, msg: null, done: false, progress: null }));
     try {
       const res = await fetch('/api/worker-refill', {
@@ -464,6 +500,20 @@ export default function QueueClient({
               refill is against that single client, so show it). */}
           {(clientId !== 'all' || (clientProfiles ?? []).length === 1) && (
             <div data-onboard="refill" className="flex flex-col items-stretch sm:items-end gap-1.5 w-full sm:w-auto">
+              {autoRefill.active && (
+                <div className="inline-flex items-center gap-2 text-xs font-medium text-brand-green bg-brand-green/10 border border-brand-green/30 rounded-md px-2.5 py-1.5 w-full sm:w-auto">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-green opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-green" />
+                  </span>
+                  Auto-refill in progress
+                  <span className="text-navy-300 font-normal">
+                    {autoRefill.currentName
+                      ? `— ${autoRefill.currentName} (${autoRefill.totalJobsAdded} added so far)`
+                      : `— ${autoRefill.currentStep}`}
+                  </span>
+                </div>
+              )}
               <div className="flex flex-wrap items-center gap-2">
                 <label className="text-xs text-navy-500">Preset</label>
                 <select
@@ -478,10 +528,11 @@ export default function QueueClient({
                 </select>
                 <button
                   onClick={doRefill}
-                  disabled={refillState.busy}
+                  disabled={refillState.busy || autoRefill.active}
+                  title={autoRefill.active ? 'Auto-refill is running — new jobs will appear shortly.' : undefined}
                   className="px-3 py-1.5 text-xs font-semibold rounded-md bg-brand-green/20 text-brand-green border border-brand-green/30 hover:bg-brand-green/30 disabled:opacity-50"
                 >
-                  {refillState.busy ? 'Refilling…' : 'Refill'}
+                  {autoRefill.active ? 'Auto-refilling…' : refillState.busy ? 'Refilling…' : 'Refill'}
                 </button>
                 <button
                   onClick={() => { resetAdd(); setAddOpen(true); }}

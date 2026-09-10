@@ -134,21 +134,18 @@ def scrape_hiringcafe(term: str, old_days: int) -> list:
 GREENHOUSE_ORGS = [
     # Non-enterprise orgs that post US-remote software/AI/ML roles. Enterprise
     # giants (stripe/datadog/figma/twilio/dropbox/etc.) are deliberately NOT
-    # listed here — they're filtered by the enterprise blocklist anyway, so
-    # leaving them out saves 30+ no-op API calls per refill.
+    # listed here (enterprise blocklist filters them anyway).
+    # Health-checked from THIS box (Sep 2026, api.greenhouse.io/v1/boards/<slug>/jobs):
+    # dead-404 slugs removed (hashicorp, remitly, dbtlabs, contenda, supabase,
+    # render, sentry, deel, box, transloadit, prisma, nango, athenahealth).
+    # Highest REMOTE-data yield (probed): monzo(7) zscaler(6) toast(3) webflow/purestorage(2).
     "gusto", "monzo", "newrelic", "pagerduty", "planetscale", "wisetack",
-    "hashicorp", "remitly", "dbtlabs", "contenda", "supabase", "render",
-    "sentry", "deel", "box", "wise", "amplitude", "mercari", "discord",
-    # v2.48 base: data/ML-heavy non-enterprise orgs (verified return jobs)
-    "okta", "elastic", "mongodb", "zscaler", "fastly", "transloadit",
-    # v2.71: expanded non-enterprise US-remote SWE/AI supply (verified from this box)
-    "postman", "checkr", "veriff", "skyscanner", "webflow", "mattermost",
-    "verkada", "purestorage", "glance", "singlestore", "neo4j", "prisma",
-    "cloudflare", "circleci",
-    # more non-enterprise remote-friendly engineering orgs (response-verified)
-    "canonical", "nango", "athenahealth", "betterment",
+    "wise", "amplitude", "mercari", "discord", "okta", "elastic", "mongodb",
+    "zscaler", "fastly", "postman", "checkr", "veriff", "skyscanner",
+    "webflow", "mattermost", "verkada", "glance", "singlestore", "neo4j",
+    "cloudflare", "circleci", "canonical", "betterment", "toast", "purestorage",
 ]
-LEVER_ORGS = ["leverdemo"]
+LEVER_ORGS = ["3pillarglobal", "revinate", "pivotal", "heetch"]
 
 
 def _title_matches(title: str, term: str) -> bool:

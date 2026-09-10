@@ -5,6 +5,7 @@ import { isUuid } from '@/lib/validate';
 import { runJobSpy, dedupeAndMap, scrapeProgress, latestRunByWorker } from '@/lib/scrape';
 import { filterJobsByResume } from '@/lib/aiJobMatch';
 import type { Job, ProfilePreset, ScrapeResultJob } from '@/lib/types';
+import { assertNotBusy } from '@/lib/autoRefill';
 
 // Worker-initiated refill for their own queue, using a saved profile preset (or
 // the profile's default scrape settings). Safety rails:
@@ -60,6 +61,15 @@ export async function POST(req: Request) {
 
   if (!profileId || !isUuid(profileId)) {
     return NextResponse.json({ error: 'Select a profile.' }, { status: 400 });
+  }
+
+  // Refuse while the admin-toggled auto-refill is running, so a worker can't
+  // stack a manual refill on the nightly scan (double-scrape = duplicate mess).
+  try {
+    assertNotBusy();
+  } catch (e) {
+    const status = (e as Error & { status?: number }).status ?? 500;
+    return NextResponse.json({ error: (e as Error).message, auto_refill: true }, { status });
   }
 
   // Ownership: only refill a profile assigned to this worker.

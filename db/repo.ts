@@ -933,6 +933,11 @@ export const db = {
       ai_api_key: apiKey,
       maintenance_message: (row.maintenance_message as string) ?? '',
       maintenance_enabled: Boolean(row.maintenance_enabled),
+      auto_refill_enabled: Boolean(row.auto_refill_enabled),
+      auto_refill_time: (row.auto_refill_time as string) ?? '09:00',
+      auto_refill_last_run: (row.auto_refill_last_run as Date | null)
+        ? (row.auto_refill_last_run as Date).toISOString()
+        : null,
       updated_at: (row.updated_at as Date).toISOString(),
     };
   },
@@ -948,6 +953,27 @@ export const db = {
       [message, enabled]
     );
     return (await this.getAppConfig())!;
+  },
+  async setAutoRefill(input: { enabled: boolean; time: string }): Promise<AppConfig> {
+    await one(
+      `insert into app_config (id, auto_refill_enabled, auto_refill_time, updated_at)
+       values (1, $1, $2, now())
+       on conflict (id) do update set
+         auto_refill_enabled = excluded.auto_refill_enabled,
+         auto_refill_time = excluded.auto_refill_time,
+         updated_at = now()
+       returning *`,
+      [input.enabled, input.time]
+    );
+    return (await this.getAppConfig())!;
+  },
+  // Record that a daily run actually began (dedupes the daily fire after a
+  // restart so the scheduler doesn't re-run the same day).
+  async touchAutoRefillRun(): Promise<void> {
+    await one(
+      `update app_config set auto_refill_last_run = now(), updated_at = now() where id = 1`,
+      []
+    );
   },
   async setAppConfig(input: {
     provider: AppConfig['ai_provider'];

@@ -102,7 +102,7 @@ export default function DashboardClient({
       )}
       {tab === 'profiles' && <ProfilesTab profiles={profiles} users={users} jobs={jobs} />}
       {tab === 'resumes' && <ResumesTab profiles={profiles} jobs={jobs} />}
-      {tab === 'settings' && <SettingsTab users={users} scrapeRuns={scrapeRuns} />}
+      {tab === 'settings' && <SettingsTab users={users} scrapeRuns={scrapeRuns} profiles={profiles} />}
 
       <RefillJobsModal
         open={refillOpen}

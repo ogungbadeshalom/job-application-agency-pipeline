@@ -22,6 +22,7 @@ import type {
   ProfilePreset,
   QuestionSnippet,
   ScrapeRun,
+  ScrapeTask,
   User,
 } from '../lib/types';
 
@@ -101,6 +102,27 @@ function normalizeJobURL(url: string): string {
   } catch {
     return url.replace(/[#?].*$/, '').replace(/\/+$/, '');
   }
+}
+
+function mapScrapeTask(r: Record<string, unknown>): ScrapeTask {
+  return {
+    id: r.id as string,
+    profile_id: r.profile_id as string,
+    sites: (r.sites as string[]) || [],
+    search_terms: (r.search_terms as string[]) || [],
+    location: (r.location as string) || 'Remote',
+    results_wanted: (r.results_wanted as number) ?? 60,
+    hours_old: (r.hours_old as number) ?? 168,
+    is_remote: Boolean(r.is_remote),
+    remove_easy_apply: Boolean(r.remove_easy_apply),
+    status: (r.status as ScrapeTask['status']) || 'pending',
+    claimed_at: (r.claimed_at as Date | null)?.toISOString() ?? null,
+    completed_at: (r.completed_at as Date | null)?.toISOString() ?? null,
+    jobs_found: (r.jobs_found as number) ?? 0,
+    jobs_added: (r.jobs_added as number) ?? 0,
+    error_message: (r.error_message as string | null) ?? null,
+    created_at: (r.created_at as Date).toISOString(),
+  };
 }
 
 function mapJob(r: Record<string, unknown>): Job {
@@ -974,6 +996,80 @@ export const db = {
       `update app_config set auto_refill_last_run = now(), updated_at = now() where id = 1`,
       []
     );
+  },
+  async getScrapeAgentToken(): Promise<string | null> {
+    const row = await one('select scrape_agent_token from app_config where id = 1');
+    return (row?.scrape_agent_token as string) || null;
+  },
+  // Rotate the laptop-agent token; admin only.
+  async setScrapeAgentToken(token: string): Promise<void> {
+    await one(
+      `update app_config set scrape_agent_token = $1, updated_at = now() where id = 1`,
+      [token]
+    );
+  },
+  // Queue a remote-only scrape task for a laptop/residential agent to pull.
+  async enqueueScrapeTask(input: {
+    profileId: string;
+    sites: string[];
+    searchTerms: string[];
+    location?: string;
+    resultsWanted?: number;
+    hoursOld?: number;
+  }): Promise<{ id: string }> {
+    const row = await one(
+      `insert into scrape_tasks
+         (profile_id, sites, search_terms, location, results_wanted, hours_old, is_remote, remove_easy_apply)
+       values ($1,$2,$3,$4,$5,$6,true,true)
+       returning id`,
+      [
+        input.profileId,
+        input.sites,
+        input.searchTerms,
+        input.location || 'Remote',
+        input.resultsWanted ?? 60,
+        input.hoursOld ?? 168,
+      ]
+    );
+    return { id: row.id as string };
+  },
+  // Atomically claim the oldest pending task (only claims pending, never
+  // re-claims a done/claimed one). Returns null if none pending.
+  async claimScrapeTask(): Promise<ScrapeTask | null> {
+    const row = await one(
+      `update scrape_tasks t
+         set status = 'claimed', claimed_at = now()
+       from (
+         select id from scrape_tasks
+         where status = 'pending'
+         order by created_at asc
+         limit 1
+         for update skip locked
+       ) s
+       where t.id = s.id
+       returning t.*`
+    );
+    return row ? mapScrapeTask(row) : null;
+  },
+  async completeScrapeTask(id: string, input: { jobsFound: number; jobsAdded: number; error?: string }): Promise<void> {
+    await one(
+      `update scrape_tasks
+         set status = $2, jobs_found=$3, jobs_added=$4,
+             error_message=$5, completed_at=now()
+       where id = $1`,
+      [id, input.error ? 'failed' : 'done', input.jobsFound, input.jobsAdded, input.error ?? null]
+    );
+  },
+  async listScrapeTasks(limit = 20): Promise<ScrapeTask[]> {
+    const rows = await all(
+      `select * from scrape_tasks order by created_at desc limit $1`,
+      [limit]
+    );
+    return rows.map(mapScrapeTask);
+  },
+  async getScrapeTaskById(id: string): Promise<ScrapeTask | null> {
+    const row = await one('select * from scrape_tasks where id = $1', [id]);
+    return row ? mapScrapeTask(row) : null;
   },
   async setAppConfig(input: {
     provider: AppConfig['ai_provider'];

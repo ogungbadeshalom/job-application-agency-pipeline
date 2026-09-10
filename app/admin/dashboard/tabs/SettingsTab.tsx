@@ -4,16 +4,19 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Modal from '@/components/Modal';
 import { Spinner } from '@/components/Icon';
-import type { ScrapeRun, User } from '@/lib/types';
+import type { Profile, ScrapeRun, User } from '@/lib/types';
 import { LabeledInput } from './shared';
 import AIConfigPanel from './AIConfigPanel';
 import MaintenancePanel from './MaintenancePanel';
 import EarningsConfigPanel from './EarningsConfigPanel';
 import BackupsPanel from './BackupsPanel';
 import AutoRefillPanel from './AutoRefillPanel';
+import LaptopRefillPanel from './LaptopRefillPanel';
 import AccentSetting from '@/components/AccentSetting';
 
-export default function SettingsTab({ users, scrapeRuns }: { users: User[]; scrapeRuns: ScrapeRun[] }) {
+export default function SettingsTab(
+  { users, scrapeRuns, profiles }: { users: User[]; scrapeRuns: ScrapeRun[]; profiles: Profile[] }
+) {
   const [resetTarget, setResetTarget] = useState<User | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -46,6 +49,7 @@ export default function SettingsTab({ users, scrapeRuns }: { users: User[]; scra
     <div className="space-y-6">
       <AccentSetting />
       <AutoRefillPanel />
+      <LaptopRefillPanel profiles={profiles} />
       <AIConfigPanel />
       <EarningsConfigPanel />
       <BackupsPanel />

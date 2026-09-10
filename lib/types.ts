@@ -167,6 +167,26 @@ export interface ScrapeRunResult {
   jobs: ScrapeResultJob[];
 }
 
+// A queued scrape task pulled by the laptop/residential agent (scrape_tasks).
+export interface ScrapeTask {
+  id: string;
+  profile_id: string;
+  sites: string[];
+  search_terms: string[];
+  location: string;
+  results_wanted: number;
+  hours_old: number;
+  is_remote: boolean;
+  remove_easy_apply: boolean;
+  status: 'pending' | 'claimed' | 'done' | 'failed';
+  claimed_at: string | null;
+  completed_at: string | null;
+  jobs_found: number;
+  jobs_added: number;
+  error_message: string | null;
+  created_at: string;
+}
+
 // App-level config (single row in app_config). ai_api_key, when set, is the
 // DECRYPTED key — never persisted; only the encrypted form is stored.
 export interface AppConfig {

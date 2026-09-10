@@ -3,7 +3,8 @@ import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import type { Job, ScrapeConfig, ScrapeResultJob } from '@/lib/types';
 import { isUuid } from '@/lib/validate';
-import { runJobSpy, dedupeAndMap } from '@/lib/scrape';
+import { runJobSpy, dedupeAndMap, scrapeProgress, latestAdminRun } from '@/lib/scrape';
+import type { ScrapeRunProgress } from '@/lib/scrape';
 import { filterJobsByResume } from '@/lib/aiJobMatch';
 
 // POST /api/scrape
@@ -58,6 +59,23 @@ export async function POST(req: Request) {
     status: 'running',
     started_at: new Date().toISOString(),
   });
+
+  // Seed the live progress + make this admin's run discoverable for polling,
+  // so the Refill modal can show per-board progress and failures in real time.
+  const totalSteps = Math.max(
+    config.sites.length * (config.search_terms.length || 1),
+    1
+  );
+  scrapeProgress[run.id] = {
+    totalSteps,
+    step: 0,
+    current: 'Starting…',
+    jobsFound: 0,
+    done: false,
+    log: [],
+  };
+  latestAdminRun[session.user.id] = { runId: run.id };
+  const onProgress = (p: ScrapeRunProgress) => { scrapeProgress[run.id] = p; };
 
   // Guard the WHOLE post-create block so a failure in the terms resolution,
   // no-search-terms update, scrape, or insert always marks the run failed.
@@ -116,7 +134,7 @@ export async function POST(req: Request) {
         include_kw: config.include_kw?.length ? config.include_kw : undefined,
         exclude_kw: config.exclude_kw?.length ? config.exclude_kw : undefined,
         remove_easy_apply: config.remove_easy_apply,
-      });
+      }, onProgress);
       allRaw.push(...raw);
 
       // RemoteOK (and BuiltIn) in the project fork only match single-token tags,
@@ -140,7 +158,7 @@ export async function POST(req: Request) {
               include_kw: config.include_kw?.length ? config.include_kw : undefined,
               exclude_kw: config.exclude_kw?.length ? config.exclude_kw : undefined,
               remove_easy_apply: config.remove_easy_apply,
-            }))
+            }, onProgress))
           );
         }
       }
@@ -173,6 +191,7 @@ export async function POST(req: Request) {
       jobs_added: totalAdded,
       completed_at: new Date().toISOString(),
     });
+    if (scrapeProgress[run.id]) scrapeProgress[run.id].done = true;
 
     const duplicateNotes =
       totalDupSkipped > 0

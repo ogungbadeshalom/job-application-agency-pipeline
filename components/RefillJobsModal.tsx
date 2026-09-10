@@ -55,6 +55,40 @@ export default function RefillJobsModal({
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ jobs_found: number; jobs_added: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Live scrape progress (polled from /api/scrape/progress while running).
+  const [progress, setProgress] = useState<{
+    totalSteps: number; step: number; current: string; jobsFound: number;
+    log?: { site: string; term: string; count: number; status?: string }[];
+  } | null>(null);
+
+  // Poll live progress while a scrape is running so the admin sees exactly what
+  // is being scraped (per-board + failures), not a blanket spinner.
+  useEffect(() => {
+    if (!loading) return;
+    let cancelled = false;
+    const poll = async () => {
+      if (cancelled) return;
+      try {
+        const res = await fetch('/api/scrape/progress', { cache: 'no-store' });
+        if (!cancelled && res.ok) {
+          const d = await res.json().catch(() => ({}));
+          const p = d?.progress;
+          if (p && typeof p.totalSteps === 'number') {
+            setProgress({
+              totalSteps: p.totalSteps,
+              step: p.step ?? 0,
+              current: p.current ?? '',
+              jobsFound: p.jobsFound ?? 0,
+              log: p.log ?? [],
+            });
+          }
+        }
+      } catch {}
+      if (!cancelled) setTimeout(poll, 1200);
+    };
+    poll();
+    return () => { cancelled = true; };
+  }, [loading]);
   // Number of enabled (non-disabled) sites for the result summary.
   const [enabledSiteCount, setEnabledSiteCount] = useState(sites.length);
   // Abort controller for an in-flight scrape, so closing the modal (or a client
@@ -148,6 +182,7 @@ export default function RefillJobsModal({
       setLoading(false);
       setResult(null);
       setError(null);
+      setProgress(null);
     }
   }, [open, profiles]);
 
@@ -506,6 +541,61 @@ export default function RefillJobsModal({
               ))}
             </div>
           </Field>
+
+          {loading && (
+            <div className="rounded-lg border border-brand-green/30 bg-brand-green/5 p-3 space-y-2">
+              <div className="flex items-center justify-between text-xs text-navy-200">
+                <span className="inline-flex items-center gap-2">
+                  <span className="inline-block h-3 w-3 rounded-full border-2 border-[var(--accent)]/40 border-t-[var(--accent)] animate-spin" />
+                  <span className="font-medium">Scraping…</span>
+                </span>
+                {progress && progress.totalSteps > 0 && (
+                  <span className="text-navy-400">
+                    {progress.current || 'working'} · {progress.jobsFound} jobs
+                  </span>
+                )}
+              </div>
+
+              {/* Progress bar */}
+              {progress && progress.totalSteps > 0 && (
+                <>
+                  <div className="flex justify-between text-[10px] text-navy-400 mb-0.5">
+                    <span>
+                      Step {Math.min(progress.step + 1, progress.totalSteps)} of {progress.totalSteps}
+                    </span>
+                    <span>{progress.jobsFound} found</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-navy-800 overflow-hidden">
+                    <div
+                      className="h-full bg-[var(--accent)] transition-all duration-500"
+                      style={{ width: `${Math.min(100, ((progress.step + 1) / progress.totalSteps) * 100)}%` }}
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Per-board live log */}
+              {progress && progress.log && progress.log.length > 0 && (
+                <div className="pt-1 max-h-36 overflow-y-auto space-y-0.5">
+                  {progress.log.map((l, i) => {
+                    const failed = l.status && l.status.startsWith('failed');
+                    return (
+                      <div key={i} className="flex items-center gap-2 text-[11px] font-mono">
+                        <span className={failed ? 'text-red-400' : 'text-[var(--accent)]'}>
+                          {failed ? '✕' : '✓'}
+                        </span>
+                        <span className="text-navy-300 truncate">{l.site}</span>
+                        <span className="text-navy-500 truncate">→ {l.term}</span>
+                        <span className={`ml-auto shrink-0 ${failed ? 'text-red-400' : 'text-navy-400'}`}>
+                          {failed ? l.status : `${l.count} jobs`}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {error && (
             <div className="text-sm text-brand-red bg-red-500/10 border border-red-500/30 rounded-md px-3 py-2">

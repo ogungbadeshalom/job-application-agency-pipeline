@@ -1,35 +1,40 @@
 #!/usr/bin/env python3
 """
-JobBidder Board Performance Probe (production-faithful)
-========================================================
-Runs the SAME board matrix through the APP'S REAL scrape path and reports raw
-per-board yield. On the VPS it invokes scripts/run_jobspy.py (the exact script
-the admin /api/scrape + worker refill use, incl. the custom greenhouse/lever/
-jobicy scrapers and the mubeng proxy) so the numbers match production. On your
-PC it calls the same run_jobspy.py with no proxy, so you compare the two
-machines on identical code.
+JobBidder Board Performance Probe (self-contained)
+==================================================
+Runs the SAME board matrix through the SAME scraper code the app uses, directly
+in-process (no subprocess, no Linux-only orchestration), so it runs identically
+on the VPS (data-center IP) and on a Windows PC (residential IP). Reports RAW
+per-board yield + failure reason, no DB write, no dedup — the only honest way
+to compare the two machines, because both scrape into the same queue (whoever
+runs second would see the other's jobs as duplicates).
 
-Key point: it does NOT write to the DB and does NOT dedupe — raw "found per
-board" is the only honest comparison, because both machines scrape into the
-same queue (whichever runs second would see the other's jobs as duplicates).
+Boards map to their real production scraper:
+  * custom ATS boards (greenhouse/lever/ashby/dice/jobicy/sprout) via
+    scrape_custom_boards.py — the exact functions the app's run_jobspy.py calls.
+  * JobSpy-native boards (indeed/linkedin/remoteok/builtin/workingnomads/
+    weworkremotely/smart_recruiters/glassdoor/zip_recruiter) via jobspy.scrape_jobs.
 
 Usage:
-    pip install jobspy pandas requests    # once, on each machine
-    # VPS:   python3 scripts/bench_boards.py
-    # PC:    python scripts/bench_boards.py   (Windows: python, not python3)
-    # On the VPS, MUBENG_PROXY defaults to the local :8899 mubeng instance.
+    pip install jobspy pandas requests        # once, on each machine
+    python scripts/bench_boards.py            # VPS  (MUBENG_PROXY auto-used by JobSpy boards? no — see note)
+    python scripts/bench_boards.py            # PC on Windows (same command)
 
 Output writes bench_result.json (+ prints a table). Compare the two files.
+
+PROXY NOTE: on the VPS the app routes fragile JobSpy boards through mubeng on
+:8899. To match that, set MUBENG_PROXY=http://127.0.0.1:8899 on the VPS; leave it
+unset on your PC (residential IP). Custom ATS boards never use a proxy.
 """
 
 import json
 import os
 import platform
-import subprocess
 import sys
 import time
+import traceback
 
-# ---- comparison matrix (edit to run fewer/faster; keep IDENTICAL across both) ----
+# ---- comparison matrix (keep IDENTICAL across both machines) ----------------
 SITES = [
     "greenhouse", "builtin", "jobicy", "workingnomads", "ashby",
     "dice", "remoteok", "weworkremotely", "smart_recruiters", "sprout",
@@ -39,52 +44,92 @@ TERMS = ["data engineer", "software engineer"]
 LOCATION = os.environ.get("BENCH_LOCATION", "United States")
 RESULTS_WANTED = int(os.environ.get("BENCH_WANTED", "40"))
 HOURS_OLD = int(os.environ.get("BENCH_HOURS", "168"))
-SCRIPT = os.environ.get("BENCH_SCRIPT", "scripts/run_jobspy.py")
 OUT = os.environ.get("BENCH_OUT", "bench_result.json")
+PER_CALL_TIMEOUT_S = float(os.environ.get("BENCH_TIMEOUT_S", "45"))
 # ------------------------------------------------------------------------------
 
 SITE_LABELS = {
     "indeed": "Indeed", "linkedin": "LinkedIn", "remoteok": "RemoteOK",
     "builtin": "BuiltIn", "greenhouse": "Greenhouse", "lever": "Lever",
     "smart_recruiters": "SmartRecruiters", "workingnomads": "WorkingNomads",
-    "jobicy": "Jobicy", "hiringcafe": "HiringCafe", "sprout": "Sprout Social",
-    "glassdoor": "Glassdoor", "zip_recruiter": "ZipRecruiter",
-    "ashby": "Ashby", "dice": "Dice", "weworkremotely": "WeWorkRemotely",
+    "jobicy": "Jobicy", "sprout": "Sprout Social", "glassdoor": "Glassdoor",
+    "zip_recruiter": "ZipRecruiter", "ashby": "Ashby", "dice": "Dice",
+    "weworkremotely": "WeWorkRemotely",
 }
 
+# Custom ATS boards — functions from scrape_custom_boards (urllib only, Windows-safe).
+CUSTOM_BOARDS = {"greenhouse", "lever", "ashby", "dice", "jobicy", "sprout"}
 
-def run_script_board(site, term, tmpfile):
-    """Call the production run_jobspy.py for ONE board+term and return job dicts."""
-    py = "python3" if os.name != "nt" else "python"
-    config = {
-        "sites": [site],
-        "search_terms": [term],
-        "location": LOCATION,
-        "results_wanted": RESULTS_WANTED,
-        "hours_old": HOURS_OLD,
-        "is_remote": True,
-        "remove_easy_apply": True,
-    }
-    # run_jobspy.py reads MUBENG_PROXY from env itself; nothing to pass here.
-    cmd = [py, SCRIPT, json.dumps(config), tmpfile]
+
+def custom_board_yield(site, term, want, hours):
+    """Call scrape_custom_boards.<site>(term, hours) and return (jobs_found, sample)."""
+    import sys
+    from scripts import scrape_custom_boards as scb  # repo root on path
+    fn = getattr(scb, f"scrape_{site}", None)
+    if fn is None:
+        return None, "no-scraper"
+    records = fn(term, hours)
+    jobs = [r for r in records if r.get("title") or r.get("job_url")]
+    return len(jobs), [str(r.get("title")) for r in jobs[:5]]
+
+
+def jobspy_yield(site, term):
+    """Call jobspy.scrape_jobs for a JobSpy-native board. Returns (jobs_found, sample) or raises."""
+    from jobspy import scrape_jobs
+    import pandas as pd
+
+    proxy = os.environ.get("MUBENG_PROXY", "").strip() or None
+    kw = dict(
+        site_name=[site],
+        search_term=term,
+        location=LOCATION,
+        results_wanted=RESULTS_WANTED,
+        hours_old=HOURS_OLD,
+        is_remote=True,
+        remove_duplicates=True,
+        proxies=proxy,
+        ca_cert=False if proxy else None,
+    )
+    if site == "linkedin":
+        kw["linkedin_fetch_description"] = RESULTS_WANTED <= 20
+    df = scrape_jobs(**kw)
+    if df is None or df.empty:
+        return 0, []
+    titles = [str(t) for t in df["title"].head(5).tolist() if not pd.isna(t)]
+    return int(len(df)), titles
+
+
+def timed_call(fn):
+    """Run a scraper with a hard timeout (POSIX; Windows falls back to no timeout)."""
+    import signal
+
+    done = {}
+    def _handler(sig, frame):
+        raise TimeoutError(f"exceeded {PER_CALL_TIMEOUT_S}s")
+    if hasattr(signal, "SIGALRM"):
+        signal.signal(signal.SIGALRM, _handler)
+        signal.alarm(int(PER_CALL_TIMEOUT_S))
     try:
-        subprocess.run(cmd, timeout=120, check=False,
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    except subprocess.TimeoutExpired:
-        return None, "timeout"
-    except FileNotFoundError:
-        return None, "script-not-found"
-    try:
-        with open(tmpfile) as f:
-            data = json.load(f)
-        if isinstance(data, dict) and "error" in data:
-            return None, str(data["error"])[:150]
-        return data, None
-    except Exception as e:
-        return None, str(e)[:150]
+        t0 = time.time()
+        res = fn()
+        done["n"] = res[0]
+        done["sample"] = res[1]
+        done["dt"] = time.time() - t0
+    finally:
+        if hasattr(signal, "SIGALRM"):
+            signal.alarm(0)
+    return done
 
 
 def main():
+    # ensure repo root is importable so `from scripts import scrape_custom_boards` works
+    sys_path_root = os.path.dirname(os.path.abspath(__file__))
+    sys_parent = os.path.dirname(sys_path_root)
+    if sys_parent not in sys.path:
+        sys.path.insert(0, sys_parent)
+    if sys_path_root not in sys.path:
+        sys.path.insert(0, sys_path_root)
+
     env = {
         "machine": platform.node() or "unknown",
         "os": f"{platform.system()} {platform.release()}",
@@ -92,38 +137,40 @@ def main():
         "results_wanted": RESULTS_WANTED,
         "hours_old": HOURS_OLD,
         "python": platform.python_version(),
-        "raw_scrape_path": "run_jobspy.py (production)",
+        "proxy": "mubeng :8899" if os.environ.get("MUBENG_PROXY") else "none",
+        "method": "self-contained (custom_boards + jobspy)",
     }
-    print(f"JobBidder bench (production path) — machine={env['machine']} os={env['os']} loc={LOCATION}")
+    print(f"JobBidder bench — machine={env['machine']} os={env['os']} proxy={env['proxy']} loc={LOCATION}")
     print(f"sites={len(SITES)} terms={TERMS}\n")
 
     results = {"environment": env, "timestamp": time.time(), "boards": {}}
 
     for site in SITES:
         found = 0
+        samples = []
         errors = []
+        fast = RESULTS_WANTED if site in CUSTOM_BOARDS else RESULTS_WANTED
         for term in TERMS:
-            tmp = f"./tmp_bench_{site.replace('_','')}_{int(time.time())}.json"
-            jobs, err = run_script_board(site, term, tmp)
             try:
-                if os.path.exists(tmp):
-                    os.remove(tmp)
-            except Exception:
-                pass
-            if err:
-                errors.append(f"{term}: {err}")
-                print(f"  {SITE_LABELS[site]} / {term}: FAILED — {err}")
-            else:
-                n = len(jobs) if jobs else 0
+                if site in CUSTOM_BOARDS:
+                    out = timed_call(lambda: custom_board_yield(site, term, fast, HOURS_OLD))
+                else:
+                    out = timed_call(lambda: jobspy_yield(site, term))
+                n = out["n"]
                 found += n
-                print(f"  {SITE_LABELS[site]} / {term}: {n} jobs")
+                samples.extend(t for t in out["sample"] if t not in samples)
+                print(f"  {SITE_LABELS[site]} / {term}: {n} jobs in {out['dt']:.1f}s")
+            except Exception as e:
+                msg = (str(e) or type(e).__name__).strip()[:160]
+                errors.append(f"{term}: {msg}")
+                print(f"  {SITE_LABELS[site]} / {term}: FAILED — {msg}")
         results["boards"][site] = {
             "label": SITE_LABELS[site],
             "jobs_found": found,
             "attempts": len(TERMS),
             "successful_terms": len(TERMS) - len(errors),
             "errors": errors,
-            "sample_titles": [],
+            "sample_titles": samples[:5],
         }
 
     with open(OUT, "w") as f:

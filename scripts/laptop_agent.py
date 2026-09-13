@@ -9,13 +9,15 @@ results back so jobs land in your clients' queues through the same pipeline.
 Works while the laptop is ON. If it's off, queued tasks simply wait.
 
 Setup (once):
-    1. pip install jobspy pandas requests
-       (Linux may need: sudo apt install -y chromium chromium-driver  -- or the equivalent for your distro; see https://github.com/zackify/jobspy)
-    2. Edit the three CONFIG values below.
+    1. Install Python 3.10+ from python.org (tick "Add to PATH" during install).
+    2. pip install jobspy pandas requests
+       (Some boards need a browser driver — on Windows, Playwright's chromium:
+        python -m playwright install chromium  -- only if LinkedIn/Indeed ask for it)
+    3. Edit the three CONFIG values below.
 
 Run:
-    python3 laptop_agent.py            # process tasks once, then exit
-    python3 laptop_agent.py --watch    # keep polling every 60s (run in a terminal / tmux)
+    python laptop_agent.py              # process tasks once, then exit
+    python laptop_agent.py --watch      # keep polling every 60s (run in a terminal)
 """
 
 import json

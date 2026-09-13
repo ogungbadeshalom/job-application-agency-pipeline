@@ -103,6 +103,21 @@ await check('GET /login returns 200+HTML', async () => {
   assert(t.includes('Job Bidder'), 'no app title in HTML');
 });
 
+// PUBLIC ROOT CANARY — catches the stale-landing failure class (a commit that
+// only changes the public landing/root page is never picked up by API-endpoint
+// checks; if it's not deployed, / still serves the OLD landing while every
+// functional check below stays green). Assert the current Command Deck landing
+// marker is actually being served at /.
+await check('PUBLIC ROOT / serves the Command Deck landing (not stale)', async () => {
+  const res = await fetch(BASE + '/');
+  assert(res.status === 200, `status ${res.status}`);
+  const t = await res.text();
+  assert(
+    /Start a campaign|Registrar|Scout|Scribe/.test(t),
+    'root / is not serving the current landing (deploy missed?)'
+  );
+});
+
 await check('logged-out /api/jobs returns 401 JSON', async () => {
   jar.clear();
   const res = await req('/api/jobs');

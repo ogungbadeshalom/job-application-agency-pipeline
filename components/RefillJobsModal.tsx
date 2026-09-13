@@ -15,19 +15,19 @@ const SCRAPE_TIMEOUT_MS = 600_000; // 10 min
 // Scrape source options (map to jobspy Site names from the project fork).
 // `disabled: true` sites are grayed out — known-flaky on this deployment.
 export const SITE_OPTIONS: { name: string; site: string; disabled?: boolean; note?: string }[] = [
-  { name: 'Indeed', site: 'indeed', disabled: true, note: 'disabled — removed from using (blocking/anti-bot on this deployment)' },
-  { name: 'LinkedIn', site: 'linkedin', disabled: true, note: 'disabled — free/guest scrape has no remote/onsite signal (yields ~0 strict-remote)' },
-  { name: 'RemoteOK', site: 'remoteok', disabled: true, note: 'disabled — ~0 yield from this server' },
+  { name: 'Indeed', site: 'indeed', note: 'anti-bot can limit yield from this server' },
+  { name: 'LinkedIn', site: 'linkedin', note: 'free/guest scrape has no remote/onsite signal — use the Remote-only toggle + verify' },
+  { name: 'RemoteOK', site: 'remoteok', note: '~0 yield from this server (single-token tags)' },
   { name: 'BuiltIn', site: 'builtin' },
   { name: 'Greenhouse', site: 'greenhouse', note: 'ATS per-company board' },
-  { name: 'Lever', site: 'lever', disabled: true, note: 'disabled — returns 0 from this server' },
-  { name: 'SmartRecruiters', site: 'smart_recruiters', disabled: true, note: 'returning 0 from this server' },
+  { name: 'Lever', site: 'lever', note: 'returns 0 from this server (slug config)' },
+  { name: 'SmartRecruiters', site: 'smart_recruiters', note: 'returning 0 from this server' },
   { name: 'WorkingNomads', site: 'workingnomads' },
   { name: 'Jobicy', site: 'jobicy', note: 'remote-only aggregator' },
   { name: 'HiringCafe', site: 'hiringcafe', note: 'opt-in, uses headless browser (slow)' },
   { name: 'Sprout Social', site: 'sprout', note: 'ATS careers board (Remote US data roles)' },
-  { name: 'Glassdoor', site: 'glassdoor', disabled: true, note: 'currently unavailable' },
-  { name: 'ZipRecruiter', site: 'zip_recruiter', disabled: true, note: 'currently unavailable' },
+  { name: 'Glassdoor', site: 'glassdoor', note: 'requires a geo location (Remote-only toggle auto-handles)' },
+  { name: 'ZipRecruiter', site: 'zip_recruiter', note: 'requires a geo location (Remote-only toggle auto-handles)' },
 ];
 
 export default function RefillJobsModal({

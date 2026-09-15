@@ -15,6 +15,7 @@
 import { db } from '../db/repo';
 import { runJobSpy, dedupeAndMap } from '../lib/scrape';
 import { filterJobsByResume } from '../lib/aiJobMatch';
+import { execFile } from 'node:child_process';
 
 const PROFILE_ID = '022137cc-3978-4b4a-9e0a-54f3235f08d9'; // Andrew
 // All non-LinkedIn boards run_jobspy can source. HiringCafe excluded (linkless).
@@ -44,6 +45,39 @@ function stripHtml(h: string): string {
     .trim();
 }
 
+const USE_PW_FALLBACK = process.env.USE_PW_FALLBACK === '1';
+
+// Shell out to the Playwright MCP (mcporter) to load a bot-walled page in a
+// real browser and return its visible text. Only ever used as a FALLBACK when
+// the plain fetch fails — the common path never spends a browser round-trip.
+async function fetchWithPlaywright(url: string): Promise<string | null> {
+  // Navigate in the real browser via the Playwright MCP.
+  const navOk = await new Promise<boolean>((resolve) => {
+    execFile('mcporter', [
+      'call',
+      `playwright.playwright_navigate(url: "${url}")`,
+    ], { timeout: 60000 }, () => resolve(true));
+  });
+  if (!navOk) return null;
+  // Pull the visible text back.
+  const txt = await new Promise<string | null>((resolve) => {
+    execFile('mcporter', ['call', 'playwright.playwright_get_visible_text()'], { timeout: 45000 }, (err, stdout) => {
+      resolve(err ? null : stdout);
+    });
+  });
+  return txt ? stripHtml(txt).toLowerCase() : null;
+}
+
+async function classifyText(text: string, location: string): Promise<string> {
+  const easy = /easy\s*apply/i.test(text);
+  if (easy) return 'skip:easy-apply';
+  // On-site/hybrid wins over any remote mention.
+  const onsiteSignal = /\bon[- ]?site\b|\bhybrid\b|in[- ]office/.test(text) && !/\bremote\b/.test(text);
+  if (onsiteSignal) return 'skip:onsite';
+  const remote = /\bremote\b|work from home|\bwfh\b/.test(location) || /\bremote\b|work from home|\bwfh\b/.test(text);
+  return remote ? 'remote' : 'skip:unverified-remote';
+}
+
 // Classify a single job by fetching its live page. Returns 'remote' | 'skip:<reason>'.
 async function verifyJob(title: string, company: string, board: string, url: string, loc: string | null, desc: string | null): Promise<string> {
   const location = (loc || '').toLowerCase();
@@ -52,21 +86,25 @@ async function verifyJob(title: string, company: string, board: string, url: str
 
   let text = (desc || '').toLowerCase();
   let status = 0;
+  let fetchFailed = false;
   try {
     const res = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(20000) });
     status = res.status;
     if (res.status < 400) text = stripHtml(await res.text()).toLowerCase();
-  } catch { /* page fetch failed — fall through to stored fields */ }
+    else fetchFailed = true;
+  } catch { fetchFailed = true; /* page fetch failed — fall through to stored fields */ }
 
-  const easy = /easy\s*apply/i.test(text);
-  if (easy) return 'skip:easy-apply';
+  // Playwright MCP browser fallback: only when the plain fetch couldn't reach
+  // the page (403/999/bot-wall). Loads it in a real browser and reclassifies.
+  if (fetchFailed && USE_PW_FALLBACK) {
+    const pwText = await fetchWithPlaywright(url);
+    if (pwText) {
+      const pwVerdict = await classifyText(pwText, location);
+      return pwVerdict === 'remote' ? 'remote' : pwVerdict + '(pw-fallback)';
+    }
+  }
 
-  // On-site/hybrid wins over any remote mention.
-  const onsiteSignal = /\bon[- ]?site\b|\bhybrid\b|in[- ]office/.test(text) && !/\bremote\b/.test(text);
-  if (onsiteSignal) return `skip:onsite${status ? `(http${status})` : '(no-fetch)'}`;
-
-  const remote = /\bremote\b|work from home|\bwfh\b/.test(location) || /\bremote\b|work from home|\bwfh\b/.test(text);
-  return remote ? 'remote' : 'skip:unverified-remote';
+  return (await classifyText(text, location)).replace(/skip:onsite$/, `skip:onsite${status ? `(http${status})` : '(no-fetch)'}`);
 }
 
 async function main() {

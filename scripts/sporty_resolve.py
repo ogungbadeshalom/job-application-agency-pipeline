@@ -47,6 +47,30 @@ def run():
         page.wait_for_timeout(6000)  # let the JS challenge settle
         print("[2] page state:", visible(page)[:120].replace("\n", " | "), flush=True)
 
+        # ---- DIAGNOSTIC DUMP: every interactive element on the page ----
+        dump = page.evaluate("""() => {
+            const out = [];
+            document.querySelectorAll('input, button, [role="button"], [role="link"]').forEach(el => {
+                const r = el.tagName;
+                const place = el.getAttribute && el.getAttribute('placeholder') || '';
+                const id = el.id || '';
+                const name = el.name || '';
+                const cls = (el.className && typeof el.className === 'string') ? el.className.slice(0,60) : '';
+                const txt = (el.innerText || el.textContent || '').trim().slice(0,40);
+                out.push([r, 'place='+place, 'id='+id, 'name='+name, 'cls='+cls, 'txt='+txt].join(' | '));
+            });
+            return out.slice(0, 150);
+        }""")
+        print("[DIAG] interactive elements:", flush=True)
+        for line in dump:
+            print("   ", line, flush=True)
+        try:
+            page.screenshot(path="sporty_page.png", full_page=True)
+            print("[DIAG] saved sporty_page.png", flush=True)
+        except Exception as e:
+            print("[DIAG] screenshot failed:", e, flush=True)
+        # ----------------------------------------------------------------
+
         # Try to log in if there's a login affordance
         try:
             page.get_by_role("button", name=re("Log in")).click(timeout=8000)

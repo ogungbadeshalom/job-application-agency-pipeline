@@ -39,7 +39,7 @@ def extract_codes_block(text):
 
 def run():
     with sync_playwright() as p:
-        b = p.chromium.launch(headless=False)
+        b = p.chromium.launch(headless=False, executable_path=r"C:\Program Files\Google\Chrome\Application\chrome.exe")
         ctx = b.new_context(viewport={"width": 1366, "height": 900})
         page = ctx.new_page()
         print("[1] opening site...", flush=True)

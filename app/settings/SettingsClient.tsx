@@ -1,6 +1,7 @@
 'use client';
 
 import AccentSetting from '@/components/AccentSetting';
+import ProofCaptureSetting from '@/components/ProofCaptureSetting';
 import DashboardLayout from '@/components/DashboardLayout';
 import type { Role } from '@/lib/types';
 
@@ -21,6 +22,9 @@ export default function SettingsClient({
         </div>
 
         <AccentSetting />
+
+        {/* Proof Capture extension — workers generate/paste their token here */}
+        {user.role === 'worker' && <ProofCaptureSetting />}
 
         {/* Admin full settings live in the Dashboard; point them there. */}
         {user.role === 'admin' && (

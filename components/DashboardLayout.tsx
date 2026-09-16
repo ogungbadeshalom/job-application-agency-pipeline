@@ -50,6 +50,18 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  // Green beacon hint on "How it works": visible until the tour is completed
+  // (past sessions set localStorage 'jobbidder.onboarding.done'). Attracts new
+  // users to the tour entry.
+  const [showBeacon, setShowBeacon] = useState<boolean | null>(null);
+  useEffect(() => {
+    let done = true;
+    try { done = localStorage.getItem('jobbidder.onboarding.done') === '1'; } catch { /* ignore */ }
+    setShowBeacon(!done);
+    const onDone = () => setShowBeacon(false);
+    window.addEventListener('jobbidder:onboarding-done', onDone);
+    return () => window.removeEventListener('jobbidder:onboarding-done', onDone);
+  }, []);
   // Fixed-width compact sidebar (no expand/collapse — keeps it out of the way).
   async function logout() {
     await signOut({ redirect: false });
@@ -83,13 +95,32 @@ export default function DashboardLayout({
         );
       })}
       <div className="pt-2 mt-2 border-t border-navy-800">
+        <div className="relative group">
         <button
           onClick={() => window.dispatchEvent(new Event('jobbidder:open-onboarding'))}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-navy-300 hover:text-white hover:bg-brand-green/5 border-l-2 border-transparent text-left"
+          className="w-full flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-navy-100 hover:text-white hover:bg-brand-green/10 border-l-2 border-brand-green/60 text-left"
         >
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-navy-800 text-[11px] font-bold text-brand-green ring-1 ring-navy-600">?</span>
-          <span className="w-full truncate leading-snug">How it works</span>
+          {/* Pulsing green beacon — tells the user to click here to start the tour.
+              Visible until the tour has been completed. */}
+          {showBeacon === true && (
+            <span className="relative flex h-4 w-4 shrink-0 items-center justify-center">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-brand-green opacity-60 animate-ping" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-green" />
+            </span>
+          )}
+          {showBeacon === false && (
+            <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-navy-800 text-[10px] font-bold text-brand-green ring-1 ring-navy-600">?</span>
+          )}
+          <span className="whitespace-nowrap leading-snug">How it works</span>
         </button>
+        </div>
+        {/* Persistent attention hint — sits BELOW the button so the sidebar
+            overflow can't clip it. */}
+        {showBeacon === true && (
+          <p className="mt-0.5 px-3 text-[10px] font-semibold leading-tight text-brand-green">
+            ① Click the green dot to take the tour
+          </p>
+        )}
         <Link
           href="/settings"
           onClick={onNavigate}
@@ -161,9 +192,16 @@ export default function DashboardLayout({
               onClick={() => window.dispatchEvent(new Event('jobbidder:open-onboarding'))}
               title="How it works"
               aria-label="How it works"
-              className="p-2 rounded-md text-navy-400 hover:text-navy-100 hover:bg-navy-800"
+              className="p-2 rounded-md text-navy-400 hover:text-navy-100 hover:bg-navy-800 relative"
             >
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-navy-800 text-[11px] font-bold text-brand-green ring-1 ring-navy-600">?</span>
+              {showBeacon === true ? (
+                <span className="relative flex h-5 w-5 items-center justify-center">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-brand-green opacity-60 animate-ping" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-brand-green" />
+                </span>
+              ) : (
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-navy-800 text-[11px] font-bold text-brand-green ring-1 ring-navy-600">?</span>
+              )}
             </button>
             <button
               onClick={logout}

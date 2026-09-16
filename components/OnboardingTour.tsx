@@ -10,6 +10,7 @@ import type { Role } from '@/lib/types';
 // "How it works" trigger. Styled to the app's navy/green theme.
 
 const STORAGE_KEY = 'jobbidder.onboarding.seen';
+const DONE_KEY = 'jobbidder.onboarding.done';
 const OPEN_EVENT = 'jobbidder:open-onboarding';
 
 interface RawStep {
@@ -116,7 +117,12 @@ export default function OnboardingTour({ role }: { role: Role }) {
   }, [role]);
 
   const onEvent = (data: EventData) => {
-    if (data.type === EVENTS.TOUR_END) setRun(false);
+    if (data.type === EVENTS.TOUR_END) {
+      setRun(false);
+      // Remember the tour was completed so the green beacon hint hides.
+      try { localStorage.setItem(DONE_KEY, '1'); } catch { /* ignore */ }
+      window.dispatchEvent(new Event('jobbidder:onboarding-done'));
+    }
   };
 
   return (

@@ -50,7 +50,7 @@ export default function HistoryClient({
 
   return (
     <DashboardLayout user={user} nav={nav} active="/worker/history">
-      <div className="mb-4">
+      <div className="mb-4" data-onboard="worker-history">
         <h1 className="text-xl font-semibold text-navy-100">Completion History</h1>
         <p className="text-sm text-navy-400">Your applied jobs, grouped by week.</p>
       </div>

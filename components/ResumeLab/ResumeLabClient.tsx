@@ -243,7 +243,7 @@ export default function ResumeLabClient({
 
   return (
     <DashboardLayout user={user} nav={nav} active="/client/resume-lab">
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-2" data-onboard="resume-lab">
         <div>
           <h1 className="text-xl font-semibold text-pretty text-navy-100">Resume Lab</h1>
           <p className="text-sm text-navy-400 mt-1">

@@ -50,7 +50,7 @@ export default function DashboardClient({
     >
       {/* Page header with title + primary actions (kept out of the narrow
           sidebar where the compact rail has no room for buttons) */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4" data-onboard="admin-header">
         <h1 className="text-xl font-semibold tracking-tight text-pretty text-navy-100">
           Job Applications
         </h1>
@@ -75,6 +75,7 @@ export default function DashboardClient({
       <div
         role="tablist"
         aria-label="Dashboard sections"
+        data-onboard="admin-tabs"
         className="flex items-center gap-1 border-b border-navy-700 mb-5 overflow-x-auto -mx-1 px-1"
       >
         {tabs.map((t) => (
@@ -98,7 +99,9 @@ export default function DashboardClient({
       </div>
 
       {tab === 'applications' && (
-        <JobTable jobs={jobs} profiles={profiles} mode="admin" />
+        <div data-onboard="admin-table">
+          <JobTable jobs={jobs} profiles={profiles} mode="admin" />
+        </div>
       )}
       {tab === 'profiles' && <ProfilesTab profiles={profiles} users={users} jobs={jobs} />}
       {tab === 'resumes' && <ResumesTab profiles={profiles} jobs={jobs} />}

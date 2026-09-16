@@ -12,7 +12,7 @@ export default function SettingsClient({
   return (
     <DashboardLayout user={user} nav={navFor(user.role)} active="/settings">
       <div className="max-w-2xl space-y-4">
-        <div>
+        <div data-onboard="settings">
           <h1 className="text-xl font-semibold text-pretty text-navy-100">Settings</h1>
           <p className="text-sm text-navy-400 mt-1">
             Customize your view. Your choices are saved to your account and follow

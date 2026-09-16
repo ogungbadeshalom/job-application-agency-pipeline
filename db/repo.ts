@@ -11,6 +11,7 @@
 
 import { all, one, query } from './pool';
 import { encryptSecret, decryptSecret } from '../lib/crypto';
+import { randomBytes } from 'node:crypto';
 import type { StructuredResume } from '../lib/resume-presets';
 import type {
   AppConfig,
@@ -25,6 +26,11 @@ import type {
   ScrapeTask,
   User,
 } from '../lib/types';
+
+// Long random bearer token for the proof-capture extension (URL-safe base62).
+export function generateProofToken(): string {
+  return randomBytes(24).toString('base64url'); // 32 chars, high entropy
+}
 
 // --- text sanitation -------------------------------------------------------
 // Postgres rejects NUL (0x00) bytes in text columns ("invalid byte sequence for
@@ -435,6 +441,30 @@ export const db = {
       (out[r.worker_user_id] ||= []).push(r.profile_id);
     }
     return out;
+  },
+  // Proof-capture extension: get a worker's API token (for showing in Settings).
+  async getProofToken(userId: string): Promise<string | null> {
+    const row = await one<{ proof_token: string | null }>(
+      'select proof_token from users where id = $1', [userId]
+    );
+    return row?.proof_token ?? null;
+  },
+  // Proof-capture extension: generate (or rotate) a worker's API token.
+  async rotateProofToken(userId: string): Promise<string> {
+    const token = generateProofToken();
+    await query(
+      `update users set proof_token = $1 where id = $2`,
+      [token, userId]
+    );
+    return token;
+  },
+  // Proof-capture extension: resolve a bearer token to the worker's user id.
+  async resolveProofToken(token: string): Promise<string | null> {
+    const row = await one<{ id: string }>(
+      'select id from users where proof_token = $1 and role = \'worker\' and disabled_at is null',
+      [token]
+    );
+    return row?.id ?? null;
   },
   // Soft-delete a client profile: hide from lists but keep jobs/history.
   async deleteProfile(id: string): Promise<Profile | null> {

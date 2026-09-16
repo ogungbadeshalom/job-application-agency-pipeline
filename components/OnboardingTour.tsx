@@ -46,6 +46,7 @@ function toSteps(raw: RawStep[]): Step[] {
     title: s.title,
     content: s.body,
     placement: s.placement ?? 'bottom',
+    skipBeacon: true, // open the tooltip directly — no beacon click ceremony between steps
   }));
 }
 

@@ -5,6 +5,7 @@
 // setup). The token authenticates the cross-origin /api/proof/* endpoints the
 // extension uses to screenshot + attach proof + mark Applied in one click.
 import { useEffect, useState } from 'react';
+import { copyText } from '@/lib/copy';
 
 export default function ProofCaptureSetting() {
   const [token, setToken] = useState<string | null>(null);
@@ -38,7 +39,8 @@ export default function ProofCaptureSetting() {
   async function copy() {
     if (!token) return;
     try {
-      await navigator.clipboard.writeText(token);
+      const ok = await copyText(token);
+      if (!ok) throw new Error('copy failed');
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch { /* ignore */ }

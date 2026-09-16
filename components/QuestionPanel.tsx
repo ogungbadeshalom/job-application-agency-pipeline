@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Copy, Search, Spinner } from './Icon';
+import { copyText } from '@/lib/copy';
 import type { QuestionSnippet } from '@/lib/types';
 
 export default function QuestionPanel({
@@ -86,7 +87,8 @@ export default function QuestionPanel({
   async function copy(text: string) {
     setError(null);
     try {
-      await navigator.clipboard.writeText(text);
+      const ok = await copyText(text);
+      if (!ok) throw new Error('copy failed');
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {

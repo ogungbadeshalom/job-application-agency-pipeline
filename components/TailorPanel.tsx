@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Copy, Download, Spinner } from './Icon';
+import { copyText } from '@/lib/copy';
 import type { Job, Profile } from '@/lib/types';
 
 export default function TailorPanel({
@@ -99,7 +100,8 @@ export default function TailorPanel({
   async function copy() {
     setError(null);
     try {
-      await navigator.clipboard.writeText(output);
+      const ok = await copyText(output);
+      if (!ok) throw new Error('copy failed');
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {

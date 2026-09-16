@@ -144,6 +144,10 @@ GREENHOUSE_ORGS = [
     "zscaler", "fastly", "postman", "checkr", "veriff", "skyscanner",
     "webflow", "mattermost", "verkada", "glance", "singlestore", "neo4j",
     "cloudflare", "circleci", "canonical", "betterment", "toast", "purestorage",
+    # Widened supply (Sep 2026): valid, high-yield, DC-safe, NOT on the
+    # enterprise blocklist. Verified HTTP 200 from this box. ~1,545 new raw jobs.
+    "anthropic", "roblox", "adyen", "flexport", "asana", "duolingo", "proton",
+    "algolia", "lastpass",
 ]
 LEVER_ORGS = ["3pillarglobal", "revinate", "pivotal", "heetch"]
 
@@ -176,6 +180,40 @@ def _looks_remote(loc, workplace) -> bool:
 
 def scrape_greenhouse(term: str, old_days: int) -> list:
     out = []
+    pool = _greenhouse_pool(old_days)
+    for j in pool:
+        title = j["__title"]
+        if not _title_matches(title, term):
+            continue
+        out.append({
+            "title": title,
+            "company": j["company"],
+            "site": "greenhouse",
+            "job_url": j["job_url"],
+            "location": j["location"],
+            "description": "",
+            "date_posted": j["date_posted"],
+            "is_remote": j["is_remote"],
+            "is_expired": j["is_expired"],
+            "is_easy_apply": False,
+        })
+    print(f"[ok] greenhouse: {len(out)} jobs for '{term}'", file=sys.stderr)
+    return out
+
+
+_GREENHOUSE_CACHE: dict = {}
+
+
+def _greenhouse_pool(old_days: int) -> list:
+    """Memoize the whole board pool once per (old_days) so repeated term passes
+    (the run_jobspy term loop calls scrape_greenhouse once per search term) don't
+    re-fetch all GRENHOUSE_ORGS orgs each time. Huge win: a 14-term batch used to
+    hit 14×40 = 560 org requests; now it's 1×40 and later terms just filter in
+    memory. This is what lets a widened 40-org list actually finish inside the
+    225s total budget."""
+    if old_days in _GREENHOUSE_CACHE:
+        return _GREENHOUSE_CACHE[old_days]
+    pool = []
     for org in GREENHOUSE_ORGS:
         url = f"https://api.greenhouse.io/v1/boards/{org}/jobs"
         try:
@@ -185,25 +223,19 @@ def scrape_greenhouse(term: str, old_days: int) -> list:
             continue
         for j in payload.get("jobs", []):
             title = j.get("title") or ""
-            if not _title_matches(title, term):
-                continue
-            # remote detection: location name may include 'remote'; otherwise keep
-            # role but mark is_remote from location string only.
             loc = (j.get("location") or {}).get("name") or ""
-            out.append({
-                "title": title,
+            pool.append({
+                "__title": title,
                 "company": j.get("company_name") or org,
-                "site": "greenhouse",
                 "job_url": j.get("absolute_url") or "",
                 "location": loc or "Remote",
-                "description": "",
                 "date_posted": j.get("first_published"),
                 "is_remote": _looks_remote(loc, None),
                 "is_expired": bool(loc and j.get("is_expired")),
-                "is_easy_apply": False,
             })
-    print(f"[ok] greenhouse: {len(out)} jobs for '{term}'", file=sys.stderr)
-    return out
+    _GREENHOUSE_CACHE[old_days] = pool
+    return pool
+
 
 
 def scrape_lever(term: str, old_days: int) -> list:

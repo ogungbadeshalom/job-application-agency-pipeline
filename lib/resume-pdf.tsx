@@ -197,6 +197,15 @@ function ResumeDoc({ d, preset }: { d: ResumeData; preset: ResumePreset }) {
           </>
         )}
 
+        {(d.skills && d.skills.length > 0 && !(d.technicalSkills && d.technicalSkills.length > 0)) && (
+          <>
+            <Text style={styles.sectionT}>Technical Skills</Text>
+            {(d.skills || []).map((s, si) => (
+              <Text key={si} style={styles.summary}>{s}</Text>
+            ))}
+          </>
+        )}
+
         <Text style={styles.sectionT}>Experience</Text>
         {(d.experience || []).map((e, ei) => (
           <View key={ei} style={styles.expBlock}>

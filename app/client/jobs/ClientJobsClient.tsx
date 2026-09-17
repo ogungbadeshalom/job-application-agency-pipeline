@@ -55,8 +55,13 @@ export default function ClientJobsClient({
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
+    // Name the file "Company - Role.pdf" so it's instantly identifiable instead
+    // of a generic name. Strip characters illegal in Windows/macOS filenames.
+    const safe = (s: string) => (s || '').replace(/[\\/:*?"<>|\n\r\t]+/g, ' ').trim();
+    const company = safe(job.company) || 'resume';
+    const role = safe(job.title) || '';
     a.href = url;
-    a.download = `${job.company || 'resume'}-tailored.pdf`;
+    a.download = role ? `${company} - ${role}.pdf` : `${company}.pdf`;
     a.click();
     URL.revokeObjectURL(url);
   }

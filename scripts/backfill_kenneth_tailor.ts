@@ -98,9 +98,11 @@ async function main() {
   if (!profile?.base_resume_text) throw new Error('Kenneth has no base resume text');
   console.log(`Kenneth base resume: ${profile.base_resume_text.length} chars | design=${profile.resume_design || 'classic'}`);
 
-  const jobs = await db.listJobs({ profile_id: PROFILE_ID, status: 'applied' });
-  const targets = jobs.filter((j) => !j.tailored_resume || j.tailored_resume.trim() === '');
-  console.log(`applied jobs: ${jobs.length} | missing resume: ${targets.length}\n`);
+  // Re-tailor ALL applied jobs for Kenneth with the fixed skills-preserving
+  // prompt + fixed PDF renderer (his earlier backfill used the old prompt that
+  // condensed skills and dropped the skills/education sections from the PDF).
+  const targets = await db.listJobs({ profile_id: PROFILE_ID, status: 'applied' });
+  console.log(`applied jobs to (re)tailor: ${targets.length}\n`);
 
   let ok = 0, fail = 0;
   for (const job of targets) {

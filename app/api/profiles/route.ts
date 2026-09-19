@@ -78,5 +78,26 @@ export async function PATCH(req: Request) {
   }
 
   const profile = await db.updateProfile(body.id, patch);
+
+  // Sync worker_clients when the assigned worker changes. profiles.assigned_worker_id
+  // alone is NOT enough — the worker dashboard reads worker_clients, so a missing
+  // link row leaves the worker seeing "No client assigned to you yet".
+  if ('assigned_worker_id' in patch) {
+    const newWorker = patch.assigned_worker_id ?? null;
+    // Remove this profile from any worker's link set that isn't the new worker,
+    // then link the new worker (createAssignClient is idempotent). This keeps
+    // worker_clients in sync with profiles.assigned_worker_id — the worker
+    // dashboard reads worker_clients, so a stale link leaves "No client assigned".
+    const linked = await db.listWorkerAssignments();
+    for (const [wid, pids] of Object.entries(linked)) {
+      if (pids.includes(body.id) && wid !== newWorker) {
+        await db.unassignClient(wid, body.id);
+      }
+    }
+    if (newWorker) {
+      await db.assignClient(newWorker, body.id);
+    }
+  }
+
   return NextResponse.json({ profile });
 }

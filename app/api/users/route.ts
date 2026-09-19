@@ -78,6 +78,14 @@ export async function POST(req: Request) {
     profile_id: profileId,
   });
 
+  // Sync the worker_clients link table when a worker is assigned at creation.
+  // profiles.assigned_worker_id alone is NOT enough — the worker dashboard reads
+  // worker_clients, so a missing link row leaves the worker seeing
+  // "No client assigned to you yet". (Same fix as /api/profiles PATCH.)
+  if (body.role === 'client' && profileId && body.assigned_worker_id) {
+    await db.assignClient(body.assigned_worker_id, profileId);
+  }
+
   return NextResponse.json({ user }, { status: 201 });
 }
 

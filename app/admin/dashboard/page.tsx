@@ -11,7 +11,7 @@ export default async function AdminDashboardPage() {
     db.listJobsSlim(),
     db.listProfiles(),
     db.listUsers(),
-    db.listScrapeRuns(),
+    db.listScrapeRuns(25), // cap to recent runs so the history table doesn't render all 287+ and bloat the page
   ]);
 
   const appliedCount = jobs.filter((j) => j.status === 'applied').length;

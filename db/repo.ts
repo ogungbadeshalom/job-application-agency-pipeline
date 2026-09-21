@@ -859,8 +859,10 @@ export const db = {
   },
 
   // scrape runs
-  async listScrapeRuns(): Promise<ScrapeRun[]> {
-    const rows = await all('select * from scrape_runs order by created_at desc');
+  async listScrapeRuns(limit?: number): Promise<ScrapeRun[]> {
+    const rows = await all(
+      `select * from scrape_runs order by created_at desc${limit && limit > 0 ? ` limit ${limit}` : ''}`
+    );
     return rows.map(mapScrapeRun);
   },
   // Keep only the newest saved/tailored job per company for a profile queue.

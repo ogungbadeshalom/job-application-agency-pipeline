@@ -278,6 +278,60 @@ await check('DB: job row counts are sane', async () => {
   assert(count !== 'ERR' && Number(count) > 0, `jobs count=${count}`);
 });
 
+// ===== DATA-INTEGRITY GATE (added 2026-09-21) =====
+// Three silent-rot classes the endpoint smoke test cannot see. Each is a real
+// finding even when every API check is green:
+//   A) assignment link missing (assigned_worker_id set but no worker_clients row)
+//   B) historical duplicate APPLIED rows (same profile+URL, any age — the guard
+//      only stops NEW dups, legacy pre-guard dups inflate "Applied" totals)
+//   C) applied jobs missing proof or tailored resume (unproven/payable work)
+const dbq = async (sql) => {
+  const { execSync } = await import('child_process');
+  const envUrl = fs.readFileSync('/root/job-agency/.env.local', 'utf8').match(/DATABASE_URL=(\S+)/)?.[1];
+  if (!envUrl) throw new Error('no DATABASE_URL');
+  return execSync(`psql "${envUrl}" -tAc "${sql}" 2>/dev/null || echo ERR`).toString().trim();
+};
+
+await check('DATA-INTEGRITY: every assigned profile has a worker_clients link row', async () => {
+  // A worker's dashboard reads worker_clients; a profile with assigned_worker_id
+  // but no link row means that worker sees "No client assigned to you yet"
+  // despite the admin UI showing the assignment. (This bit twice: hinex->example,
+  // Acme->Erry.) The POST /api/users + PATCH /api/profiles routes now sync the
+  // link, so this stays green unless a legacy/other path created the mismatch.
+  const n = Number(await dbq(`select count(*)
+    from profiles p
+    where p.assigned_worker_id is not null
+      and not exists (
+        select 1 from worker_clients wc
+        where wc.worker_user_id = p.assigned_worker_id and wc.profile_id = p.id)`));
+  assert(n === 0, `${n} profile(s) have assigned_worker_id but no worker_clients link (worker dashboard shows 'No client assigned')`);
+});
+
+await check('DATA-INTEGRITY: no duplicate APPLIED rows (same profile+URL, any age)', async () => {
+  // The apply-time guard stops new dups, but legacy pre-guard rows can still
+  // inflate a client's total "Applied" count (Andrew had 7). Sweep ALL rows so
+  // historical rot surfaces, not just post-guard regressions.
+  const n = Number(await dbq(`select count(*) from (
+      select profile_id, url from jobs
+      where url is not null and url <> ''
+      group by profile_id, url having count(*) > 1) x`));
+  assert(n === 0, `${n} distinct duplicated (profile,url) pairs inflate the applied count`);
+});
+
+await check('DATA-INTEGRITY: no applied job missing proof or tailored resume', async () => {
+  // Applied = paid service delivered. A job marked applied with no proof is
+  // unproven work; no tailored resume means the client can't view what was sent.
+  const row = await dbq(`select count(*) filter (where coalesce(proof_of_submission,'') = '') as no_proof,
+                          count(*) filter (where coalesce(tailored_resume,'') = '') as no_resume
+                   from jobs where status='applied'`);
+  const m = row.match(/(\d+)\|(\d+)/);
+  const noProof = m ? Number(m[1]) : -1;
+  const noResume = m ? Number(m[2]) : -1;
+  assert(noProof >= 0, `unable to parse applied-integrity query: ${row}`);
+  assert(noProof === 0, `${noProof} applied job(s) have NO proof of submission`);
+  assert(noResume === 0, `${noResume} applied job(s) have NO tailored resume`);
+});
+
 // Security shape
 await check('auth: wrong password is rejected', async () => {
   jar.clear();

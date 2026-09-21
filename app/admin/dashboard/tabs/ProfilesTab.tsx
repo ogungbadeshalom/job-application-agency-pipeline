@@ -33,6 +33,32 @@ export default function ProfilesTab({
   const clientUsers = users.filter((u) => u.role === 'client');
   const unlinkedWorkers = workers.filter((w) => !assignedClientOf(w.id));
 
+  // Unassign a client from their worker: clear profiles.assigned_worker_id and
+  // the worker_clients link row (PATCH /api/profiles syncs both).
+  const [unassigningId, setUnassigningId] = useState<string | null>(null);
+  const [unassignErr, setUnassignErr] = useState<string | null>(null);
+  async function unassignClient(p: Profile) {
+    const workerName = workers.find((w) => w.id === p.assigned_worker_id)?.full_name;
+    if (!window.confirm(`Unassign ${p.name} from ${workerName ?? 'their worker'}? The worker will no longer see this client's queue.`)) return;
+    setUnassigningId(p.id); setUnassignErr(null);
+    try {
+      const res = await fetch('/api/profiles', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: p.id, assigned_worker_id: null }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => null);
+        throw new Error(d?.error || 'Unassign failed');
+      }
+      router.refresh();
+    } catch (e) {
+      setUnassignErr(e instanceof Error ? e.message : 'Unknown error');
+    } finally {
+      setUnassigningId(null);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -155,6 +181,7 @@ export default function ProfilesTab({
         <div className="p-3 border-b border-navy-700 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-navy-200">Clients</h3>
           <span className="text-xs text-navy-500">{profiles.length} total</span>
+          {unassignErr && <span className="text-xs text-brand-red">{unassignErr}</span>}
         </div>
         {/* Mobile cards */}
         <div className="md:hidden divide-y divide-navy-800">
@@ -177,12 +204,24 @@ export default function ProfilesTab({
                     {p.scrape_search_terms?.length ? ` · ${p.scrape_search_terms.join(', ')}` : ''}
                   </span>
                   {clientUser ? (
-                    <button
-                      onClick={() => setEditTarget({ user: clientUser, jobsPerWeek: p.jobs_per_week })}
-                      className="shrink-0 px-2.5 py-1 text-xs rounded-md bg-navy-800 text-navy-200 hover:bg-navy-750"
-                    >
-                      Edit
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setEditTarget({ user: clientUser, jobsPerWeek: p.jobs_per_week })}
+                        className="px-2.5 py-1 text-xs rounded-md bg-navy-800 text-navy-200 hover:bg-navy-750"
+                      >
+                        Edit
+                      </button>
+                      {p.assigned_worker_id ? (
+                        <button
+                          onClick={() => unassignClient(p)}
+                          disabled={unassigningId === p.id}
+                          className="px-2.5 py-1 text-xs rounded-md text-navy-500 hover:text-brand-red hover:bg-red-500/10 disabled:opacity-40"
+                          title="Unassign this client from their worker"
+                        >
+                          {unassigningId === p.id ? 'Unassigning…' : 'Unassign'}
+                        </button>
+                      ) : null}
+                    </div>
                   ) : (
                     <span className="shrink-0 text-xs text-navy-500">no login</span>
                   )}
@@ -235,6 +274,16 @@ export default function ProfilesTab({
                     ) : (
                       <span className="text-xs text-navy-500">no login</span>
                     )}
+                    {p.assigned_worker_id ? (
+                      <button
+                        onClick={() => unassignClient(p)}
+                        disabled={unassigningId === p.id}
+                        className="px-2.5 py-1 text-xs rounded-md text-navy-500 hover:text-brand-red hover:bg-red-500/10 disabled:opacity-40"
+                        title="Unassign this client from their worker"
+                      >
+                        {unassigningId === p.id ? 'Unassigning…' : 'Unassign'}
+                      </button>
+                    ) : null}
                   </td>
                 </tr>
               );

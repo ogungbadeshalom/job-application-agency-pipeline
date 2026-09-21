@@ -88,6 +88,21 @@ export async function POST(req: Request) {
     await db.updateJob(jobId, { proof_of_submission: relPath });
     return NextResponse.json({ ok: true, applied: true, reattached: true, path: relPath });
   }
+  // Apply-time duplicate guard (mirrors PATCH /api/jobs/[id]): refuse to mark
+  // this posting applied if it (same normalized URL OR same company+title) is
+  // already applied for the profile. Without this the Chrome-extension one-click
+  // path could double-submit to one employer, inflating a client's Applied count.
+  const dup = await db.hasAppliedDuplicate(job.profile_id, {
+    url: job.url,
+    company: job.company,
+    title: job.title,
+  });
+  if (dup) {
+    return NextResponse.json(
+      { error: 'This job (or a duplicate of it) is already marked as applied. Skip it instead.' },
+      { status: 409 }
+    );
+  }
   await db.updateJob(jobId, {
     status: 'applied',
     proof_of_submission: relPath,

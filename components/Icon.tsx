@@ -53,8 +53,23 @@ export const External = (p: IconProps) => (
 export const Download = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-    <path d="M7 10l5 5 5-5" />
+    <path d="m7 10 5 5 5-5" />
     <path d="M12 15V3" />
+  </svg>
+);
+export const ZoomIn = (p: IconProps) => (
+  <svg {...base(p)}>
+    <circle cx="11" cy="11" r="8" />
+    <path d="m21 21-4.3-4.3" />
+    <path d="M11 8v6" />
+    <path d="M8 11h6" />
+  </svg>
+);
+export const ZoomOut = (p: IconProps) => (
+  <svg {...base(p)}>
+    <circle cx="11" cy="11" r="8" />
+    <path d="m21 21-4.3-4.3" />
+    <path d="M8 11h6" />
   </svg>
 );
 export const Copy = (p: IconProps) => (

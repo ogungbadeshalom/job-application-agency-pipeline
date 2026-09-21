@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import type { Job, JobStatus } from '@/lib/types';
 import { STATUS_OPTIONS } from './StatusBadge';
+import ZoomableImage from './ZoomableImage';
 import { Spinner } from './Icon';
 
 // SubmissionTracking panel:
@@ -159,11 +160,10 @@ export default function SubmissionPanel({
           <label className="block th-uppercase mb-1.5">Proof of submission</label>
           {proofUrl ? (
             <div className="flex flex-col gap-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <ZoomableImage
                 src={`/api/files/${proofUrl.split('/').filter(Boolean).join('/')}`}
                 alt="Proof of submission"
-                className="max-w-xs rounded-md border border-navy-700"
+                maxBox="max-w-xs"
               />
               <button
                 onClick={() => fileRef.current?.click()}

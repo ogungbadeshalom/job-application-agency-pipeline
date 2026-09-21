@@ -4,6 +4,7 @@ import { useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import JobTable from '@/components/JobTable';
 import Modal from '@/components/Modal';
+import ZoomableImage from '@/components/ZoomableImage';
 import StatusBadge from '@/components/StatusBadge';
 import { Download, External } from '@/components/Icon';
 import type { Job, Profile, User } from '@/lib/types';
@@ -160,11 +161,10 @@ export default function ClientJobsClient({
               <div>
                 <h3 className="th-uppercase mb-1">Proof of Submission</h3>
                 {isImagePath(selected.proof_of_submission) ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
+                  <ZoomableImage
                     src={`/api/files/${selected.proof_of_submission.split('/').filter(Boolean).join('/')}`}
                     alt="Proof of submission"
-                    className="max-w-md rounded-md border border-navy-700"
+                    maxBox="max-w-md"
                   />
                 ) : (
                   <p className="text-sm text-navy-400 whitespace-pre-wrap">{selected.proof_of_submission}</p>

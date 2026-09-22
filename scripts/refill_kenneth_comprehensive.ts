@@ -70,11 +70,21 @@ async function main() {
 
   const { fresh, skippedDuplicates } = await dedupeAndMap(pool, PROFILE_ID, scrapeRunId);
   console.log(`stage 3 (dedupe): ${fresh.length} new\n`);
+
+  let inserted = 0;
+  if (fresh.length > 0) {
+    const created = await db.createJobs(fresh as any);
+    inserted = created.length;
+    console.log(`inserted ${inserted} jobs for Kenneth Smith.`);
+  } else {
+    console.log('No fresh jobs (all duplicates).');
+  }
+
   await query(
     `update scrape_runs set status='completed', jobs_added=$1, completed_at=now() where id=$2`,
-    [fresh.length, scrapeRunId]
+    [inserted, scrapeRunId]
   );
-  console.log(`DONE. raw=${raw.length} | fit=${pool.length} | added=${fresh.length}`);
+  console.log(`DONE. raw=${raw.length} | fit=${pool.length} | added=${inserted}`);
 }
 
 main().catch((e) => { console.error('FATAL:', e); process.exit(1); });

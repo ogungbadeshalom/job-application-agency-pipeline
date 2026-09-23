@@ -103,6 +103,16 @@ export async function POST(req: Request) {
       { status: 409 }
     );
   }
+  // Client-visible invariant (mirrors PATCH /api/jobs/[id]): a job marked
+  // applied MUST have a tailored resume the client can view. If the worker
+  // bypassed the Tailor step in-app, reject so the client never sees an applied
+  // job they can't open the sent resume for.
+  if (!job.tailored_resume || !job.tailored_resume.trim()) {
+    return NextResponse.json(
+      { error: 'Tailor a resume for this job before marking it as applied (the client needs to view what was sent).' },
+      { status: 409 }
+    );
+  }
   await db.updateJob(jobId, {
     status: 'applied',
     proof_of_submission: relPath,

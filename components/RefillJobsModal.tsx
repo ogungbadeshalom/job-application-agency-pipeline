@@ -35,7 +35,7 @@ export default function RefillJobsModal({
   const [remoteOnly, setRemoteOnly] = useState(true); // most clients want remote
   const [resultsWanted, setResultsWanted] = useState('100');
   const [hoursOld, setHoursOld] = useState('72');
-  const [profileIds, setProfileIds] = useState<string[]>(profiles.map((p) => p.id));
+  const [profileIds, setProfileIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ jobs_found: number; jobs_added: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -83,7 +83,7 @@ export default function RefillJobsModal({
       setRemoteOnly(true);
       setResultsWanted('100');
       setHoursOld('72');
-      setProfileIds(profiles.map((p) => p.id));
+      setProfileIds([]); // start with none selected — pick profiles or a preset
       setLoading(false);
       setResult(null);
       setError(null);
@@ -285,7 +285,10 @@ export default function RefillJobsModal({
                           type="button"
                           disabled={loading}
                           onClick={() => {
-                            if (!profileIds.includes(p.id)) setProfileIds((ids) => [...ids, p.id]);
+                            // Target ONLY this profile when a preset is chosen —
+                            // clears the all-selected default so just this chip
+                            // highlights and the scrape runs for this client alone.
+                            setProfileIds([p.id]);
                             applyPreset(pr);
                           }}
                           title={`${pr.search_terms.length} terms`}

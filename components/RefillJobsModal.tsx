@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Modal from './Modal';
 import { Spinner } from './Icon';
-import type { Profile } from '@/lib/types';
+import type { Profile, ProfilePreset } from '@/lib/types';
 
 const SCRAPE_TIMEOUT_MS = 600_000; // 10 min — generous ceiling for JobSpy
 
@@ -41,6 +41,15 @@ export default function RefillJobsModal({
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<{ step: number; totalSteps: number; current: string; jobsFound: number } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // Presets: one-click refill + save the current form as a reusable preset.
+  const [presetName, setPresetName] = useState('');
+  const [presetTargetId, setPresetTargetId] = useState<string>('');
+  const [localPresets, setLocalPresets] = useState<Record<string, ProfilePreset[]>>({});
+  const [presetBusy, setPresetBusy] = useState(false);
+
+  function presetsFor(p: Profile): ProfilePreset[] {
+    return localPresets[p.id] ?? p.presets ?? [];
+  }
 
   // Poll live progress while a scrape runs.
   useEffect(() => {
@@ -84,6 +93,71 @@ export default function RefillJobsModal({
 
   function toggle(list: string[], set: (v: string[]) => void, value: string) {
     set(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
+  }
+
+  function applyPreset(preset: ProfilePreset | null | undefined) {
+    if (!preset) return;
+    setSearchTerms(preset.search_terms.join(', '));
+    if (Array.isArray(preset.sites) && preset.sites.length) setSites(preset.sites);
+    if (preset.remote_only) {
+      setRemoteOnly(true);
+    } else if (preset.location) {
+      setRemoteOnly(false);
+      setLocation(preset.location);
+    }
+    if (preset.results_wanted) setResultsWanted(String(preset.results_wanted));
+  }
+
+  async function savePreset() {
+    if (!presetName.trim() || !presetTargetId) return;
+    const target = profiles.find((p) => p.id === presetTargetId);
+    if (!target) return;
+    const existing = presetsFor(target);
+    setPresetBusy(true);
+    try {
+      const next: ProfilePreset[] = [...existing];
+      const idx = next.findIndex((x) => x.name.toLowerCase() === presetName.trim().toLowerCase());
+      const newPreset: ProfilePreset = {
+        id: idx >= 0 ? next[idx].id : (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)),
+        name: presetName.trim(),
+        search_terms: searchTerms.split(',').map((s) => s.trim()).filter(Boolean),
+        sites,
+        location: remoteOnly ? 'Remote' : location,
+        remote_only: remoteOnly,
+        results_wanted: Number(resultsWanted) || 100,
+      };
+      if (idx >= 0) next[idx] = newPreset; else next.push(newPreset);
+      const res = await fetch(`/api/presets/${presetTargetId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ presets: next }),
+      });
+      if (!res.ok) throw new Error('Failed to save preset');
+      setLocalPresets((m) => ({ ...m, [presetTargetId]: next }));
+      setPresetName('');
+      setPresetTargetId('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save preset');
+    } finally {
+      setPresetBusy(false);
+    }
+  }
+
+  async function deletePreset(profileId: string, presetId: string) {
+    const target = profiles.find((p) => p.id === profileId);
+    if (!target) return;
+    const next = presetsFor(target).filter((x) => x.id !== presetId);
+    try {
+      const res = await fetch(`/api/presets/${profileId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ presets: next }),
+      });
+      if (!res.ok) throw new Error('Failed to delete preset');
+      setLocalPresets((m) => ({ ...m, [profileId]: next }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete preset');
+    }
   }
 
   async function submit() {
@@ -196,6 +270,72 @@ export default function RefillJobsModal({
                   {opt.name}
                 </button>
               ))}
+            </div>
+          </Field>
+
+          <Field label="Presets (click to fill)">
+            <div className="space-y-2">
+              {profiles.flatMap((p) =>
+                presetsFor(p).length ? (
+                  <div key={p.id} className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs text-navy-500 w-28 truncate">{p.name}:</span>
+                    {presetsFor(p).map((pr) => (
+                      <span key={pr.id} className="inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          disabled={loading}
+                          onClick={() => {
+                            if (!profileIds.includes(p.id)) setProfileIds((ids) => [...ids, p.id]);
+                            applyPreset(pr);
+                          }}
+                          title={`${pr.search_terms.length} terms`}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-md bg-navy-800 text-navy-200 hover:bg-brand-green/30 hover:text-white"
+                        >
+                          <span className="text-brand-green">●</span> {pr.name}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deletePreset(p.id, pr.id)}
+                          title={`Delete ${pr.name}`}
+                          aria-label={`Delete ${pr.name}`}
+                          className="p-1 rounded text-navy-500 hover:text-red-400 hover:bg-red-500/10"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : null
+              )}
+              <div className="flex flex-wrap items-end gap-2 pt-1">
+                <select
+                  value={presetTargetId}
+                  onChange={(e) => setPresetTargetId(e.target.value)}
+                  disabled={presetBusy}
+                  className="bg-navy-950 border border-navy-700 rounded-md px-2 py-1.5 text-sm text-navy-100 focus:outline-none focus:border-brand-blue"
+                >
+                  <option value="">Save for…</option>
+                  {profiles.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+                <input
+                  value={presetName}
+                  onChange={(e) => setPresetName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); savePreset(); } }}
+                  placeholder="Preset name"
+                  disabled={presetBusy}
+                  className="flex-1 min-w-[130px] bg-navy-950 border border-navy-700 rounded-md px-2.5 py-1.5 text-sm text-navy-100 focus:outline-none focus:border-brand-green"
+                />
+                <button
+                  type="button"
+                  disabled={presetBusy || !presetTargetId || !presetName.trim()}
+                  onClick={savePreset}
+                  className="px-3 py-1.5 text-sm rounded-md bg-brand-green text-navy-950 font-medium hover:bg-brand-greenDark disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {presetBusy ? 'Saving…' : 'Save preset'}
+                </button>
+              </div>
             </div>
           </Field>
 

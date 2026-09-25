@@ -43,3 +43,6 @@ Thumbs.db
 
 # hermes internal (plans / scratch)
 /.hermes/
+
+# throwaway probe/debug scripts (name starts with underscore) — session debris
+/scripts/_*

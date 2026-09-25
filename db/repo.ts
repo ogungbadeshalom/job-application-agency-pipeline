@@ -843,15 +843,16 @@ export const db = {
         if (appliedUrls.some((r) => normalizeJobURL(r.url as string) === norm)) return true;
       }
     }
-    // Same company + same title (case-insensitive) — catches URL variants that
-    // normalize differently but are the same posting.
-    if (job.company && job.title) {
+    // STRICT one-role-per-company: block if this company already has ANY applied
+    // job for the profile, regardless of role/title. Prevents applying to the
+    // same employer twice (whether two roles, duplicate postings, or a manual
+    // add) — one job per company, strictly.
+    if (job.company && String(job.company).trim() !== '') {
       const hit = await one<{ n: string }>(
         `select count(*)::text n from jobs
          where profile_id = $1 and status = 'applied'
-           and lower(coalesce(company,'')) = lower($2)
-           and lower(coalesce(title,'')) = lower($3)`,
-        [profileId, String(job.company).trim(), String(job.title).trim()]
+           and lower(coalesce(company,'')) = lower($2)`,
+        [profileId, String(job.company).trim()]
       );
       if (hit && Number(hit.n) > 0) return true;
     }

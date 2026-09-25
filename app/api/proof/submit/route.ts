@@ -99,7 +99,7 @@ export async function POST(req: Request) {
   });
   if (dup) {
     return NextResponse.json(
-      { error: 'This job (or a duplicate of it) is already marked as applied. Skip it instead.' },
+      { error: `${job.company || 'This company'} already has an applied job for this client — only one role per company is allowed. Skip it instead.` },
       { status: 409 }
     );
   }

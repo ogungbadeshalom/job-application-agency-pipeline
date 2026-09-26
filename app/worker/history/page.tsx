@@ -21,6 +21,7 @@ export default async function WorkerHistoryPage() {
   const nav = [
     { href: '/worker/queue', label: 'Queue', badge: jobs.filter((j) => j.status === 'saved').length },
     { href: '/worker/history', label: 'History' },
+    { href: '/worker/report', label: 'Report a problem' },
   ];
 
   return <HistoryClient user={user} nav={nav} jobs={jobs} />;

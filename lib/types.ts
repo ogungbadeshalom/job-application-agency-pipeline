@@ -222,3 +222,32 @@ export const STATUS_ORDER: Record<JobStatus, number> = {
 
 // Client view shows applied jobs (not skipped/saved/tailored).
 export const CLIENT_VISIBLE_STATUSES: JobStatus[] = ['applied'];
+
+// Complaint categories a worker can file about the software.
+export const COMPLAINT_CATEGORIES = [
+  'bug',
+  'slow',
+  'login',
+  'resume',
+  'proof',
+  'job-quality',
+  'other',
+] as const;
+export type ComplaintCategory = (typeof COMPLAINT_CATEGORIES)[number];
+export type ComplaintStatus = 'open' | 'in_progress' | 'resolved' | 'wontfix';
+
+export interface Complaint {
+  id: string;
+  worker_user_id: string | null;
+  worker_name: string | null;
+  profile_id: string | null;
+  client_name: string | null;
+  category: string;
+  subject: string;
+  detail: string;
+  url: string | null;
+  status: ComplaintStatus;
+  admin_note: string | null;
+  created_at: string;
+  updated_at: string;
+}

@@ -25,6 +25,8 @@ import type {
   ScrapeRun,
   ScrapeTask,
   User,
+  Complaint,
+  ComplaintStatus,
 } from '../lib/types';
 
 // Long random bearer token for the proof-capture extension (URL-safe base62).
@@ -1210,6 +1212,61 @@ export const db = {
       weekEndIso: '',
     };
   },
+  // ---- complaints ----
+  async createComplaint(input: {
+    worker_user_id: string | null;
+    profile_id: string | null;
+    category: string;
+    subject: string;
+    detail: string;
+    url?: string | null;
+  }): Promise<Complaint> {
+    const row = await one<Record<string, unknown>>(
+      `insert into complaints (worker_user_id, profile_id, category, subject, detail, url)
+       values ($1, $2, $3, $4, $5, $6) returning *`,
+      [input.worker_user_id, input.profile_id, input.category || 'other', input.subject, input.detail, input.url ?? null]
+    );
+    return mapComplaint(row!);
+  },
+  async listComplaints(opts: { status?: string; limit?: number } = {}): Promise<Complaint[]> {
+    const rows = await all(
+      `select c.*, u.full_name as worker_name, p.name as client_name
+       from complaints c
+       left join users u on u.id = c.worker_user_id
+       left join profiles p on p.id = c.profile_id
+       where ($1 = '' or c.status = $1)
+       order by c.created_at desc
+       limit $2`,
+      [opts.status || '', opts.limit ?? 100]
+    );
+    return rows.map(mapComplaint);
+  },
+  async updateComplaint(id: string, patch: { status?: string; admin_note?: string | null }): Promise<Complaint | null> {
+    const row = await one(
+      `update complaints set status = coalesce($2, status), admin_note = coalesce($3, admin_note),
+         updated_at = now() where id = $1 returning *`,
+      [id, patch.status ?? null, patch.admin_note === undefined ? null : patch.admin_note]
+    );
+    return row ? mapComplaint(row) : null;
+  },
 };
+
+function mapComplaint(r: Record<string, unknown>): Complaint {
+  return {
+    id: String(r.id),
+    worker_user_id: r.worker_user_id ? String(r.worker_user_id) : null,
+    worker_name: r.worker_name ? String(r.worker_name) : null,
+    profile_id: r.profile_id ? String(r.profile_id) : null,
+    client_name: r.client_name ? String(r.client_name) : null,
+    category: String(r.category ?? 'other'),
+    subject: String(r.subject ?? ''),
+    detail: String(r.detail ?? ''),
+    url: r.url ? String(r.url) : null,
+    status: (r.status as ComplaintStatus) ?? 'open',
+    admin_note: r.admin_note ? String(r.admin_note) : null,
+    created_at: r.created_at ? new Date(String(r.created_at)).toISOString() : '',
+    updated_at: r.updated_at ? new Date(String(r.updated_at)).toISOString() : '',
+  };
+}
 
 export type Db = typeof db;

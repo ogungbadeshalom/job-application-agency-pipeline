@@ -11,8 +11,9 @@ import { useJobs } from './hooks/useJobs';
 import ProfilesTab from './tabs/ProfilesTab';
 import ResumesTab from './tabs/ResumesTab';
 import SettingsTab from './tabs/SettingsTab';
+import ComplaintsTab from './tabs/ComplaintsTab';
 
-type Tab = 'applications' | 'profiles' | 'resumes' | 'settings';
+type Tab = 'applications' | 'profiles' | 'resumes' | 'settings' | 'complaints';
 
 export default function DashboardClient({
   user,
@@ -39,6 +40,7 @@ export default function DashboardClient({
     { key: 'profiles', label: 'Profiles', count: profiles.length },
     { key: 'resumes', label: 'Resumes' },
     { key: 'settings', label: 'Settings' },
+    { key: 'complaints', label: 'Issues' },
   ];
 
   return (
@@ -106,6 +108,7 @@ export default function DashboardClient({
       {tab === 'profiles' && <ProfilesTab profiles={profiles} users={users} jobs={jobs} />}
       {tab === 'resumes' && <ResumesTab profiles={profiles} jobs={jobs} />}
       {tab === 'settings' && <SettingsTab users={users} scrapeRuns={scrapeRuns} profiles={profiles} />}
+      {tab === 'complaints' && <ComplaintsTab />}
 
       <RefillJobsModal
         open={refillOpen}

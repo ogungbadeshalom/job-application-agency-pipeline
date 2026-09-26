@@ -101,9 +101,8 @@ export default function DashboardClient({
     { key: 'applications', label: 'Applications', count: jobs.length },
     { key: 'profiles', label: 'Profiles', count: profiles.length },
     { key: 'resumes', label: 'Resumes' },
-    // Settings is intentionally omitted here — DashboardLayout renders a
-    // built-in Settings link in the nav already (avoids a duplicate).
     { key: 'complaints', label: 'Issues' },
+    { key: 'settings', label: 'Settings' },
   ];
 
   // In-page section switcher for the admin. Applications is the main view

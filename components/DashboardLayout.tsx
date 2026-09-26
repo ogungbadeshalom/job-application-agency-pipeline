@@ -96,6 +96,11 @@ export default function DashboardLayout({
                       </Link>
         );
       })}
+      {/* Section switch (admin) — renders directly under the nav links so
+          Profiles/Resumes/Issues/Settings cluster right beneath Dashboard. */}
+      {subNav ? (
+        <div className="pt-1">{subNav}</div>
+      ) : null}
       <div className="pt-2 mt-2 border-t border-navy-800">
         <div className="relative group">
         <button
@@ -123,6 +128,7 @@ export default function DashboardLayout({
                       ① Click the green dot to take the tour
                     </p>
                   )}
+                  {!subNav && (
                   <Link
                     href="/settings"
                     onClick={onNavigate}
@@ -135,6 +141,7 @@ export default function DashboardLayout({
                   >
           <span className="w-full truncate leading-snug">Settings</span>
         </Link>
+        )}
       </div>
     </nav>
   );

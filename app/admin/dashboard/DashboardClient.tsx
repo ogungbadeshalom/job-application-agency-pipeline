@@ -98,8 +98,6 @@ export default function DashboardClient({
     ] as Stat[];
   }, [jobs, profiles]);
 
-  const openIssues = 0; // resolved placeholder: ComplaintsTab owns its own fetch; safer than guessing
-
   const tabs: { key: Tab; label: string; count?: number }[] = [
     { key: 'applications', label: 'Applications', count: jobs.length },
     { key: 'profiles', label: 'Profiles', count: profiles.length },

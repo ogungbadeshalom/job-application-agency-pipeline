@@ -81,13 +81,13 @@ export default function DashboardLayout({
             aria-current={isActive ? 'page' : undefined}
             className={`flex flex-col items-start gap-0.5 px-3 py-2 rounded-md text-sm font-medium transition-colors border-l-2 w-full ${
                         isActive
-                          ? 'bg-brand-green/10 text-white border-brand-green'
-                          : 'border-transparent text-navy-300 hover:text-white hover:bg-brand-green/5'
+                          ? 'bg-[var(--accent-soft)] text-white border-[var(--accent)]'
+                          : 'border-transparent text-navy-300 hover:text-white hover:bg-[var(--accent-soft)]'
                       }`}
                       >
                         <span className="w-full truncate leading-snug">{n.label}</span>
                         {typeof n.badge === 'number' && n.badge > 0 && (
-                          <span className="text-[10px] px-1.5 py-px rounded-full bg-navy-900/70 text-brand-green leading-none">
+                          <span className="text-[10px] px-1.5 py-px rounded-full bg-navy-900/70 text-[var(--accent-strong)] leading-none">
                             {n.badge.toLocaleString()} applied
                           </span>
                         )}
@@ -98,39 +98,39 @@ export default function DashboardLayout({
         <div className="relative group">
         <button
           onClick={() => window.dispatchEvent(new Event('jobbidder:open-onboarding'))}
-          className="w-full flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-navy-100 hover:text-white hover:bg-brand-green/10 border-l-2 border-brand-green/60 text-left"
+          className="w-full flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-navy-100 hover:text-white hover:bg-[var(--accent-soft)] border-l-2 border-[var(--accent)]/60 text-left"
         >
           {/* Pulsing green beacon — tells the user to click here to start the tour.
               Visible until the tour has been completed. */}
           {showBeacon === true && (
-            <span className="relative flex h-4 w-4 shrink-0 items-center justify-center">
-              <span className="absolute inline-flex h-full w-full rounded-full bg-brand-green opacity-60 animate-ping" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-green" />
-            </span>
-          )}
-          {showBeacon === false && (
-            <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-navy-800 text-[10px] font-bold text-brand-green ring-1 ring-navy-600">?</span>
-          )}
-          <span className="whitespace-nowrap leading-snug">How it works</span>
-        </button>
-        </div>
-        {/* Persistent attention hint — sits BELOW the button so the sidebar
-            overflow can't clip it. */}
-        {showBeacon === true && (
-          <p className="mt-0.5 px-3 text-[10px] font-semibold leading-tight text-brand-green">
-            ① Click the green dot to take the tour
-          </p>
-        )}
-        <Link
-          href="/settings"
-          onClick={onNavigate}
-          aria-current={active === '/settings' ? 'page' : undefined}
-          className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors border-l-2 w-full ${
-            active === '/settings'
-              ? 'bg-brand-green/10 text-white border-brand-green'
-              : 'border-transparent text-navy-300 hover:text-white hover:bg-brand-green/5'
-          }`}
-        >
+                      <span className="relative flex h-4 w-4 shrink-0 items-center justify-center">
+                        <span className="absolute inline-flex h-full w-full rounded-full bg-[var(--accent)] opacity-60 animate-ping" />
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--accent)]" />
+                      </span>
+                    )}
+                    {showBeacon === false && (
+                      <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-navy-800 text-[10px] font-bold text-[var(--accent-strong)] ring-1 ring-navy-600">?</span>
+                    )}
+                    <span className="whitespace-nowrap leading-snug">How it works</span>
+                  </button>
+                  </div>
+                  {/* Persistent attention hint — sits BELOW the button so the sidebar
+                      overflow can't clip it. */}
+                  {showBeacon === true && (
+                    <p className="mt-0.5 px-3 text-[10px] font-semibold leading-tight text-[var(--accent-strong)]">
+                      ① Click the green dot to take the tour
+                    </p>
+                  )}
+                  <Link
+                    href="/settings"
+                    onClick={onNavigate}
+                    aria-current={active === '/settings' ? 'page' : undefined}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors border-l-2 w-full ${
+                      active === '/settings'
+                        ? 'bg-[var(--accent-soft)] text-white border-[var(--accent)]'
+                        : 'border-transparent text-navy-300 hover:text-white hover:bg-[var(--accent-soft)]'
+                    }`}
+                  >
           <span className="w-full truncate leading-snug">Settings</span>
         </Link>
       </div>
@@ -147,7 +147,7 @@ export default function DashboardLayout({
       />
       <span className="min-w-0 leading-tight">
         <span className="font-semibold tracking-tight block leading-snug">Job Bidder</span>
-        <span className="block text-[10px] font-mono text-brand-blue/80">v{APP_VERSION}</span>
+        <span className="block text-[10px] font-mono text-[var(--accent-strong)]">v{APP_VERSION}</span>
       </span>
     </Link>
   );
@@ -160,7 +160,7 @@ export default function DashboardLayout({
 
       <div className="flex-1 lg:flex">
         {/* Compact desktop sidebar (fixed left, no expander) */}
-        <aside className="hidden lg:flex flex-col fixed left-0 bottom-0 top-0 border-r border-navy-700 bg-navy-900 w-36">
+        <aside className="hidden lg:flex flex-col fixed left-0 bottom-0 top-0 border-r border-white/[0.06] w-36 bg-[linear-gradient(180deg,#0e1320,#0b0f17)] backdrop-blur">
           <div className="px-2 py-3 border-b border-navy-700">
             <Logo onNavigate={() => setMenuOpen(false)} />
           </div>
@@ -184,7 +184,7 @@ export default function DashboardLayout({
         </aside>
 
       {/* Mobile top bar */}
-      <header className="lg:hidden sticky top-0 z-40 border-b border-navy-700 bg-navy-900/95 backdrop-blur">
+      <header className="lg:hidden sticky top-0 z-40 border-b border-white/[0.06] bg-[linear-gradient(180deg,#0e1320,#0b0f17)]/95 backdrop-blur">
         <div className="px-4 h-14 flex items-center justify-between gap-2">
           <Logo onNavigate={() => setMenuOpen(false)} />
           <div className="flex items-center gap-1.5">
@@ -196,11 +196,11 @@ export default function DashboardLayout({
             >
               {showBeacon === true ? (
                 <span className="relative flex h-5 w-5 items-center justify-center">
-                  <span className="absolute inline-flex h-full w-full rounded-full bg-brand-green opacity-60 animate-ping" />
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-brand-green" />
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-[var(--accent)] opacity-60 animate-ping" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[var(--accent)]" />
                 </span>
               ) : (
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-navy-800 text-[11px] font-bold text-brand-green ring-1 ring-navy-600">?</span>
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-navy-800 text-[11px] font-bold text-[var(--accent-strong)] ring-1 ring-navy-600">?</span>
               )}
             </button>
             <button
@@ -229,8 +229,8 @@ export default function DashboardLayout({
       {/* Mobile drawer */}
       {menuOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
-          <div className="w-64 bg-navy-900 border-r border-navy-700 flex flex-col">
-            <div className="px-3 py-4 border-b border-navy-700 flex items-center justify-between">
+          <div className="w-64 bg-[linear-gradient(180deg,#0e1320,#0b0f17)] border-r border-white/[0.06] flex flex-col">
+            <div className="px-3 py-4 border-b border-white/[0.06] flex items-center justify-between">
               <Logo onNavigate={() => setMenuOpen(false)} />
               <button
                 onClick={() => setMenuOpen(false)}

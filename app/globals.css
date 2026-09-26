@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Command Deck backdrop — subtle fixed radial glows behind every screen,
+   exactly like the deck template (violet top-right, cyan bottom-left). */
+body {
+  background: radial-gradient(900px 400px at 80% -10%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 60%),
+              radial-gradient(700px 400px at 0% 100%, rgba(34, 211, 238, 0.05), transparent 55%),
+              var(--color-navy-950, #0b0f17);
+  background-color: #0b0f17;
+  background-attachment: fixed;
+}
+
 :root {
   color-scheme: dark;
   /* Brand accent — default GREEN. Additional colors are offered via the

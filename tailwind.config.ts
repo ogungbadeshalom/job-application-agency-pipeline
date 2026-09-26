@@ -10,20 +10,22 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // JobOps-style dark navy palette
+        // JobOps-style dark navy palette — reshaded to the Command Deck
+        // aesthetic (near-black bg, deep panels, hairline borders). Every
+        // screen keys off these tokens, so the whole app inherits the deck.
         navy: {
-          950: '#0d1117', // page background
-          900: '#161b22', // cards / panels
-          850: '#1c2128',
-          800: '#21262d', // table rows
-          750: '#2a3038',
-          700: '#30363d', // borders
-          600: '#484f58',
-          500: '#6e7681', // muted text
-          400: '#8b949e',
-          300: '#c9d1d9',
-          200: '#d0d7de',
-          100: '#e6edf3', // primary text
+          950: '#0b0f17', // page background (deck bg)
+          900: '#111826', // cards / panels (deck panel)
+          850: '#16202f', // elevated panel-2
+          800: '#1b2738', // table rows / hover
+          750: '#22304a',
+          700: '#1d2939', // hairline borders (deck border)
+          600: '#2a3a50', // border-strong
+          500: '#5f6f8a', // muted text (deck faint)
+          400: '#8b9bb4', // deck muted
+          300: '#b6c2d6',
+          200: '#c9d1d9',
+          100: '#e7ecf5', // primary text (deck text)
         },
         brand: {
           green: 'var(--accent)',

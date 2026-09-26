@@ -145,6 +145,7 @@ create table if not exists app_config (
   ai_api_key_nonce     text,
   maintenance_message  text not null default '',
   maintenance_enabled  boolean not null default false,
+  maintenance_target  text not null default 'all',
   auto_refill_enabled  boolean not null default false,
   auto_refill_time     text not null default '09:00',
   auto_refill_last_run timestamptz,

@@ -1131,6 +1131,7 @@ export const db = {
       ai_api_key: apiKey,
       maintenance_message: (row.maintenance_message as string) ?? '',
       maintenance_enabled: Boolean(row.maintenance_enabled),
+      maintenance_target: (row.maintenance_target as string) ?? 'all',
       auto_refill_enabled: Boolean(row.auto_refill_enabled),
       auto_refill_time: (row.auto_refill_time as string) ?? '09:00',
       auto_refill_last_run: (row.auto_refill_last_run as Date | null)
@@ -1139,16 +1140,19 @@ export const db = {
       updated_at: (row.updated_at as Date).toISOString(),
     };
   },
-  async setMaintenance(message: string, enabled: boolean): Promise<AppConfig> {
+  async setMaintenance(message: string, enabled: boolean, target: string = 'all'): Promise<AppConfig> {
+    const allowed = ['all', 'worker', 'client', 'admin'];
+    if (!allowed.includes(target)) target = 'all';
     await one(
-      `insert into app_config (id, maintenance_message, maintenance_enabled, updated_at)
-       values (1, $1, $2, now())
+      `insert into app_config (id, maintenance_message, maintenance_enabled, maintenance_target, updated_at)
+       values (1, $1, $2, $3, now())
        on conflict (id) do update set
          maintenance_message = excluded.maintenance_message,
          maintenance_enabled = excluded.maintenance_enabled,
+         maintenance_target = excluded.maintenance_target,
          updated_at = now()
        returning *`,
-      [message, enabled]
+      [message, enabled, target]
     );
     return (await this.getAppConfig())!;
   },

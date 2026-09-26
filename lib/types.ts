@@ -197,6 +197,7 @@ export interface AppConfig {
   ai_api_key: string | null;
   maintenance_message: string;
   maintenance_enabled: boolean;
+  maintenance_target: string;
   auto_refill_enabled: boolean;
   auto_refill_time: string;
   auto_refill_last_run: string | null;

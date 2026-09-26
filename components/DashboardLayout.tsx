@@ -18,8 +18,8 @@ interface NavItem {
 // Maintenance / announcement banner. Rendered in normal flow at the very top of
 // the page (above the sidebar/top-bar), so everything naturally flows below it
 // with NO overlap and NO layout-shift offsets — it just pushes content down.
-function MaintenanceBanner() {
-  const [msg, setMsg] = useState<{ enabled: boolean; message: string } | null>(null);
+function MaintenanceBanner({ role }: { role: Role }) {
+  const [msg, setMsg] = useState<{ enabled: boolean; message: string; target?: string } | null>(null);
   useEffect(() => {
     fetch('/api/config/maintenance')
       .then((r) => r.json().catch(() => null))
@@ -27,6 +27,10 @@ function MaintenanceBanner() {
       .catch(() => {});
   }, []);
   if (!msg || !msg.enabled || !msg.message.trim()) return null;
+  // Role targeting: 'all' (default) shows to everyone; otherwise only the
+  // matching role sees it. e.g. a "Clients only" notice is hidden from workers.
+  const target = msg.target || 'all';
+  if (target !== 'all' && target !== role) return null;
   return (
     <div className="w-full bg-amber-500/15 border-b border-amber-500/40 text-amber-100 px-4 py-2.5 text-sm text-center">
       <span className="font-semibold mr-2">Notice:</span>
@@ -165,7 +169,7 @@ export default function DashboardLayout({
     <div className="min-h-screen flex flex-col">
       {/* Full-width maintenance banner ABOVE everything — in normal flow, so it
           simply pushes the sidebar/header/content down (no overlap, no shift). */}
-      <MaintenanceBanner />
+      <MaintenanceBanner role={user.role} />
 
       <div className="flex-1 lg:flex">
         {/* Compact desktop sidebar (fixed left, no expander) */}

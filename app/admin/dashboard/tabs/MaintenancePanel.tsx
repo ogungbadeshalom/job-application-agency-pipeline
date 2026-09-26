@@ -3,10 +3,18 @@
 import { useEffect, useState } from 'react';
 import { Spinner } from '@/components/Icon';
 
+const TARGETS = [
+  { value: 'all', label: 'Everyone' },
+  { value: 'worker', label: 'Workers only' },
+  { value: 'client', label: 'Clients only' },
+  { value: 'admin', label: 'Admins only' },
+];
+
 // Admin controls for the maintenance / announcement banner shown on all pages.
 export default function MaintenancePanel() {
   const [message, setMessage] = useState('');
   const [enabled, setEnabled] = useState(false);
+  const [target, setTarget] = useState('all');
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
@@ -17,6 +25,7 @@ export default function MaintenancePanel() {
         if (d) {
           setMessage(d.message ?? '');
           setEnabled(d.enabled ?? false);
+          setTarget(d.target ?? 'all');
         }
       })
       .catch(() => {});
@@ -29,13 +38,14 @@ export default function MaintenancePanel() {
       const res = await fetch('/api/config/maintenance', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message, enabled }),
+        body: JSON.stringify({ message, enabled, target }),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => null);
         throw new Error(d?.error || 'Save failed');
       }
-      setStatus(enabled ? 'Banner is live on all pages.' : 'Saved — banner is off.');
+      const t = TARGETS.find((x) => x.value === target)?.label ?? 'Everyone';
+      setStatus(enabled ? `Banner is live for ${t}.` : 'Saved — banner is off.');
     } catch (e) {
       setStatus(e instanceof Error ? e.message : 'Save failed');
     } finally {
@@ -66,6 +76,26 @@ export default function MaintenancePanel() {
             className="w-full h-24 bg-navy-950 border border-navy-700 rounded-md p-3 text-sm text-navy-100 placeholder:text-navy-500 focus:outline-none focus:border-brand-blue resize-y"
           />
         </div>
+        <div>
+          <label className="text-xs text-navy-400 mb-1.5 block">Show to</label>
+          <div className="flex flex-wrap gap-2">
+            {TARGETS.map((t) => (
+              <button
+                key={t.value}
+                type="button"
+                onClick={() => setTarget(t.value)}
+                className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
+                  target === t.value
+                    ? 'bg-brand-green/15 text-brand-green border-brand-green/40'
+                    : 'bg-navy-950 text-navy-300 border-navy-700 hover:text-navy-100 hover:border-navy-600'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-navy-500 mt-1.5">Only people in this role will see the banner.</p>
+        </div>
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-2 text-sm text-navy-200 cursor-pointer">
             <input
@@ -74,7 +104,7 @@ export default function MaintenancePanel() {
               onChange={(e) => setEnabled(e.target.checked)}
               className="accent-brand-green"
             />
-            Show this notice to workers &amp; clients
+            Show this notice
           </label>
           <button
             onClick={save}

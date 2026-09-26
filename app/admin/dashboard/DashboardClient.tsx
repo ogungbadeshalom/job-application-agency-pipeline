@@ -6,14 +6,14 @@ import JobTable from '@/components/JobTable';
 import RefillJobsModal from '@/components/RefillJobsModal';
 import ExperimentalExportModal from '@/components/ExperimentalExportModal';
 import { Refresh } from '@/components/Icon';
-import type { Job, Profile, User } from '@/lib/types';
+import type { Job, Profile, User, ScrapeRun } from '@/lib/types';
 import { useJobs } from './hooks/useJobs';
 import ProfilesTab from './tabs/ProfilesTab';
 import ResumesTab from './tabs/ResumesTab';
 import SettingsTab from './tabs/SettingsTab';
 import ComplaintsTab from './tabs/ComplaintsTab';
 
-type Tab = 'applications' | 'profiles' | 'resumes' | 'settings' | 'complaints';
+type Section = 'applications' | 'profiles' | 'resumes' | 'settings' | 'complaints';
 
 type Stat = { key: string; label: string; value: string; sub: string; delta?: string; up?: boolean; bars?: number[]; pct?: number };
 
@@ -54,9 +54,9 @@ export default function DashboardClient({
   initialJobs: Job[];
   profiles: Profile[];
   users: User[];
-  scrapeRuns: import('@/lib/types').ScrapeRun[];
+  scrapeRuns: ScrapeRun[];
 }) {
-  const [tab, setTab] = useState<Tab>('applications');
+  const [section, setSection] = useState<Section>('applications');
   const [refillOpen, setRefillOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const { jobs, refresh } = useJobs(initialJobs);
@@ -71,7 +71,6 @@ export default function DashboardClient({
 
     const now = Date.now();
     const appliedThisWeek = jobs.filter((j) => j.status === 'applied' && j.updated_at && now - new Date(j.updated_at).getTime() < WEEK_MS).length;
-    // apply-rate per profile -> queue fill health
     const perProfile = profiles.map((p) => {
       const pp = jobs.filter((j) => j.profile_id === p.id);
       if (pp.length === 0) return 0;
@@ -98,7 +97,7 @@ export default function DashboardClient({
     ] as Stat[];
   }, [jobs, profiles]);
 
-  const tabs: { key: Tab; label: string; count?: number }[] = [
+  const sections: { key: Section; label: string; count?: number; badge?: number }[] = [
     { key: 'applications', label: 'Applications', count: jobs.length },
     { key: 'profiles', label: 'Profiles', count: profiles.length },
     { key: 'resumes', label: 'Resumes' },
@@ -106,105 +105,123 @@ export default function DashboardClient({
     { key: 'complaints', label: 'Issues' },
   ];
 
+  // In-page section switcher for the admin (Applications is the main view;
+  // the rest live in the sidebar nav via the `actions` slot of the layout).
+  const SectionNav = ({ onNavigate, inRail }: { onNavigate?: () => void; inRail: boolean }) => (
+    <nav className={inRail ? 'flex flex-col gap-0.5 p-2' : 'hidden'} aria-label="Sections">
+      {sections.filter((s) => s.key !== 'applications').map((s) => {
+        const active = section === s.key;
+        return (
+          <button
+            key={s.key}
+            role="tab"
+            aria-selected={active}
+            onClick={() => { setSection(s.key); onNavigate?.(); }}
+            className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors border-l-2 w-full ${
+              active
+                ? 'bg-[var(--accent-soft)] text-white border-[var(--accent)]'
+                : 'border-transparent text-navy-300 hover:text-white hover:bg-[var(--accent-soft)]'
+            }`}
+          >
+            <span className="flex-1 text-left truncate leading-snug">{s.label}</span>
+            {typeof s.count === 'number' && (
+              <span className={`text-xs ${active ? 'text-[var(--accent-strong)]' : 'text-navy-500'}`}>{s.count}</span>
+            )}
+          </button>
+        );
+      })}
+    </nav>
+  );
+
+  const actions = <SectionNav inRail />;
+
   return (
     <DashboardLayout
       user={user}
       nav={nav}
       active="/admin/dashboard"
-      actions={undefined}
+      actions={actions}
     >
       {/* Command Deck header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5" data-onboard="admin-header">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
         <div>
-          <p className="text-[10px] font-mono uppercase tracking-[0.14em] text-navy-500 mb-1">Command Deck</p>
-          <h1 className="text-xl font-semibold tracking-tight text-navy-100">Job Applications</h1>
+          <p className="text-[10px] font-mono uppercase tracking-[0.14em] text-navy-500 mb-1">Command Deck · {sections.find((s) => s.key === section)?.label}</p>
+          <h1 className="text-xl font-semibold tracking-tight text-navy-100">
+            {section === 'applications' ? 'Job Applications' : sections.find((s) => s.key === section)?.label}
+          </h1>
         </div>
-        <div className="flex items-center gap-2 flex-wrap sm:ml-auto">
-          <button
-            onClick={() => setExportOpen(true)}
-            title="Export jobs to a spreadsheet (no queue changes)"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-white/[0.05] text-navy-300 border border-white/10 hover:bg-white/[0.09] hover:text-navy-100 transition-colors"
-          >
-            ⬇ Export
-          </button>
-          <button
-            onClick={() => setRefillOpen(true)}
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium rounded-lg text-white shadow-[0_6px_18px_-6px_var(--accent-glow)] transition-[filter] hover:brightness-110"
-            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-dark))' }}
-          >
-            <Refresh size={15} /> Refill Jobs
-          </button>
-        </div>
-      </div>
-
-      {/* KPI grid */}
-      <section className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-5" data-onboard="admin-kpis">
-        {stats.map((s) => (
-          <div
-            key={s.key}
-            className="relative rounded-xl overflow-hidden border border-white/[0.07] bg-[linear-gradient(180deg,rgba(17,24,38,0.9),rgba(11,15,23,0.6))] p-4"
-          >
-            <span className="absolute top-0 left-0 right-0 h-[2px] opacity-70" style={{ background: `linear-gradient(90deg, var(--accent), transparent 70%)` }} />
-            <p className="text-[10px] font-mono uppercase tracking-[0.1em] text-navy-500 mb-2 truncate">{s.label}</p>
-            <p className="text-2xl font-bold font-mono tracking-tight text-navy-50 leading-none">
-              {s.value}
-              {s.pct !== undefined && <small className="text-sm text-navy-500"> /100</small>}
-            </p>
-            <p className="text-[11px] text-navy-400 mt-1.5 truncate">{s.sub}</p>
-            {s.delta ? (
-              <p className={`text-[10.5px] font-mono mt-1.5 ${s.up ? 'text-emerald-400' : 'text-navy-500'}`}>
-                {s.up ? '▲' : '▽'} {s.delta}
-              </p>
-            ) : null}
-            {s.bars ? (
-              <div className="mt-2.5">
-                <MiniBars values={s.bars} />
-              </div>
-            ) : null}
-            {s.pct !== undefined ? <PctTrack value={s.pct} /> : null}
-          </div>
-        ))}
-      </section>
-
-      {/* Command Deck tabs */}
-      <div
-        role="tablist"
-        aria-label="Dashboard sections"
-        data-onboard="admin-tabs"
-        className="flex items-center gap-1 mb-5 overflow-x-auto -mx-1 px-1 border-b border-white/[0.06] pb-0"
-      >
-        {tabs.map((t) => {
-          const active = tab === t.key;
-          return (
+        {section === 'applications' && (
+          <div className="flex items-center gap-2 flex-wrap sm:ml-auto">
             <button
-              key={t.key}
-              role="tab"
-              aria-selected={active}
-              onClick={() => setTab(t.key)}
-              className={`px-4 py-2 text-sm whitespace-nowrap transition-colors rounded-t-lg border-b-2 -mb-px ${
-                active
-                  ? 'text-navy-50 border-[var(--accent)] bg-[linear-gradient(180deg,var(--accent-soft),transparent)]'
-                  : 'border-transparent text-navy-500 hover:text-navy-200'
-              }`}
+              onClick={() => setExportOpen(true)}
+              title="Export jobs to a spreadsheet (no queue changes)"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-white/[0.05] text-navy-300 border border-white/10 hover:bg-white/[0.09] hover:text-navy-100 transition-colors"
             >
-              {t.label}
-              {typeof t.count === 'number' && (
-                <span className={`ml-2 text-xs ${active ? 'text-[var(--accent-strong)]' : 'text-navy-600'}`}>{t.count}</span>
-              )}
+              ⬇ Export
             </button>
-          );
-        })}
+            <button
+              onClick={() => setRefillOpen(true)}
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium rounded-lg text-white shadow-[0_6px_18px_-6px_var(--accent-glow)] transition-[filter] hover:brightness-110"
+              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-dark))' }}
+            >
+              <Refresh size={15} /> Refill Jobs
+            </button>
+          </div>
+        )}
       </div>
 
-      {tab === 'applications' && (
+      {/* KPI grid — Applications landing only */}
+      {section === 'applications' && (
+        <section className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-5" data-onboard="admin-kpis">
+          {stats.map((s) => (
+            <div
+              key={s.key}
+              className="relative rounded-xl overflow-hidden border border-white/[0.07] bg-[linear-gradient(180deg,rgba(17,24,38,0.9),rgba(11,15,23,0.6))] p-4"
+            >
+              <span className="absolute top-0 left-0 right-0 h-[2px] opacity-70" style={{ background: `linear-gradient(90deg, var(--accent), transparent 70%)` }} />
+              <p className="text-[10px] font-mono uppercase tracking-[0.1em] text-navy-500 mb-2 truncate">{s.label}</p>
+              <p className="text-2xl font-bold font-mono tracking-tight text-navy-50 leading-none">
+                {s.value}
+                {s.pct !== undefined && <small className="text-sm text-navy-500"> /100</small>}
+              </p>
+              <p className="text-[11px] text-navy-400 mt-1.5 truncate">{s.sub}</p>
+              {s.delta ? (
+                <p className={`text-[10.5px] font-mono mt-1.5 ${s.up ? 'text-emerald-400' : 'text-navy-500'}`}>
+                  {s.up ? '▲' : '▽'} {s.delta}
+                </p>
+              ) : null}
+              {s.bars ? (
+                <div className="mt-2.5">
+                  <MiniBars values={s.bars} />
+                </div>
+              ) : null}
+              {s.pct !== undefined ? <PctTrack value={s.pct} /> : null}
+            </div>
+          ))}
+        </section>
+      )}
+
+      {/* Applications-only in-page active tab (rest are in the sidebar) */}
+      <div aria-hidden className={`${section === 'applications' ? 'hidden' : 'lg:hidden'} mb-4 border-b border-white/[0.06] flex items-center gap-1 overflow-x-auto`}>
+        <button
+          role="tab"
+          aria-selected={section === 'applications'}
+          onClick={() => setSection('applications')}
+          className="px-4 py-2 text-sm whitespace-nowrap rounded-t-lg border-b-2 -mb-px text-navy-50 border-[var(--accent)] bg-[linear-gradient(180deg,var(--accent-soft),transparent)]"
+        >
+          Applications
+        </button>
+      </div>
+
+      {section === 'applications' && (
         <div data-onboard="admin-table">
           <JobTable jobs={jobs} profiles={profiles} mode="admin" />
         </div>
       )}
-      {tab === 'profiles' && <ProfilesTab profiles={profiles} users={users} jobs={jobs} />}
-      {tab === 'resumes' && <ResumesTab profiles={profiles} jobs={jobs} />}
-      {tab === 'settings' && <SettingsTab users={users} scrapeRuns={scrapeRuns} profiles={profiles} />}
-      {tab === 'complaints' && <ComplaintsTab />}
+      {section === 'profiles' && <ProfilesTab profiles={profiles} users={users} jobs={jobs} />}
+      {section === 'resumes' && <ResumesTab profiles={profiles} jobs={jobs} />}
+      {section === 'settings' && <SettingsTab users={users} scrapeRuns={scrapeRuns} profiles={profiles} />}
+      {section === 'complaints' && <ComplaintsTab />}
 
       <RefillJobsModal
         open={refillOpen}

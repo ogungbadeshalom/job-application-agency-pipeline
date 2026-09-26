@@ -319,8 +319,16 @@ for term in search_terms:
             _recs = _batch_df.to_dict("records")
             all_jobs.extend(_recs)
             term_ok += len(_recs)
+            # Per-board counts from the merged pool (JobSpy tags each row with
+            # its source `site`), so the progress log shows each board's REAL
+            # yield instead of attributing the whole batch total to every board.
+            _per_site: dict[str, int] = {}
+            for _r in _recs:
+                _k = str(_r.get("site") or "").lower()
+                if _k:
+                    _per_site[_k] = _per_site.get(_k, 0) + 1
             for _s in _fast_sites:
-                print(f"[ok] {_s}: {len(_recs)} jobs for '{term}'", file=sys.stderr)
+                print(f"[ok] {_s}: {_per_site.get(_s, 0)} jobs for '{term}'", file=sys.stderr)
                 _fast_scraped.add(_s)
         elif _batch_err:
             errors.append(_batch_err[0])

@@ -122,7 +122,6 @@ def scrape_hiringcafe(term: str, old_days: int) -> list:
             "is_expired": False,
             "is_easy_apply": False,
         })
-    print(f"[ok] hiringcafe: {len(records)} remote jobs for '{term}'", file=sys.stderr)
     return records
 
 
@@ -197,7 +196,6 @@ def scrape_greenhouse(term: str, old_days: int) -> list:
             "is_expired": j["is_expired"],
             "is_easy_apply": False,
         })
-    print(f"[ok] greenhouse: {len(out)} jobs for '{term}'", file=sys.stderr)
     return out
 
 
@@ -270,7 +268,6 @@ def scrape_lever(term: str, old_days: int) -> list:
                 "is_expired": False,
                 "is_easy_apply": False,
             })
-    print(f"[ok] lever: {len(out)} jobs for '{term}'", file=sys.stderr)
     return out
 
 
@@ -345,7 +342,6 @@ def scrape_ashby(term, old_days):
                 "is_expired": False,
                 "is_easy_apply": False,
             })
-    print(f"[ok] ashby: {len(out)} jobs for '{term}'", file=sys.stderr)
     return out
 
 
@@ -426,7 +422,6 @@ def scrape_dice(term, old_days):
             "is_expired": False,
             "is_easy_apply": False,
         })
-    print(f"[ok] dice: {len(out)} jobs for '{term}'", file=sys.stderr)
     return out
 
 
@@ -481,7 +476,6 @@ def scrape_sprout(term, old_days):
                 "is_expired": False,
                 "is_easy_apply": False,
             })
-    print(f"[ok] sprout: {len(out)} jobs for '{term}'", file=sys.stderr)
     return out
 
 

@@ -1386,6 +1386,19 @@ export const db = {
     );
     return rows.map(mapComplaint);
   },
+  async listComplaintsByWorker(workerUserId: string, limit = 50): Promise<Complaint[]> {
+    const rows = await all(
+      `select c.*, u.full_name as worker_name, p.name as client_name
+       from complaints c
+       left join users u on u.id = c.worker_user_id
+       left join profiles p on p.id = c.profile_id
+       where c.worker_user_id = $1
+       order by c.created_at desc
+       limit $2`,
+      [workerUserId, limit]
+    );
+    return rows.map(mapComplaint);
+  },
   async updateComplaint(id: string, patch: { status?: string; admin_note?: string | null }): Promise<Complaint | null> {
     const row = await one(
       `update complaints set status = coalesce($2, status), admin_note = coalesce($3, admin_note),

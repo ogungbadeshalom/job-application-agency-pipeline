@@ -51,14 +51,22 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (session.user.role !== 'admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
 
   const url = new URL(req.url);
+  // Workers (and admins acting as themselves) fetch their OWN report history.
+  const mine = url.searchParams.get('mine') === '1';
+  if (session.user.role !== 'admin') {
+    if (!mine) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const limit = Number(url.searchParams.get('limit') || 50);
+    const complaints = await db.listComplaintsByWorker(session.user.id, Math.min(limit, 200));
+    return NextResponse.json({ complaints });
+  }
+
   const status = url.searchParams.get('status') || '';
   const limit = Number(url.searchParams.get('limit') || 100);
-  const complaints = await db.listComplaints({ status, limit: Math.min(limit, 500) });
+  const complaints = mine
+    ? await db.listComplaintsByWorker(session.user.id, Math.min(limit, 200))
+    : await db.listComplaints({ status, limit: Math.min(limit, 500) });
   return NextResponse.json({ complaints });
 }
 

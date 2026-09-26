@@ -101,14 +101,17 @@ export default function DashboardClient({
     { key: 'applications', label: 'Applications', count: jobs.length },
     { key: 'profiles', label: 'Profiles', count: profiles.length },
     { key: 'resumes', label: 'Resumes' },
-    { key: 'settings', label: 'Settings' },
+    // Settings is intentionally omitted here — DashboardLayout renders a
+    // built-in Settings link in the nav already (avoids a duplicate).
     { key: 'complaints', label: 'Issues' },
   ];
 
-  // In-page section switcher for the admin (Applications is the main view;
-  // the rest live in the sidebar nav via the `actions` slot of the layout).
-  const SectionNav = ({ onNavigate, inRail }: { onNavigate?: () => void; inRail: boolean }) => (
-    <nav className={inRail ? 'flex flex-col gap-0.5 p-2' : 'hidden'} aria-label="Sections">
+  // In-page section switcher for the admin. Applications is the main view
+  // (Dashboard nav is first). Profiles/Resumes/Issues render in the subNav
+  // slot, which the layout places BELOW the nav links — so the sidebar reads
+  // Dashboard first, sections after.
+  const SectionNav = () => (
+    <nav className="flex flex-col gap-0.5" aria-label="Sections">
       {sections.filter((s) => s.key !== 'applications').map((s) => {
         const active = section === s.key;
         return (
@@ -116,7 +119,7 @@ export default function DashboardClient({
             key={s.key}
             role="tab"
             aria-selected={active}
-            onClick={() => { setSection(s.key); onNavigate?.(); }}
+            onClick={() => setSection(s.key)}
             className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors border-l-2 w-full ${
               active
                 ? 'bg-[var(--accent-soft)] text-white border-[var(--accent)]'
@@ -133,14 +136,13 @@ export default function DashboardClient({
     </nav>
   );
 
-  const actions = <SectionNav inRail />;
-
   return (
     <DashboardLayout
       user={user}
       nav={nav}
       active="/admin/dashboard"
-      actions={actions}
+      actions={undefined}
+      subNav={<SectionNav />}
     >
       {/* Command Deck header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">

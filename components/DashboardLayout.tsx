@@ -41,12 +41,14 @@ export default function DashboardLayout({
   active,
   children,
   actions,
+  subNav,
 }: {
   user: { full_name: string; email: string; role: Role; accent: string };
   nav: NavItem[];
   active: string;
   children: React.ReactNode;
   actions?: React.ReactNode;
+  subNav?: React.ReactNode;
 }) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -169,6 +171,7 @@ export default function DashboardLayout({
           )}
           <div className="p-2 flex-1 flex flex-col overflow-y-auto">
             <NavLinks />
+            {subNav && <div className="pt-1 mt-1 border-t border-white/[0.06]">{subNav}</div>}
           </div>
           <div className="px-2 py-2 border-t border-navy-800">
             <div className="px-1 pb-1 truncate text-xs text-navy-300" title={user.full_name}>
@@ -244,6 +247,7 @@ export default function DashboardLayout({
               <div className="p-3 border-b border-navy-700">{actions}</div>
             )}
             <NavLinks onNavigate={() => setMenuOpen(false)} />
+            {subNav && <div className="mx-3 pb-3 border-b border-white/[0.06]">{subNav}</div>}
             <div className="p-3 border-t border-navy-800">
               <div className="px-2 py-2 text-sm text-navy-400 truncate">{user.full_name}</div>
               <button

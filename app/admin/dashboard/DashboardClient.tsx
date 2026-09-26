@@ -110,7 +110,7 @@ export default function DashboardClient({
   // slot, which the layout places BELOW the nav links — so the sidebar reads
   // Dashboard first, sections after.
   const SectionNav = () => (
-    <nav className="flex flex-col gap-0.5" aria-label="Sections">
+    <nav className="flex flex-col gap-0.5" aria-label="Sections" data-onboard="admin-tabs">
       {sections.filter((s) => s.key !== 'applications').map((s) => {
         const active = section === s.key;
         return (
@@ -144,7 +144,7 @@ export default function DashboardClient({
       subNav={<SectionNav />}
     >
       {/* Command Deck header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5" data-onboard="admin-header">
         <div>
           <p className="text-[10px] font-mono uppercase tracking-[0.14em] text-navy-500 mb-1">Command Deck · {sections.find((s) => s.key === section)?.label}</p>
           <h1 className="text-xl font-semibold tracking-tight text-navy-100">

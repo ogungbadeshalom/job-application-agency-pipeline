@@ -167,7 +167,7 @@ const ADMIN_SECTIONS: Section[] = [
       {
         target: '[data-onboard="admin-tabs"]',
         title: 'Dashboard sections',
-        body: 'The four tabs — Applications, Profiles, Resumes, Settings — are the whole operations console. Click each to switch views.',
+        body: 'Profiles, Resumes, Issues, and Settings live here in the sidebar under Dashboard. Applications is the main deck. Click each to switch views.',
       },
       {
         target: '[data-onboard="admin-table"]',

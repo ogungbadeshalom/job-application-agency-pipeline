@@ -6,6 +6,7 @@ import type { JobStatus } from '@/lib/types';
 import type { ListJobsFilter } from '@/lib/db';
 import { isUuid } from '@/lib/validate';
 import { fetchPageMeta } from '@/lib/pageMeta';
+import { one } from '@/db/pool';
 
 // POST /api/jobs  — worker (or admin) manually adds a job a worker found
 // themselves (a posting URL) so it enters the client's queue in the Working
@@ -51,6 +52,24 @@ export async function POST(req: Request) {
 
   const title = (typeof body.title === 'string' && body.title.trim() ? body.title.trim() : meta.title) || 'Untitled';
   const company = (typeof body.company === 'string' && body.company.trim() ? body.company.trim() : meta.company) || '';
+
+  // Strict one-role-per-company, front-loaded onto MANUAL adds too: if this
+  // company already has an APPLIED job for the profile, refuse to queue another
+  // role here — the worker sees it the moment they paste the link.
+  if (company) {
+    const perf = await one<{ n: string }>(
+      `select count(*)::text n from jobs
+       where profile_id = $1 and status = 'applied'
+         and lower(coalesce(company,'')) = lower($2)`,
+      [profileId, company.trim()]
+    );
+    if (perf && Number(perf.n) > 0) {
+      return NextResponse.json(
+        { error: `You already applied to ${company.trim()} for this client — only one role per company is allowed. Pick a different company.` },
+        { status: 409 }
+      );
+    }
+  }
 
   // Second-pass duplicate check: now that we know company+title, reject if this
   // posting already exists in the queue under a different URL (same company+title).

@@ -12,6 +12,9 @@
 import { all, one, query } from './pool';
 import { encryptSecret, decryptSecret } from '../lib/crypto';
 import { randomBytes } from 'node:crypto';
+import { callAI, RESUME_TAILOR_SYSTEM } from '../lib/ai';
+import { renderResumePdf, type ResumeData, type ResumePreset } from '../lib/resume-pdf';
+import { newStoragePath, writeStorage } from '../lib/storage';
 import type { StructuredResume } from '../lib/resume-presets';
 import type {
   AppConfig,
@@ -244,6 +247,88 @@ function mapSnippet(r: Record<string, unknown>): QuestionSnippet {
 }
 
 // --- Postgres-backed db object consumed by pages and API routes ------------
+// --- auto-tailor helpers (mirror backfill_all_missing_resumes.ts) ----------
+function capText(s: string, n: number): string {
+  return s && s.length > n ? s.slice(0, n) + '\n…' : s;
+}
+
+function parseResumeJson(raw: string): ResumeData {
+  let text = raw.trim();
+  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fence) text = fence[1].trim();
+  const start = text.indexOf('{');
+  if (start === -1) throw new Error('no object found');
+  let depth = 0, inStr = false, esc = false, end = -1;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (esc) { esc = false; continue; }
+    if (ch === '\\') { esc = true; continue; }
+    if (ch === '"') inStr = !inStr;
+    if (!inStr) {
+      if (ch === '{') depth++;
+      else if (ch === '}') { depth--; if (depth === 0) { end = i + 1; break; } }
+    }
+  }
+  if (end === -1) throw new Error('unbalanced braces');
+  const obj = JSON.parse(text.slice(start, end));
+  const toArr = (v: unknown): string[] =>
+    Array.isArray(v) ? v.map((x) => String(x || '').trim()).filter(Boolean) : [];
+  return {
+    name: String(obj.name || '').trim(),
+    title: String(obj.title || '').trim(),
+    contact: String(obj.contact || '').trim(),
+    summary: toArr(obj.summary),
+    experience: Array.isArray(obj.experience)
+      ? obj.experience
+          .map((e: any) => ({
+            role: String(e?.role || '').trim(),
+            company: String(e?.company || '').trim(),
+            dates: String(e?.dates || '').trim(),
+            bullets: toArr(e?.bullets),
+          }))
+          .filter((r: any) => r.company || r.role)
+      : [],
+    education: Array.isArray(obj.education)
+      ? obj.education
+          .map((e: any) => ({
+            school: String(e?.school || '').trim(),
+            degree: String(e?.degree || '').trim(),
+            dates: String(e?.dates || '').trim(),
+            detail: String(e?.detail || '').trim(),
+          }))
+          .filter((r: any) => r.school || r.degree)
+      : [],
+    certifications: Array.isArray(obj.certifications)
+      ? obj.certifications
+          .map((c: any) => ({
+            name: String(c?.name || '').trim(),
+            issuer: String(c?.issuer || '').trim(),
+            year: String(c?.year || '').trim(),
+          }))
+          .filter((r: any) => r.name)
+      : [],
+    skills: toArr(obj.skills),
+  };
+}
+
+function buildResumeText(d: ResumeData): string {
+  const lines: string[] = [d.name, d.title, d.contact, '', 'SUMMARY', ...d.summary, 'EXPERIENCE'];
+  for (const e of d.experience) {
+    lines.push(`${e.role} - ${e.company} (${e.dates})`);
+    lines.push(...e.bullets.map((b) => `- ${b}`));
+  }
+  if (d.education && d.education.length) {
+    lines.push('EDUCATION');
+    for (const e of d.education) lines.push(`${e.degree} - ${e.school} (${e.dates})${e.detail ? ` - ${e.detail}` : ''}`);
+  }
+  if (d.certifications && d.certifications.length) {
+    lines.push('CERTIFICATIONS');
+    for (const c of d.certifications) lines.push(`${c.name}${c.issuer ? ` - ${c.issuer}` : ''}${c.year ? ` (${c.year})` : ''}`);
+  }
+  lines.push('SKILLS', ...d.skills);
+  return lines.join('\n');
+}
+
 export const db = {
   // users
   async listUsers(): Promise<User[]> {
@@ -797,6 +882,62 @@ export const db = {
       created.push(mapJob(row!));
     }
     return created;
+  },
+  // Liz's fix #2: auto-tailor every NEW job the moment it enters the queue.
+  // Finds jobs in status='saved' that have no tailored resume yet for the given
+  // profiles, and tailors each one (callAI -> renderResumePdf -> storage),
+  // flipping status saved -> tailored so the worker sees it ready. Bounded to a
+  // small batch per call (cap) and each job is try/caught so one failure never
+  // aborts the batch. Returns the number successfully tailored. Meant to be
+  // fired right after db.createJobs in the scrape / worker-refill paths.
+  async autoTailorSavedJobs(profileIds: string[]): Promise<number> {
+    const ids = (profileIds ?? []).filter(Boolean);
+    if (!ids.length) return 0;
+    const cap = 20;
+    const rows = await all(
+      `select * from jobs
+        where profile_id = ANY($1::uuid[])
+          and status = 'saved'
+          and (tailored_resume is null or tailored_resume = '')
+        order by created_at desc
+        limit $2`,
+      [ids, cap]
+    );
+    const jobs = rows.map(mapJob);
+    if (!jobs.length) return 0;
+    let ok = 0;
+    for (const job of jobs) {
+      try {
+        const profile = await this.getProfile(job.profile_id);
+        if (!profile?.base_resume_text) {
+          console.warn(`[autoTailor] profile ${job.profile_id} has no base resume — skipping job ${job.company || '?'}`);
+          continue;
+        }
+        const jdInline = capText(job.description || '(no description available)', 4000);
+        const user = [
+          'JOB DESCRIPTION:', jdInline, '',
+          'TITLE:', job.title, '',
+          'BASE RESUME:', profile.base_resume_text,
+        ].filter((l) => String(l).trim() !== '').join('\n');
+        const raw = await callAI(RESUME_TAILOR_SYSTEM, user, { maxTokens: 3000, temperature: 0.4 });
+        if (!raw || !raw.trim()) throw new Error('empty AI output');
+        const data = parseResumeJson(raw);
+        const buf = await renderResumePdf(data, (profile.resume_design || 'classic') as ResumePreset);
+        const rel = newStoragePath('tailored', 'pdf');
+        await writeStorage(rel, buf);
+        await this.updateJob(job.id, {
+          tailored_resume: buildResumeText(data),
+          tailored_resume_pdf_url: rel,
+          status: 'tailored', // saved -> tailored: worker sees it ready
+        });
+        ok++;
+      } catch (e) {
+        console.warn(`[autoTailor] FAIL ${job.company || '?'} | ${job.title}: ${e instanceof Error ? e.message : e}`);
+      }
+      await new Promise((r) => setTimeout(r, 250)); // gentle on the API
+    }
+    console.log(`[autoTailor] tailored ${ok}/${jobs.length} saved job(s)`);
+    return ok;
   },
   async dedupeJobsByURL(profileId: string, incoming: { url: string; company?: string | null; title?: string | null }[]): Promise<boolean[]> {
     const existing = new Set(

@@ -185,6 +185,16 @@ export async function POST(req: Request) {
       }
     }
 
+    // Liz's fix #2: auto-tailor every new saved job as it enters the queue.
+    // Non-fatal — a tailoring hiccup must never fail the scrape or mark the run
+    // failed (autoTailorSavedJobs already swallows per-job errors internally).
+    let autoTailored = 0;
+    try {
+      autoTailored = await db.autoTailorSavedJobs(config.profile_ids);
+    } catch (e) {
+      console.warn('[scrape] autoTailor skipped:', e instanceof Error ? e.message : e);
+    }
+
     await db.updateScrapeRun(run.id, {
       status: 'completed',
       jobs_found: allRaw.length,
@@ -204,7 +214,8 @@ export async function POST(req: Request) {
       jobs_found: allRaw.length,
       jobs_added: totalAdded,
       skipped_duplicates: totalDupSkipped,
-      message: [totalAdded ? `Added ${totalAdded} new job${totalAdded === 1 ? '' : 's'}.` : 'No new jobs added.', duplicateNotes, roleNotes]
+      auto_tailored: autoTailored,
+      message: [totalAdded ? `Added ${totalAdded} new job${totalAdded === 1 ? '' : 's'}.` : 'No new jobs added.', autoTailored ? `Auto-tailored ${autoTailored} job${autoTailored === 1 ? '' : 's'} for the queue.` : '', duplicateNotes, roleNotes]
         .filter(Boolean)
         .join(' '),
     });

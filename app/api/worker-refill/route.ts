@@ -214,6 +214,16 @@ export async function POST(req: Request) {
           duplicateSkipped += fresh.length - batch.length;
         }
 
+        // Liz's fix #2: auto-tailor every new saved job as it enters the queue.
+        // Non-fatal — a tailoring hiccup must never fail the refill (the method
+        // already swallows per-job errors internally).
+        let autoTailored = 0;
+        try {
+          autoTailored = await db.autoTailorSavedJobs([profileId]);
+        } catch (e) {
+          console.warn('[worker-refill] autoTailor skipped:', e instanceof Error ? e.message : e);
+        }
+
         // Enforce 1 job per company in this profile's queue.
         const deduped = await db.dedupeQueueByCompany(profileId);
 
@@ -233,7 +243,8 @@ export async function POST(req: Request) {
           jobs_added: added,
           skipped_duplicates: duplicateSkipped,
           deduped_by_company: deduped,
-          message: [added ? `Added ${added} job${added === 1 ? '' : 's'}.` : 'No new jobs added.', duplicateSkipped ? `${duplicateSkipped} duplicates skipped (already in queue).` : '', deduped ? `${deduped} duplicate-by-company removed.` : ''].filter(Boolean).join(' '),
+          auto_tailored: autoTailored,
+          message: [added ? `Added ${added} job${added === 1 ? '' : 's'}.` : 'No new jobs added.', autoTailored ? `Auto-tailored ${autoTailored} job${autoTailored === 1 ? '' : 's'} for the queue.` : '', duplicateSkipped ? `${duplicateSkipped} duplicates skipped (already in queue).` : '', deduped ? `${deduped} duplicate-by-company removed.` : ''].filter(Boolean).join(' '),
         });
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);

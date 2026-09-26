@@ -270,7 +270,68 @@ for term in search_terms:
     if not term:
         continue
     term_ok = 0
+
+    # ---- CONCURRENT FAST PATH -------------------------------------------------
+    # JobSpy's scrape_jobs() runs all requested sites in PARALLEL (internal
+    # ThreadPoolExecutor), so 5 boards cost ~= the slowest one, not the sum.
+    # The legacy loop below scraped one board at a time, wasting the budget on
+    # big multi-board refills. Batch the reliable NATIVE JobSpy boards (no
+    # proxy, no special handling) into a single parallel call per term. Fragile
+    # boards (LinkedIn/Indeed/RemoteOK: proxy + upstream subprocess + retry)
+    # and custom boards (jobicy/ashby/dice/hiringcafe) keep their own hardened
+    # paths below — they are EXCLUDED here.
+    _fast_sites = [s for s in sites
+                   if s not in _CUSTOM_BOARDS
+                   and s not in FRAGILE
+                   and s not in ("zip_recruiter",)
+                   and s in ("greenhouse", "builtin", "smart_recruiters",
+                             "weworkremotely", "remotive", "workingnomads")]
+    _fast_scraped = set()
+    _batch_df = None
+    if _fast_sites:
+        _has_alarm_b = hasattr(_signal, "SIGALRM") and hasattr(_signal, "setitimer")
+        _batch_err = []
+        def _deadline_b(_signum, _frame):
+            raise TimeoutError(f"parallel batch exceeded {SITE_TIMEOUT_S}s")
+        try:
+            if _has_alarm_b:
+                _signal.signal(_signal.SIGALRM, _deadline_b)
+                _signal.setitimer(_signal.ITIMER_REAL, SITE_TIMEOUT_S)
+            _batch_df = scrape_jobs(
+                site_name=_fast_sites,
+                search_term=term,
+                location=location,
+                results_wanted=results_wanted,
+                hours_old=hours_old,
+                is_remote=is_remote,
+                job_type=job_type_value,
+                linkedin_fetch_description=False,
+                proxies=None,
+                ca_cert=None,
+            )
+        except Exception as exc:
+            msg = "".join(traceback.format_exception_only(type(exc), exc)).strip()
+            _batch_err.append(f"{term}: parallel batch failed ({msg[:160]})")
+        finally:
+            if _has_alarm_b:
+                _signal.setitimer(_signal.ITIMER_REAL, 0)
+        if _batch_df is not None and not getattr(_batch_df, "empty", True):
+            _recs = _batch_df.to_dict("records")
+            all_jobs.extend(_recs)
+            term_ok += len(_recs)
+            for _s in _fast_sites:
+                print(f"[ok] {_s}: {len(_recs)} jobs for '{term}'", file=sys.stderr)
+                _fast_scraped.add(_s)
+        elif _batch_err:
+            errors.append(_batch_err[0])
+            print(f"[warn] {_batch_err[0]}", file=sys.stderr)
+
+    # ---- LEGACY PER-BOARD LOOP (fragile + custom + any un-batched board) -----
     for site in sites:
+        # Boards already scraped in the parallel batch above — skip the slow
+        # sequential re-scrape entirely.
+        if site in _fast_scraped:
+            continue
         if _over_budget():
             print("[warn] total time budget exceeded — stopping", file=sys.stderr)
             break

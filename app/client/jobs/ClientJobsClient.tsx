@@ -145,7 +145,7 @@ export default function ClientJobsClient({
                 <option value="">Select a past week…</option>
                 {resumeWeeks.map((w) => (
                   <option key={w.week} value={w.week}>
-                    {weekLabel(w.week)} · {w.count} resume{w.count === 1 ? '' : 's'}
+                    {weekLabel(w.week)}
                   </option>
                 ))}
               </select>

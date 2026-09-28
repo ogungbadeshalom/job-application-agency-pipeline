@@ -6,6 +6,7 @@ import type { JobStatus } from '@/lib/types';
 import type { ListJobsFilter } from '@/lib/db';
 import { isUuid } from '@/lib/validate';
 import { fetchPageMeta } from '@/lib/pageMeta';
+import { titleMatchesAllowedRoles } from '@/lib/aiJobMatch';
 import { one } from '@/db/pool';
 
 // POST /api/jobs  — worker (or admin) manually adds a job a worker found
@@ -52,6 +53,16 @@ export async function POST(req: Request) {
 
   const title = (typeof body.title === 'string' && body.title.trim() ? body.title.trim() : meta.title) || 'Untitled';
   const company = (typeof body.company === 'string' && body.company.trim() ? body.company.trim() : meta.company) || '';
+
+  // STRICT role allowlist (profile.allowed_roles): a worker cannot manually add
+  // an off-role job either. Hard gate on the resolved title.
+  const allowProfile = await db.getProfile(profileId);
+  if (allowProfile?.allowed_roles?.length && !titleMatchesAllowedRoles(title, allowProfile.allowed_roles)) {
+    return NextResponse.json(
+      { error: `Only these roles are allowed for this client: ${allowProfile.allowed_roles.join(', ')}. "${title}" is not one of them.` },
+      { status: 409 }
+    );
+  }
 
   // Strict one-role-per-company, front-loaded onto MANUAL adds too: if this
   // company already has an APPLIED job for the profile, refuse to queue another

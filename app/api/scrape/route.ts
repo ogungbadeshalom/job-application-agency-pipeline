@@ -5,7 +5,7 @@ import type { Job, ScrapeConfig, ScrapeResultJob } from '@/lib/types';
 import { isUuid } from '@/lib/validate';
 import { runJobSpy, dedupeAndMap, scrapeProgress, latestAdminRun } from '@/lib/scrape';
 import type { ScrapeRunProgress } from '@/lib/scrape';
-import { filterJobsByResume } from '@/lib/aiJobMatch';
+import { filterJobsByResume, filterByAllowedRoles } from '@/lib/aiJobMatch';
 
 // POST /api/scrape
 // Admin-only. Runs JobSpy (Python subprocess), dedupes by URL, inserts jobs.
@@ -170,11 +170,18 @@ export async function POST(req: Request) {
     let totalRoleFiltered = 0;
     for (const profile of targetProfiles) {
       let pool = allRaw;
+      // STRICT role allowlist (profile.allowed_roles): when set, only these
+      // role titles may enter the queue — hard gate before any heuristic.
+      if (profile.allowed_roles?.length) {
+        const beforeRoles = pool.length;
+        pool = filterByAllowedRoles(pool, profile.allowed_roles);
+        totalRoleFiltered += beforeRoles - pool.length;
+      }
       // AI role-fit gate: only keep jobs matching this client's resume so
       // off-target roles (Director/PM/Sales/Compliance/adjacent) never enter.
       if (profile.base_resume_text) {
         const before = pool.length;
-        pool = await filterJobsByResume(allRaw, profile.base_resume_text);
+        pool = await filterJobsByResume(pool, profile.base_resume_text);
         totalRoleFiltered += before - pool.length;
       }
       const { fresh, skippedDuplicates } = await dedupeAndMap(pool, profile.id, run.id);

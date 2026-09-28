@@ -112,6 +112,28 @@ function parseBorder(raw: string, count: number): Record<number, boolean> {
   }
 }
 
+// STRICT per-profile role allowlist. When a profile has allowed_roles set,
+// the job TITLE must contain at least one allowed phrase (case-insensitive).
+// This is a hard gate — stronger than the resume-keyword heuristic: e.g. with
+// ['data engineer','data analyst'] a "Software Engineer" title NEVER passes,
+// even though the resume-keyword pass would let it through.
+export function titleMatchesAllowedRoles(title: string, allowedRoles: string[] | null | undefined): boolean {
+  if (!allowedRoles || allowedRoles.length === 0) return true; // no restriction
+  const tl = (title || '').toLowerCase();
+  return allowedRoles.some((role) => tl.includes(role.toLowerCase()));
+}
+
+// Apply the allowlist to a pool of scraped jobs. Used by every supply entry
+// (admin scrape, worker refill, auto-refill) so a restricted client can never
+// receive off-role jobs.
+export function filterByAllowedRoles<T extends { title?: string | null }>(
+  jobs: T[],
+  allowedRoles: string[] | null | undefined
+): T[] {
+  if (!allowedRoles || allowedRoles.length === 0) return jobs;
+  return jobs.filter((j) => titleMatchesAllowedRoles((j.title as string) || '', allowedRoles));
+}
+
 export async function filterJobsByResume(
   jobs: ScrapeResultJob[],
   resumeText: string

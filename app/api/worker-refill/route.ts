@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { isUuid } from '@/lib/validate';
 import { runJobSpy, dedupeAndMap, scrapeProgress, latestRunByWorker } from '@/lib/scrape';
-import { filterJobsByResume } from '@/lib/aiJobMatch';
+import { filterJobsByResume, filterByAllowedRoles } from '@/lib/aiJobMatch';
 import type { Job, ProfilePreset, ScrapeResultJob } from '@/lib/types';
 import { assertNotBusy } from '@/lib/autoRefill';
 
@@ -195,8 +195,12 @@ export async function POST(req: Request) {
         // resume (level + role family + skills), so off-target roles (Director/
         // PM/Sales/Compliance/adjacent) never enter the queue.
         let matched = allRaw;
+        // STRICT role allowlist (profile.allowed_roles) — hard gate first.
+        if (profile.allowed_roles?.length) {
+          matched = filterByAllowedRoles(matched, profile.allowed_roles);
+        }
         if (profile.base_resume_text) {
-          matched = await filterJobsByResume(allRaw, profile.base_resume_text);
+          matched = await filterJobsByResume(matched, profile.base_resume_text);
         }
 
         const { fresh, skippedDuplicates } = await dedupeAndMap(matched, profileId, run.id);

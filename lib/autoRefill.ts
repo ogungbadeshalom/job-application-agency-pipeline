@@ -17,7 +17,7 @@
 // so the status API + worker disable read the SAME state.
 import { db } from '@/lib/db';
 import { runJobSpy, dedupeAndMap } from '@/lib/scrape';
-import { filterJobsByResume } from '@/lib/aiJobMatch';
+import { filterJobsByResume, filterByAllowedRoles } from '@/lib/aiJobMatch';
 import type { Job, ScrapeResultJob } from '@/lib/types';
 
 export interface AutoRefillStatus {
@@ -107,8 +107,12 @@ async function scrapeOneProfile(profileId: string, name: string, per: AutoRefill
   autoRefillStatus.currentJobsFound = raw.length;
 
   let matched: ScrapeResultJob[] = raw;
+  // STRICT role allowlist (profile.allowed_roles) — hard gate first.
+  if (profile.allowed_roles?.length) {
+    matched = filterByAllowedRoles(matched, profile.allowed_roles);
+  }
   if (profile.base_resume_text) {
-    matched = await filterJobsByResume(raw, profile.base_resume_text);
+    matched = await filterJobsByResume(matched, profile.base_resume_text);
   }
 
   const run = await db.createScrapeRun({

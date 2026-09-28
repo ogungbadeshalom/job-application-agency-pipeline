@@ -72,7 +72,7 @@ export function assertNotBusy(): void {
   }
 }
 
-const DEFAULT_SITES = ['greenhouse', 'builtin', 'jobicy', 'ashby', 'workingnomads', 'dice'];
+const DEFAULT_SITES = ['greenhouse', 'builtin', 'jobicy', 'ashby', 'workingnomads', 'dice', 'lever', 'workable', 'smartrecruiters', 'remotive'];
 const RESULTS_WANTED = 120;
 const HOURS_OLD = 168;
 

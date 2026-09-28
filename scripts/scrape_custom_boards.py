@@ -10,6 +10,7 @@ HiringCafe: Next.js client-side feed behind a protected API — needs a headless
            browser, which won't run on this box. Returns [] (explicit skip).
 """
 import json
+import json as _json
 import re
 import sys
 import datetime
@@ -281,6 +282,132 @@ ASHBY_ORGS = [
     "smartcar", "orkes", "losant", "chainalysis", "hasura", "prisma", "upstash",
 ]
 
+# ---------------------------------------------------------------------------
+# Merged pools from fedorchenko-juli/job_search_tool (MIT-licensed): 168 new
+# company slugs, each health-checked HTTP-200 from this box (4 dead dropped).
+# Loaded from ats_pools.json so the list is exactly what was verified.
+try:
+    _pools = _json.load(open(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "ats_pools.json")))
+    GREENHOUSE_ORGS += _pools.get("greenhouse_new", [])
+    LEVER_ORGS += _pools.get("lever_new", [])
+    ASHBY_ORGS += _pools.get("ashby_new", [])
+    _WORKABLE_ORGS = _pools.get("workable", [])
+    _SMARTRECRUITERS_ORGS = _pools.get("smartrecruiters", [])
+    _BAMBOOHR_ORGS = _pools.get("bamboohr", [])
+except Exception as _e:
+    print(f"[warn] ats_pools.json not loaded: {_e}", file=sys.stderr)
+    _WORKABLE_ORGS, _SMARTRECRUITERS_ORGS, _BAMBOOHR_ORGS = [], [], []
+
+# --- New ATS fetchers from the same integration (workable/smartrecruiters/
+# bamboohr) + Remotive aggregator. All return JobSpy-shaped records and are
+# registered in BOARDS at the bottom of this file.
+
+def scrape_workable(term, old_days):
+    """Workable: https://apply.workable.com/api/v1/accounts/<slug>/jobs (POST JSON)."""
+    out = []
+    for name, slug in _WORKABLE_ORGS:
+        try:
+            req = urllib.request.Request(
+                f"https://apply.workable.com/api/v1/accounts/{slug}/jobs",
+                data=json.dumps({"query": "", "location": [], "department": [], "worktype": [], "remote": []}).encode(),
+                headers={**_UA, "Content-Type": "application/json"}, method="POST")
+            with urllib.request.urlopen(req, timeout=_TIMEOUT) as r:
+                payload = json.loads(r.read().decode("utf-8", "replace"))
+        except Exception as e:
+            print(f"[warn] workable: {slug} {e}", file=sys.stderr)
+            continue
+        for p in (payload.get("jobs") or payload.get("results") or []):
+            title = p.get("title") or ""
+            if not _title_matches(title, term):
+                continue
+            loc = (p.get("location") or {}).get("city", "") if isinstance(p.get("location"), dict) else (p.get("location") or "")
+            remote = bool(p.get("remote")) or "remote" in str(loc).lower()
+            short = p.get("url") or f"https://{slug}.apply.workable.com/j/{p.get('shortcode','')}"
+            out.append({
+                "title": title, "company": p.get("company") or name or slug, "site": "workable",
+                "job_url": short, "location": loc or "Remote",
+                "description": (p.get("description") or p.get("description_text") or "")[:4000],
+                "date_posted": p.get("published_on") or p.get("created_at"),
+                "is_remote": remote, "is_expired": False, "is_easy_apply": False,
+            })
+    return out
+
+def scrape_smartrecruiters(term, old_days):
+    """SmartRecruiters: https://api.smartrecruiters.com/v1/companies/<slug>/postings"""
+    out = []
+    for name, slug in _SMARTRECRUITERS_ORGS:
+        try:
+            payload = json.loads(_fetch(f"https://api.smartrecruiters.com/v1/companies/{slug}/postings?limit=100"))
+        except Exception as e:
+            print(f"[warn] smartrecruiters: {slug} {e}", file=sys.stderr)
+            continue
+        for p in payload.get("content", []):
+            title = p.get("name") or ""
+            if not _title_matches(title, term):
+                continue
+            loc = ((p.get("location") or {}).get("city") or "")
+            remote = "remote" in title.lower() or "remote" in str(loc).lower()
+            pid = p.get("id") or ""
+            out.append({
+                "title": title, "company": p.get("company", {}).get("name") or name or slug, "site": "smartrecruiters",
+                "job_url": f"https://jobs.smartrecruiters.com/{slug}/{pid}" if pid else "",
+                "location": loc or "Remote",
+                "description": (p.get("releasedDescription") or "")[:4000],
+                "date_posted": p.get("releasedDate"),
+                "is_remote": remote, "is_expired": False, "is_easy_apply": False,
+            })
+    return out
+
+def scrape_bamboohr(term, old_days):
+    """BambooHR: https://<slug>.bamboohr.com/careers/list (JSON, no auth)."""
+    out = []
+    for name, slug in _BAMBOOHR_ORGS:
+        try:
+            payload = json.loads(_fetch(f"https://{slug}.bamboohr.com/careers/list"))
+        except Exception as e:
+            print(f"[warn] bamboohr: {slug} {e}", file=sys.stderr)
+            continue
+        for p in payload.get("result", []):
+            title = p.get("jobOpeningName") or ""
+            if not _title_matches(title, term):
+                continue
+            loc = p.get("location", {}).get("city", "") if isinstance(p.get("location"), dict) else ""
+            out.append({
+                "title": title, "company": name or slug, "site": "bamboohr",
+                "job_url": f"https://{slug}.bamboohr.com/careers/{p.get('id','')}",
+                "location": loc or "Remote",
+                "description": "", "date_posted": None,
+                "is_remote": "remote" in str(p.get("location", {})).lower(), "is_expired": False, "is_easy_apply": False,
+            })
+    return out
+
+def scrape_remotive(term, old_days):
+    """Remotive public API (no auth): https://remotive.com/api/remote-jobs.
+    Merged from fedorchenko-juli/job_search_tool aggregator_clients.py."""
+    try:
+        payload = json.loads(_fetch("https://remotive.com/api/remote-jobs?limit=100"))
+    except Exception as e:
+        print(f"[warn] remotive: {e}", file=sys.stderr)
+        return []
+    t = (term or "").strip().lower()
+    words = [w for w in t.split() if len(w) > 3] if t else []
+    cutoff = (datetime.datetime.utcnow() - datetime.timedelta(days=old_days)).isoformat()
+    out = []
+    for j in payload.get("jobs", []):
+        title = j.get("title") or ""
+        if words and not any(w in title.lower() for w in words):
+            continue
+        posted = _parse_date(j.get("publication_date"))
+        if posted and posted < cutoff:
+            continue
+        out.append({
+            "title": title, "company": j.get("company_name") or "", "site": "remotive",
+            "job_url": j.get("url") or "", "location": j.get("candidate_required_location") or "Remote",
+            "description": (j.get("description") or "")[:4000], "date_posted": posted,
+            "is_remote": True, "is_expired": False, "is_easy_apply": False,
+        })
+    return out
+
 def _title_matches_ashby(title, term):
     if not term:
         return True
@@ -481,7 +608,9 @@ def scrape_sprout(term, old_days):
 
 BOARDS = {"jobicy": scrape_jobicy, "hiringcafe": scrape_hiringcafe,
            "greenhouse": scrape_greenhouse, "lever": scrape_lever,
-           "ashby": scrape_ashby, "dice": scrape_dice, "sprout": scrape_sprout}
+           "ashby": scrape_ashby, "dice": scrape_dice, "sprout": scrape_sprout,
+           "workable": scrape_workable, "smartrecruiters": scrape_smartrecruiters,
+           "bamboohr": scrape_bamboohr, "remotive": scrape_remotive}
 
 
 def main():

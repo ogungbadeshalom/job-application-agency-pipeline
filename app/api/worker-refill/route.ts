@@ -142,8 +142,12 @@ export async function POST(req: Request) {
             ? profile.scrape_sites
             : DEFAULT_SITES
       );
-      const sites = chosen.filter((s) => AVAILABLE_BOARDS.includes(s));
-      if (!sites.length) sites.push(...DEFAULT_SITES);
+      const sites = chosen.filter((s) => AVAILABLE_BOARDS.includes(s as never));
+      // Drop the profile's blocked boards so we don't even scrape them.
+      const blocked = (profile.blocked_boards ?? []).map((b) => String(b).toLowerCase());
+      const sitesAllowed = blocked.length ? sites.filter((s) => !blocked.includes(String(s).toLowerCase())) : sites;
+      sites.length = 0; sites.push(...sitesAllowed);
+      if (!sites.length) sites.push(...DEFAULT_SITES.filter((s) => !blocked.includes(s)));
       const resultsWanted = Math.min(preset?.results_wanted || RESULTS_WANTED, 150);
       const location = preset?.location || 'Remote';
       const hoursOld = HOURS_OLD;
@@ -195,6 +199,10 @@ export async function POST(req: Request) {
         // resume (level + role family + skills), so off-target roles (Director/
         // PM/Sales/Compliance/adjacent) never enter the queue.
         let matched = allRaw;
+        // Board denylist (profile.blocked_boards) — hard filter first.
+        if (profile.blocked_boards?.length) {
+          matched = matched.filter((j) => !profile.blocked_boards.includes(String(j.site || '').toLowerCase()));
+        }
         // STRICT role allowlist (profile.allowed_roles) — hard gate first.
         if (profile.allowed_roles?.length) {
           matched = filterByAllowedRoles(matched, profile.allowed_roles);

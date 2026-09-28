@@ -90,12 +90,14 @@ async function scrapeOneProfile(profileId: string, name: string, per: AutoRefill
   }
 
   const terms = profile.scrape_search_terms?.length ? profile.scrape_search_terms : ['software engineer'];
+  const blocked = (profile.blocked_boards ?? []).map((b) => String(b).toLowerCase());
+  const knownBoards = ['greenhouse', 'builtin', 'jobicy', 'ashby', 'workingnomads', 'dice', 'hiringcafe', 'lever', 'workable', 'smartrecruiters', 'remotive', 'bamboohr'];
   const sites = profile.scrape_sites?.length
-    ? profile.scrape_sites.filter((s) => ['greenhouse', 'builtin', 'jobicy', 'ashby', 'workingnomads', 'dice', 'hiringcafe'].includes(s))
-    : DEFAULT_SITES;
+    ? profile.scrape_sites.filter((s) => knownBoards.includes(s) && !blocked.includes(s.toLowerCase()))
+    : DEFAULT_SITES.filter((s) => !blocked.includes(s));
 
   const raw: ScrapeResultJob[] = await runJobSpy({
-    sites: sites?.length ? sites : DEFAULT_SITES,
+    sites: sites?.length ? sites : DEFAULT_SITES.filter((s) => !blocked.includes(s)),
     search_terms: terms.slice(0, 12),
     location: profile.scrape_location || 'Remote',
     results_wanted: Math.min(profile.scrape_results_wanted || RESULTS_WANTED, 150),

@@ -170,6 +170,11 @@ export async function POST(req: Request) {
     let totalRoleFiltered = 0;
     for (const profile of targetProfiles) {
       let pool = allRaw;
+      // Board denylist (profile.blocked_boards): never let a blocked board's
+      // jobs enter this profile's queue, even if the run scraped it for others.
+      if (profile.blocked_boards?.length) {
+        pool = pool.filter((j) => !profile.blocked_boards.includes(String(j.site || '').toLowerCase()));
+      }
       // STRICT role allowlist (profile.allowed_roles): when set, only these
       // role titles may enter the queue — hard gate before any heuristic.
       if (profile.allowed_roles?.length) {

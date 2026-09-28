@@ -48,6 +48,7 @@ export interface Profile {
   jobs_per_week: number;
   allow_resume_download: boolean;
   allowed_roles: string[];
+  blocked_boards: string[];
   deleted_at: string | null;
   created_at: string;
   updated_at: string;

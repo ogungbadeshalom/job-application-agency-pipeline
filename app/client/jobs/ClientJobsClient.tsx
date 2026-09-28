@@ -13,16 +13,58 @@ export default function ClientJobsClient({
   user,
   jobs,
   profiles,
+  resumeWeeks = [],
 }: {
   user: User;
   jobs: Job[];
   profiles: Profile[];
+  resumeWeeks: { week: string; count: number }[];
 }) {
   const [selected, setSelected] = useState<Job | null>(null);
+  const [week, setWeek] = useState('');
+  const [downloading, setDownloading] = useState(false);
+  const [dlError, setDlError] = useState<string | null>(null);
 
   // If the client's profile has allow_resume_download = false, hide the PDF
   // download button (the /api/pdf endpoint is also gated server-side).
   const canDownload = (profiles[0]?.allow_resume_download ?? true) !== false;
+
+  // Human-readable week label, e.g. "Sep 21 – Sep 27"
+  function weekLabel(iso: string): string {
+    try {
+      const monday = new Date(iso + 'T00:00:00Z');
+      const sunday = new Date(monday);
+      sunday.setUTCDate(sunday.getUTCDate() + 6);
+      const f = (dt: Date) => dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+      return `${f(monday)} – ${f(sunday)}`;
+    } catch {
+      return iso;
+    }
+  }
+
+  async function downloadWeek() {
+    if (!week || downloading) return;
+    setDownloading(true);
+    setDlError(null);
+    try {
+      const res = await fetch(`/api/client/resumes/weekly?week=${week}`, { cache: 'no-store' });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d?.error || `Download failed (${res.status})`);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Tailored-Resumes-${week}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setDlError(e instanceof Error ? e.message : 'Download failed');
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   const nav = [
     { href: '/client/jobs', label: 'My Applications', badge: jobs.length },
@@ -83,6 +125,46 @@ export default function ClientJobsClient({
           <div className="text-sm text-navy-400">Landed {jobs.length > 0 ? 'so far' : 'yet — we are working on it'}.</div>
         </div>
       </div>
+
+      {/* Weekly tailored-resume download (past weeks only) */}
+      {canDownload && resumeWeeks.length > 0 && (
+        <div className="panel p-4 mb-4">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-navy-100">Download resumes by week</h2>
+              <p className="text-sm text-navy-400">
+                Grab a ZIP of all tailored resumes submitted in a past week.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <select
+                value={week}
+                onChange={(e) => setWeek(e.target.value)}
+                className="bg-navy-950 border border-navy-700 rounded-md px-3 py-2 text-sm text-navy-100 focus:outline-none focus:border-brand-blue"
+              >
+                <option value="">Select a past week…</option>
+                {resumeWeeks.map((w) => (
+                  <option key={w.week} value={w.week}>
+                    {weekLabel(w.week)} · {w.count} resume{w.count === 1 ? '' : 's'}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={downloadWeek}
+                disabled={!week || downloading}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-md bg-brand-greenDark text-white hover:bg-brand-green disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Download size={14} /> {downloading ? 'Preparing…' : 'Download ZIP'}
+              </button>
+            </div>
+          </div>
+          {dlError && (
+            <p className="text-sm text-brand-red mt-2 bg-red-500/10 border border-red-500/30 rounded-md px-3 py-2">
+              {dlError}
+            </p>
+          )}
+        </div>
+      )}
 
       <div data-onboard="client-table">
       <JobTable

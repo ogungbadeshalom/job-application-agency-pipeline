@@ -681,8 +681,8 @@ export const db = {
 
   // jobs
   async listJobs(filter: ListJobsFilter = {}): Promise<Job[]> {
-    const where: string[] = [];
     const params: unknown[] = [];
+    const where: string[] = [];
     const pids = filter.profile_ids ?? (filter.profile_id ? [filter.profile_id].flat() : undefined);
     if (pids && pids.length) {
       where.push(`profile_id = ANY($${params.push(pids)})`);
@@ -706,6 +706,47 @@ export const db = {
     }
     const rows = await all(sql, params);
     return rows.map(mapJob);
+  },
+  // Distinct weeks (Monday-start) in which a profile has jobs with a tailored
+  // resume and a submission date — used to populate the client's "download
+  // resumes by week" picker.
+  async listResumeWeeks(profileId: string): Promise<{ week: string; count: number }[]> {
+    const rows = await all(
+      `select date_trunc('week', submitted_at)::date as week, count(*)::int as count
+       from jobs
+       where profile_id = $1
+         and tailored_resume is not null
+         and submitted_at is not null
+       group by week
+       order by week desc`,
+      [profileId]
+    );
+    return rows.map((r) => ({
+      week: (r.week as Date).toISOString(),
+      count: Number(r.count),
+    }));
+  },
+  // Tailored resumes (with job metadata) for a profile within a submission week.
+  // `weekStart` is the Monday of the target week (inclusive window of 7 days).
+  async listTailoredResumesByWeek(profileId: string, weekStart: string): Promise<
+    { title: string; company: string; tailored_resume: string | null; submitted_at: string | null }[]
+  > {
+    const rows = await all(
+      `select title, company, tailored_resume, submitted_at
+       from jobs
+       where profile_id = $1
+         and tailored_resume is not null
+         and submitted_at >= $2
+         and submitted_at < $2::date + interval '7 days'
+       order by company asc, title asc`,
+      [profileId, weekStart]
+    );
+    return rows.map((r) => ({
+      title: (r.title as string) ?? 'Untitled',
+      company: (r.company as string) ?? '',
+      tailored_resume: (r.tailored_resume as string | null) ?? null,
+      submitted_at: (r.submitted_at as Date | null)?.toISOString() ?? null,
+    }));
   },
   // Slim list variant used by every table/list view (dashboard, worker queue,
   // worker history, client jobs/history). The full `listJobs` ships the heavy

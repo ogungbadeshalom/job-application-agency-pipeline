@@ -1,7 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import type { Job, User } from '@/lib/types';
+
+const PAGE_SIZE = 25;
 
 // Client's application history: applied jobs grouped by submission week, plus a
 // summary of this week's new applications. Mirrors the worker's History view.
@@ -12,6 +15,16 @@ export default function ClientHistoryClient({
   user: User;
   jobs: Job[];
 }) {
+  // Client-side pagination: newest first, 25 jobs per page. All jobs arrive as
+  // props; we slice here so the page stays a bounded list instead of endless.
+  const [page, setPage] = useState(1);
+  const sorted = [...jobs]
+    .filter((j) => j.submitted_at)
+    .sort((a, b) => (a.submitted_at! < b.submitted_at! ? 1 : -1));
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageJobs = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
   const nav = [{ href: '/client/jobs', label: 'My Applications', badge: jobs.length }, { href: '/client/resume-lab', label: 'Resume Lab' }, { href: '/client/history', label: 'History' }];
 
   // Group applied jobs by the Monday of their submission week (local time).
@@ -24,10 +37,10 @@ export default function ClientHistoryClient({
     return mon;
   }
 
+  // Group only this page's jobs for the week-grouped list.
   const byWeek = new Map<string, { mon: Date; jobs: Job[] }>();
-  for (const j of jobs) {
-    if (!j.submitted_at) continue;
-    const mon = monday(j.submitted_at);
+  for (const j of pageJobs) {
+    const mon = monday(j.submitted_at!);
     if (!mon) continue;
     const key = `${mon.getFullYear()}-${String(mon.getMonth() + 1).padStart(2, '0')}-${String(mon.getDate()).padStart(2, '0')}`;
     if (!byWeek.has(key)) byWeek.set(key, { mon, jobs: [] });
@@ -35,14 +48,16 @@ export default function ClientHistoryClient({
   }
   const weeks = Array.from(byWeek.entries()).sort((a, b) => (a[0] < b[0] ? 1 : -1));
 
-  // "New this week" = applied jobs grouped under the current week.
+  // Summary cards always reflect the FULL dataset, not the visible page.
   const now = Date.now();
-  const thisWeeks = weeks.filter(([, v]) => {
-    const mon = v.mon.getTime();
-    const sun = mon + 6 * 86400000;
-    return now >= mon && now < sun + 86400000;
-  });
-  const newThisWeek = thisWeeks.reduce((n, [, v]) => n + v.jobs.length, 0);
+  const weekStart = (iso: string): number | null => {
+    const mon = monday(iso);
+    return mon ? mon.getTime() : null;
+  };
+  const newThisWeek = sorted.filter((j) => {
+    const ts = j.submitted_at ? weekStart(j.submitted_at) : null;
+    return ts !== null && now >= ts && now < ts + 7 * 86400000;
+  }).length;
   const totalApplied = jobs.length;
 
   const fmtRange = (mon: Date) => {
@@ -72,7 +87,7 @@ export default function ClientHistoryClient({
         </div>
       </div>
 
-      {weeks.length === 0 ? (
+      {sorted.length === 0 ? (
         <div className="panel p-6 text-center text-navy-400">
           No applications yet. Jobs we apply to on your behalf will appear here.
         </div>
@@ -102,6 +117,31 @@ export default function ClientHistoryClient({
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Pagination controls */}
+      {totalPages > 1 && (
+        <div className="panel mt-4 px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <span className="text-sm text-navy-400 text-center sm:text-left">
+            Page {safePage} of {totalPages} · {sorted.length} total
+          </span>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={safePage <= 1}
+              className="flex-1 sm:flex-none px-3 py-2 sm:py-1.5 rounded bg-brand-greenDark text-white text-sm hover:bg-brand-green disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage >= totalPages}
+              className="flex-1 sm:flex-none px-3 py-2 sm:py-1.5 rounded bg-brand-greenDark text-white text-sm hover:bg-brand-green disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
           </div>
         </div>
       )}

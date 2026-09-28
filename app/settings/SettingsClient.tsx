@@ -53,9 +53,17 @@ function navFor(role: Role): { href: string; label: string }[] {
     case 'admin':
       return [{ href: '/admin/dashboard', label: 'Dashboard' }];
     case 'worker':
-      return [{ href: '/worker/queue', label: 'Queue' }];
+      return [
+        { href: '/worker/queue', label: 'Queue' },
+        { href: '/worker/history', label: 'History' },
+        { href: '/worker/report', label: 'Report a problem' },
+      ];
     case 'client':
     default:
-      return [{ href: '/client/jobs', label: 'My Applications' }];
+      return [
+        { href: '/client/jobs', label: 'My Applications' },
+        { href: '/client/resume-lab', label: 'Resume Lab' },
+        { href: '/client/history', label: 'History' },
+      ];
   }
 }

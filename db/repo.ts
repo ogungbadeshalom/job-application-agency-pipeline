@@ -721,10 +721,16 @@ export const db = {
        order by week desc`,
       [profileId]
     );
-    return rows.map((r) => ({
-      week: (r.week as Date).toISOString(),
-      count: Number(r.count),
-    }));
+    // node-postgres parses Postgres `date` columns as JS Date at LOCAL
+    // midnight. toISOString() on that would shift the day on any non-UTC
+    // server, breaking the week picker (off-by-one week) and the ZIP API
+    // route's `week` param. Build the YYYY-MM-DD string from UTC fields of
+    // the raw date value instead — a Postgres date has no time component.
+    return rows.map((r) => {
+      const d = r.week as Date;
+      const week = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+      return { week, count: Number(r.count) };
+    });
   },
   // Tailored resumes (with job metadata) for a profile within a submission week.
   // `weekStart` is the Monday of the target week (inclusive window of 7 days).

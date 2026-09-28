@@ -1,9 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import type { Job, User } from '@/lib/types';
 
+const PAGE_SIZE = 25;
+
 // Groups a worker's APPLIED jobs by submission week (Mon-Sun) and lists them.
+// Paginated client-side: 25 jobs per page, Previous/Next controls.
 export default function HistoryClient({
   user,
   nav,
@@ -14,6 +18,15 @@ export default function HistoryClient({
   jobs: Job[];
 }) {
   const applied = jobs.filter((j) => j.status === 'applied' && j.submitted_at);
+
+  // Client-side pagination: newest first, 25 jobs per page.
+  const [page, setPage] = useState(1);
+  const sorted = [...applied].sort((a, b) =>
+    a.submitted_at! < b.submitted_at! ? 1 : -1
+  );
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageJobs = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   // Key each applied job by the Monday (00:00 local) of its submission week.
   // Grouping and display MUST both use local wall-clock dates so a job can never
@@ -30,7 +43,7 @@ export default function HistoryClient({
   }
 
   const byWeek = new Map<string, { mon: Date; jobs: Job[] }>();
-  for (const j of applied) {
+  for (const j of pageJobs) {
     const mon = mondayOf(j.submitted_at!);
     // Skip jobs with an unparseable submitted_at rather than crashing the page.
     if (!mon) continue;
@@ -55,7 +68,7 @@ export default function HistoryClient({
         <p className="text-sm text-navy-400">Your applied jobs, grouped by week.</p>
       </div>
 
-      {weeks.length === 0 ? (
+      {sorted.length === 0 ? (
         <div className="panel p-6 text-center text-navy-400">
           {applied.length === 0
             ? 'No applications completed yet. Jobs you mark Applied will show up here.'
@@ -98,6 +111,31 @@ export default function HistoryClient({
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Pagination controls */}
+      {totalPages > 1 && (
+        <div className="panel mt-4 px-4 py-3 flex items-center justify-between">
+          <span className="text-sm text-navy-400">
+            Page {safePage} of {totalPages} · {sorted.length} total
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={safePage <= 1}
+              className="px-3 py-1.5 rounded bg-brand-greenDark text-white text-sm hover:bg-brand-green disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage >= totalPages}
+              className="px-3 py-1.5 rounded bg-brand-greenDark text-white text-sm hover:bg-brand-green disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
           </div>
         </div>
       )}

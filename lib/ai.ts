@@ -184,9 +184,11 @@ async function callOpenAICompat(a: OpenAICompatArgs): Promise<string> {
   // a quick retry usually succeeds.
   // Hard timeout per attempt: free endpoints (freeinference.org) can hang or
   // silently drop TCP connections (ECONNRESET). Without a cap the UI spins
-  // forever. 45s/attempt keeps the whole Answer/Tailor request bounded (~90s
-  // worst case across 2 tries) while giving a slow model enough room.
-  const ATTEMPT_TIMEOUT_MS = 45_000;
+  // forever. 90s/attempt: the provider's p50 is ~4s for a full tailor-sized
+  // completion, but tail latencies occasionally exceed 45s (observed once as a
+  // worker-facing 502 in the nightly health check), so the cap now covers the
+  // tail instead of failing a request the model would have answered.
+  const ATTEMPT_TIMEOUT_MS = 90_000;
   const attempts = 3;
   for (let attempt = 0; attempt < attempts; attempt++) {
     const controller = new AbortController();
@@ -218,6 +220,40 @@ async function callOpenAICompat(a: OpenAICompatArgs): Promise<string> {
       clearTimeout(timer);
     }
     if (attempt < attempts - 1) await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+  }
+  // Cross-model failover: when the primary model exhausts all attempts
+  // (timeouts/5xx/empty), try once on a secondary model on the SAME endpoint
+  // before giving up. Turns a provider-side model stall into a served request.
+  const FALLBACK_MODELS: Record<string, string> = {
+    'deepseek-v4-flash': 'glm-5.3-flash',
+    'glm-5.3-flash': 'deepseek-v4-flash',
+  };
+  const fallbackModel = FALLBACK_MODELS[a.model];
+  if (fallbackModel) {
+    try {
+      const fbController = new AbortController();
+      const fbTimer = setTimeout(() => fbController.abort(), ATTEMPT_TIMEOUT_MS);
+      try {
+        const completion = await client.chat.completions.create(
+          {
+            model: fallbackModel,
+            temperature: a.temperature,
+            max_tokens: a.maxTokens,
+            messages: [
+              { role: 'system', content: a.system },
+              { role: 'user', content: a.user },
+            ],
+          },
+          { signal: fbController.signal }
+        );
+        const text = completion.choices[0]?.message?.content?.trim() || '';
+        if (text) return text;
+      } finally {
+        clearTimeout(fbTimer);
+      }
+    } catch {
+      // fall through to the original error
+    }
   }
   throw lastErr;
 }

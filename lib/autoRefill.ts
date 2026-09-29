@@ -72,7 +72,7 @@ export function assertNotBusy(): void {
   }
 }
 
-const DEFAULT_SITES = ['greenhouse', 'builtin', 'jobicy', 'ashby', 'workingnomads', 'dice', 'lever', 'workable', 'smartrecruiters', 'remotive'];
+const DEFAULT_SITES = ['greenhouse', 'builtin', 'jobicy', 'ashby', 'dice', 'lever', 'smartrecruiters'];
 const RESULTS_WANTED = 120;
 const HOURS_OLD = 168;
 
@@ -91,7 +91,7 @@ async function scrapeOneProfile(profileId: string, name: string, per: AutoRefill
 
   const terms = profile.scrape_search_terms?.length ? profile.scrape_search_terms : ['software engineer'];
   const blocked = (profile.blocked_boards ?? []).map((b) => String(b).toLowerCase());
-  const knownBoards = ['greenhouse', 'builtin', 'jobicy', 'ashby', 'workingnomads', 'dice', 'hiringcafe', 'lever', 'workable', 'smartrecruiters', 'remotive', 'bamboohr'];
+  const knownBoards = ['greenhouse', 'builtin', 'jobicy', 'ashby', 'workingnomads', 'dice', 'lever', 'workable', 'smartrecruiters', 'remotive', 'bamboohr'];
   const sites = profile.scrape_sites?.length
     ? profile.scrape_sites.filter((s) => knownBoards.includes(s) && !blocked.includes(s.toLowerCase()))
     : DEFAULT_SITES.filter((s) => !blocked.includes(s));

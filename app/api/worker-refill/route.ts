@@ -25,10 +25,10 @@ const HOURS_OLD = 168;
 // Expanded board set (was greenhouse/builtin/jobicy): adding ashby + workingnomads
 // + dice + hiringcafe gives workers far more supply so a refill isn't deduped to
 // a handful by the three-board default.
-const DEFAULT_SITES = ['greenhouse', 'builtin', 'jobicy', 'ashby', 'workingnomads', 'dice', 'lever', 'workable', 'smartrecruiters', 'remotive', 'bamboohr'];
+const DEFAULT_SITES = ['greenhouse', 'builtin', 'jobicy', 'ashby', 'dice', 'lever', 'smartrecruiters'];
 // Boards the worker may select. hiringcafe is heavy/headless (one launch per
 // batch) but yields unique aggregation too, so it's available on explicit pick.
-const AVAILABLE_BOARDS = ['greenhouse', 'builtin', 'jobicy', 'workingnomads', 'ashby', 'dice', 'hiringcafe', 'lever', 'workable', 'smartrecruiters', 'remotive', 'bamboohr'];
+const AVAILABLE_BOARDS = ['greenhouse', 'builtin', 'jobicy', 'workingnomads', 'ashby', 'dice', 'lever', 'workable', 'smartrecruiters', 'remotive', 'bamboohr'];
 
 // Single-flight: only one worker-refill scrape may run at a time across workers,
 // so two people sharing a profile (e.g. Erry) can't stack concurrent JobSpy

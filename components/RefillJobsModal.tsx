@@ -11,11 +11,13 @@ const SCRAPE_TIMEOUT_MS = 600_000; // 10 min — generous ceiling for JobSpy
 export const SITE_OPTIONS: { name: string; site: string }[] = [
   { name: 'Greenhouse', site: 'greenhouse' },
   { name: 'BuiltIn', site: 'builtin' },
-  { name: 'Jobicy', site: 'jobicy' },
-  { name: 'RemoteOK', site: 'remoteok' },
-  { name: 'WorkingNomads', site: 'workingnomads' },
   { name: 'Ashby', site: 'ashby' },
-  { name: 'SmartRecruiters', site: 'smart_recruiters' },
+  { name: 'Lever', site: 'lever' },
+  { name: 'SmartRecruiters', site: 'smartrecruiters' },
+  { name: 'Jobicy', site: 'jobicy' },
+  { name: 'Dice', site: 'dice' },
+  { name: 'Workable', site: 'workable' },
+  { name: 'Remotive', site: 'remotive' },
 ];
 
 export default function RefillJobsModal({

@@ -28,6 +28,7 @@ export interface ProfilePreset {
   location: string | null;
   remote_only: boolean;
   results_wanted: number;
+  hours_old?: number;
 }
 
 export interface Profile {

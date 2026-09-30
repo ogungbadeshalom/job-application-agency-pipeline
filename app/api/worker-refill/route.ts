@@ -54,6 +54,10 @@ export async function POST(req: Request) {
   const presetId = typeof body.presetId === 'string' ? body.presetId : '';
   // Optional: worker-selected boards. Must be non-empty and only known boards.
   const rawSites: unknown = body.sites;
+  // Optional per-request knobs (worker/admin can request a bigger sweep):
+  // resultsWanted (pool size per term) + hoursOld (freshness window).
+  const bodyResultsWanted = typeof body.resultsWanted === 'number' && body.resultsWanted > 0 ? body.resultsWanted : null;
+  const bodyHoursOld = typeof body.hoursOld === 'number' && body.hoursOld > 0 ? body.hoursOld : null;
   const requestedSites: string[] = Array.isArray(rawSites)
     ? rawSites.filter((s): s is string => typeof s === 'string').slice(0, 8)
     : [];
@@ -148,9 +152,12 @@ export async function POST(req: Request) {
       const sitesAllowed = blocked.length ? sites.filter((s) => !blocked.includes(String(s).toLowerCase())) : sites;
       sites.length = 0; sites.push(...sitesAllowed);
       if (!sites.length) sites.push(...DEFAULT_SITES.filter((s) => !blocked.includes(s)));
-      const resultsWanted = Math.min(preset?.results_wanted || RESULTS_WANTED, 150);
+      const resultsWanted = Math.min(bodyResultsWanted || preset?.results_wanted || RESULTS_WANTED, 300);
       const location = preset?.location || 'Remote';
-      const hoursOld = HOURS_OLD;
+      // Widen the freshness window: 168h (7d) starved the funnel — strict gates
+      // + dedupe already consume most of a small pool, so a bigger window
+      // feeds the funnel more raw postings to survive the gates.
+      const hoursOld = bodyHoursOld || preset?.hours_old || HOURS_OLD;
 
       if (!termsForScrape?.length) {
         return NextResponse.json({ error: 'This profile has no search terms configured yet.' }, { status: 400 });
@@ -217,9 +224,10 @@ export async function POST(req: Request) {
         if (fresh.length) {
           // Bound a single refill so an expanded multi-term scrape can't flood
           // the queue past what the worker can realistically process in a
-          // session. 30/day keeps volume useful without overwhelming the queue
-          // (the old 3-board/3-day default rarely even reached ~20).
-          const cap = 30;
+          // session. Raised from 30 to 120: the strict role gate + AI resume
+          // gate + dedupe leave only a small fraction of the pool, so a 30-cap
+          // throttled queue growth even on high-yield runs.
+          const cap = 120;
           const batch = fresh.slice(0, cap);
           await db.createJobs(batch as Job[]);
           added = batch.length;

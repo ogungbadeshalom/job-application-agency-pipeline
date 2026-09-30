@@ -196,8 +196,8 @@ export async function runJobSpy(
       child.on('error', (e) => finish(e));
       timer = setTimeout(() => {
         child.kill('SIGKILL');
-        finish(new Error(`JobSpy timed out after 300s. ${stderr.slice(0, 300)}`.trim()));
-      }, 300_000);
+        finish(new Error(`JobSpy timed out after 900s. ${stderr.slice(0, 300)}`.trim()));
+      }, 900_000);
       child.on('close', (code, signal) => {
         if (code === 0) {
           if (onProgress) {

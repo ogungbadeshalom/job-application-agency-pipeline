@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Spinner, Check } from '@/components/Icon';
@@ -62,12 +63,21 @@ export default function LoginPage() {
       {/* ---- Form side ---- */}
       <div className="flex items-center justify-center px-6 py-10 sm:px-10">
         <div className="w-full max-w-sm">
-          <div className="mb-8 flex items-center gap-3">
-            <LogoMark />
-            <div>
-              <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-navy-500">Job Bidder</div>
-              <div className="text-xs text-navy-300 font-medium">Application agency OS</div>
-            </div>
+          <div className="mb-8 flex items-center justify-between gap-3">
+            <Link href="/" className="flex items-center gap-3 group" title="Back to landing page">
+              <LogoMark />
+              <div>
+                <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-navy-500 group-hover:text-[var(--accent)] transition-colors">Job Bidder</div>
+                <div className="text-xs text-navy-300 font-medium">Application agency OS</div>
+              </div>
+            </Link>
+            <Link
+              href="/"
+              className="text-xs text-navy-400 hover:text-white border border-navy-700 hover:border-[var(--accent)] rounded-lg px-3 py-1.5 transition-colors"
+              title="Back to pitchr.com.ng"
+            >
+              ← Home
+            </Link>
           </div>
 
           <h1 className="text-2xl font-semibold text-navy-100 tracking-tight">Sign in</h1>

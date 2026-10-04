@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import ReviewsSection from './ReviewsSection';
 
 // The Command Deck — public SaaS landing page for JobBidder. This is a React
 // port of /root/job-bidder-landing/a-command-deck.html (the direction Shalom
@@ -53,6 +54,7 @@ export default function CommandDeckLanding() {
             <a href="#how">How it works</a>
             <a href="#features">Capabilities</a>
             <a href="#pricing">Pricing</a>
+            <a href="#reviews">Reviews</a>
           </div>
           <Link href="/login" className="jb-cta">Sign in</Link>
         </div>
@@ -149,6 +151,9 @@ export default function CommandDeckLanding() {
           </div>
         </div>
       </section>
+
+      {/* reviews */}
+      <ReviewsSection />
 
       {/* closing */}
       <div className="jb-closing jb-wrap">

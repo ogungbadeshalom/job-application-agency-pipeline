@@ -12,8 +12,9 @@ import ProfilesTab from './tabs/ProfilesTab';
 import ResumesTab from './tabs/ResumesTab';
 import SettingsTab from './tabs/SettingsTab';
 import ComplaintsTab from './tabs/ComplaintsTab';
+import ReviewsTab from './tabs/ReviewsTab';
 
-type Section = 'applications' | 'profiles' | 'resumes' | 'settings' | 'complaints';
+type Section = 'applications' | 'profiles' | 'resumes' | 'settings' | 'complaints' | 'reviews';
 
 type Stat = { key: string; label: string; value: string; sub: string; delta?: string; up?: boolean; bars?: number[]; pct?: number };
 
@@ -102,6 +103,7 @@ export default function DashboardClient({
     { key: 'profiles', label: 'Profiles', count: profiles.length },
     { key: 'resumes', label: 'Resumes' },
     { key: 'complaints', label: 'Issues' },
+    { key: 'reviews', label: 'Reviews' },
     { key: 'settings', label: 'Settings' },
   ];
 
@@ -223,6 +225,7 @@ export default function DashboardClient({
       {section === 'resumes' && <ResumesTab profiles={profiles} jobs={jobs} />}
       {section === 'settings' && <SettingsTab users={users} scrapeRuns={scrapeRuns} profiles={profiles} />}
       {section === 'complaints' && <ComplaintsTab />}
+      {section === 'reviews' && <ReviewsTab />}
 
       <RefillJobsModal
         open={refillOpen}

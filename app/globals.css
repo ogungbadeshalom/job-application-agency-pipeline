@@ -341,10 +341,26 @@ button:not(:disabled):active {
   .jb-c-1,.jb-c-2,.jb-c-3,.jb-c-4,.jb-c-5{grid-column:span 3}
   .jb-p{grid-template-columns:56px 1fr}
   .jb-tiers{grid-template-columns:1fr}
+  .jb-section{padding:56px 0}
+  .jb-hero{padding:48px 0 44px}
 }
 @media (max-width:560px){
-  .jb-nav-links{display:none}
+  /* nav: don't hide links — collapse to a compact scrollable pill row under the logo row */
+  .jb-nav{height:auto;padding-bottom:10px}
+  .jb-nav-in{height:auto;flex-wrap:wrap;row-gap:10px;padding-top:14px}
+  .jb-nav-links{display:flex;flex-wrap:wrap;gap:8px;width:100%;order:3}
+  .jb-nav-links a{font-size:13px;padding:6px 12px;border:1px solid var(--jb-line);border-radius:999px;color:var(--jb-muted)}
+  .jb-nav-links a:hover{border-color:var(--jb-accent);color:var(--jb-text)}
   .jb-band-in{grid-template-columns:1fr}
+  .jb-p{grid-template-columns:1fr;gap:8px;padding:22px 2px}
+  .jb-p .jb-no{padding-top:0}
+  .jb-hero h1{max-width:none}
+  .jb-sub{margin:14px 0 22px}
+  .jb-hero-cta .jb-btn{width:100%;text-align:center}
+  .jb-btn{padding:12px 18px}
+  .jb-closing{padding:56px 20px}
+  .jb-ag{grid-template-columns:48px 1fr;gap:14px;padding:22px 2px}
+  .jb-con-body{font-size:11px}
 }
 @media (prefers-reduced-motion: reduce){
   .jb-land-wrap{scroll-behavior:auto}

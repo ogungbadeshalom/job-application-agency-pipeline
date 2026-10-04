@@ -90,7 +90,7 @@ export default function ReviewsSection() {
       <div className="jb-wrap">
         <div className="flex items-end justify-between flex-wrap gap-4">
           <div>
-            <div className="jb-kicker">Testimonials</div>
+            <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-[var(--accent,#22C55E)]">Testimonials</div>
             <h2 className="text-2xl font-bold text-white">What clients say</h2>
           </div>
           {total > 0 && (

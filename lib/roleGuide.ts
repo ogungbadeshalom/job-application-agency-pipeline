@@ -1,4 +1,11 @@
 import type { Profile } from '@/lib/types';
+// The guide MUST reuse the exact hard gate the manual Add-Job route enforces
+// (app/api/jobs/route.ts -> titleMatchesAllowedRoles). Two independent sources
+// of truth here caused worker complaint 97f60d30: the guide advertised
+// "Cloud Engineer / DevOps / SRE / Data Lakehouse Engineer" for Andrew while
+// his strict data-only allowed_roles list rejected those same titles with a
+// 409 on manual add. Keep this import — do NOT inline a copy of the matcher.
+import { titleMatchesAllowedRoles } from '@/lib/aiJobMatch';
 
 // Worker role-guide: tells a worker which job roles/titles their assigned
 // client's resume genuinely supports, so they don't skip valid applications
@@ -135,18 +142,42 @@ export function roleGuideForProfile(p: Profile): RoleGuide | null {
   const cutoff = Math.max(top * 0.3, 4); // keep families at least ~30% as strong as the leader
   const kept = use.filter((s) => s.score >= cutoff).slice(0, 4);
 
-  const families = kept.map((k) => ({
-    id: k.f.id,
-    label: k.f.label,
-    exampleTitles: k.f.exampleTitles,
-    skipNote: k.f.skipNote,
-  }));
+  const families = kept.map((k) => {
+    // When the profile has a strict allowlist, only advertise example titles
+    // that the manual Add-Job gate would actually accept — otherwise the guide
+    // tells workers to add jobs the site then rejects (complaint 97f60d30).
+    const passable = (p.allowed_roles?.length ?? 0) > 0
+      ? k.f.exampleTitles.filter((t) => titleMatchesAllowedRoles(t, p.allowed_roles))
+      : k.f.exampleTitles;
+    return {
+      id: k.f.id,
+      label: k.f.label,
+      exampleTitles: passable,
+      skipNote: k.f.skipNote,
+    };
+  }).filter((f) => f.exampleTitles.length > 0 || !(p.allowed_roles?.length));
+
+  // With a strict allowlist, the skip-note must reflect the GATE, not the
+  // resume heuristic — e.g. Andrew's allowlist INCLUDES "data analyst", so the
+  // generic "skip data analyst dashboard-only roles" note contradicted the
+  // gate. Tell the worker which advertised-style titles are outside the gate.
+  let skipNote: string;
+  if (p.allowed_roles?.length) {
+    const rejected = Array.from(new Set(
+      ROLE_FAMILIES.flatMap((rf) => rf.exampleTitles).filter((t) => !titleMatchesAllowedRoles(t, p.allowed_roles))
+    )).slice(0, 4);
+    skipNote = rejected.length
+      ? `Outside this client's allowed roles (e.g. ${rejected.join(', ')}).`
+      : '';
+  } else {
+    skipNote = families.map((f) => f.skipNote).join(' ');
+  }
 
   return {
     headline: headlineRole(t),
     families,
     exampleTitles: Array.from(new Set(families.reduce<string[]>((acc, f) => acc.concat(f.exampleTitles), []))),
-    skipNote: families.map((f) => f.skipNote).join(' '),
+    skipNote,
   };
 }
 

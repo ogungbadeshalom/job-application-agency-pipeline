@@ -60,6 +60,19 @@ def api(path, payload=None, method=None):
 def run_jobspy(site, term, location, results_wanted, hours_old, is_remote):
     """Local JobSpy scrape. Returns the list of ScrapeResultJob-shaped dicts to
     POST back. Runs directly (no proxy) so it uses YOUR residential IP."""
+    try:
+        from jobspy import scrape_jobs
+    except ModuleNotFoundError:
+        # Self-diagnosing error: the #1 laptop failure is pip installing into a
+        # different interpreter/site than the one running this agent. Print the
+        # exact interpreter + fix command instead of failing every term silently.
+        print("!! FATAL: jobspy is not importable from the python running this agent.")
+        print("   This interpreter :", sys.executable)
+        print("   Fix (run in PowerShell, NO --user flag):")
+        print(f'     py -3 -m pip uninstall -y jobspy pandas numpy')
+        print(f'     py -3 -m pip install jobspy pandas requests')
+        print("   Then restart: py -3 laptop_agent.py --watch")
+        raise SystemExit(1)
     from jobspy import scrape_jobs
 
     df = scrape_jobs(

@@ -24,6 +24,26 @@ const TERMS = [
   'data platform engineer',
   'data architect',
   'big data engineer',
+  // Widened term matrix (Oct 2026) — cover the resume's full surface, not just
+  // data-engineer titles (refill-supply.md: term matrix was the bottleneck).
+  'business intelligence engineer',
+  'BI engineer',
+  'analytics data engineer',
+  'insights engineer',
+  'databricks engineer',
+  'snowflake engineer',
+  'azure data engineer',
+  'aws data engineer',
+  'cloud data engineer',
+  'data infrastructure engineer',
+  'data integration engineer',
+  'machine learning data engineer',
+  'quantitative engineer',
+  'database engineer',
+  'ETL engineer',
+  'analytics platform engineer',
+  'streaming data engineer',
+  'real-time data engineer',
 ];
 const LOCATION = 'Remote';
 const HOURS_OLD = 168;

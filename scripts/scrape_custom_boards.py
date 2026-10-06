@@ -148,6 +148,10 @@ GREENHOUSE_ORGS = [
     # enterprise blocklist. Verified HTTP 200 from this box. ~1,545 new raw jobs.
     "anthropic", "roblox", "adyen", "flexport", "asana", "duolingo", "proton",
     "algolia", "lastpass",
+    # Widened supply (Oct 2026): probed live via boards-api HTTP 200, DC-safe,
+    # not enterprise-blocklisted (gitlab is — skipped deliberately).
+    "scaleai", "collibra", "starburst", "dominodatalab", "bitwarden", "edb",
+    "yugabyte", "buildkite", "comet",
 ]
 LEVER_ORGS = ["3pillarglobal", "revinate", "pivotal", "heetch"]
 

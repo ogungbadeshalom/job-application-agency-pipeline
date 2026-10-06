@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import JobTable from '@/components/JobTable';
 import RefillJobsModal from '@/components/RefillJobsModal';
@@ -59,6 +59,24 @@ export default function DashboardClient({
 }) {
   const [section, setSection] = useState<Section>('applications');
   const [refillOpen, setRefillOpen] = useState(false);
+
+  // Clicking the top-nav "Dashboard" link while already on /admin/dashboard does
+  // NOT re-render the route (Next.js same-route navigation is a no-op), so the
+  // section state stayed stuck on e.g. Reviews/Profiles and the button appeared
+  // dead. Capture those clicks and reset to the Applications view ourselves.
+  useEffect(() => {
+    function onNavClick(e: MouseEvent) {
+      const link = (e.target as HTMLElement | null)?.closest?.('a[href="/admin/dashboard"]');
+      if (!link) return;
+      if (section !== 'applications') {
+        e.preventDefault();
+        setSection('applications');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+    document.addEventListener('click', onNavClick);
+    return () => document.removeEventListener('click', onNavClick);
+  }, [section]);
   const [exportOpen, setExportOpen] = useState(false);
   const { jobs, refresh } = useJobs(initialJobs);
 

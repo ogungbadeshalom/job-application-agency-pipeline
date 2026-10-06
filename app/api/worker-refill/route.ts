@@ -244,8 +244,9 @@ export async function POST(req: Request) {
           console.warn('[worker-refill] autoTailor skipped:', e instanceof Error ? e.message : e);
         }
 
-        // Enforce 1 job per company in this profile's queue.
-        const deduped = await db.dedupeQueueByCompany(profileId);
+        // (Oct 2026: dedupeQueueByCompany call REMOVED per Shalom — the
+        // one-job-per-company rule is gone; workers may hold multiple roles
+        // from the same company.)
 
         await db.updateScrapeRun(run.id, {
           status: 'completed',
@@ -262,9 +263,8 @@ export async function POST(req: Request) {
           jobs_found: allRaw.length,
           jobs_added: added,
           skipped_duplicates: duplicateSkipped,
-          deduped_by_company: deduped,
           auto_tailored: autoTailored,
-          message: [added ? `Added ${added} job${added === 1 ? '' : 's'}.` : 'No new jobs added.', autoTailored ? `Auto-tailored ${autoTailored} job${autoTailored === 1 ? '' : 's'} for the queue.` : '', duplicateSkipped ? `${duplicateSkipped} duplicates skipped (already in queue).` : '', deduped ? `${deduped} duplicate-by-company removed.` : ''].filter(Boolean).join(' '),
+          message: [added ? `Added ${added} job${added === 1 ? '' : 's'}.` : 'No new jobs added.', autoTailored ? `Auto-tailored ${autoTailored} job${autoTailored === 1 ? '' : 's'} for the queue.` : '', duplicateSkipped ? `${duplicateSkipped} duplicates skipped (already in queue).` : ''].filter(Boolean).join(' '),
         });
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);

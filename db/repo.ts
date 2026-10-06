@@ -1035,19 +1035,8 @@ export const db = {
         if (appliedUrls.some((r) => normalizeJobURL(r.url as string) === norm)) return true;
       }
     }
-    // STRICT one-role-per-company: block if this company already has ANY applied
-    // job for the profile, regardless of role/title. Prevents applying to the
-    // same employer twice (whether two roles, duplicate postings, or a manual
-    // add) — one job per company, strictly.
-    if (job.company && String(job.company).trim() !== '') {
-      const hit = await one<{ n: string }>(
-        `select count(*)::text n from jobs
-         where profile_id = $1 and status = 'applied'
-           and lower(coalesce(company,'')) = lower($2)`,
-        [profileId, String(job.company).trim()]
-      );
-      if (hit && Number(hit.n) > 0) return true;
-    }
+    // (Oct 2026: one-role-per-company rule REMOVED per Shalom — multiple roles
+    // at the same company are now allowed. URL-level duplicate protection kept.)
     return false;
   },
 
@@ -1058,25 +1047,8 @@ export const db = {
     );
     return rows.map(mapScrapeRun);
   },
-  // Keep only the newest saved/tailored job per company for a profile queue.
-  // IMPORTANT: never delete MANUAL jobs (board='manual', added by a worker by
-  // hand via POST /api/jobs). Only dedupe scraped jobs so an accidental purge on
-  // refill can't wipe hand-added postings — that wiped Erry's queue (26 -> 19).
-  async dedupeQueueByCompany(profileId: string): Promise<number> {
-    const res = await query(
-      `delete from jobs where id in (
-         select id from (
-           select id, row_number() over (
-             partition by profile_id, lower(btrim(company)) order by created_at desc
-           ) rn
-           from jobs where profile_id = $1 and status in ('saved','tailored')
-             and board != 'manual'          -- NEVER delete manual jobs
-         ) t where t.rn > 1
-       )`,
-      [profileId]
-    );
-    return Number(res?.rowCount ?? 0);
-  },
+  // (Oct 2026: dedupeQueueByCompany removed per Shalom — one-job-per-company
+  // rule is gone. Function deleted; earlier callers cleaned up.)
   async createScrapeRun(input: Partial<ScrapeRun>): Promise<ScrapeRun> {
     const row = await one(
       `insert into scrape_runs

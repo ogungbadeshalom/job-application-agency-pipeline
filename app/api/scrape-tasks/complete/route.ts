@@ -70,7 +70,7 @@ export async function POST(req: Request) {
     await db.createJobs(fresh as Job[]);
     added = fresh.length;
   }
-  await db.dedupeQueueByCompany(profileId);
+  // (Oct 2026: dedupeQueueByCompany removed per Shalom — one-job-per-company rule gone.)
 
   await db.updateScrapeRun(run.id, {
     status: 'completed',

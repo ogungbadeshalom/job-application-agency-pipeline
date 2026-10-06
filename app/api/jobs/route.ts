@@ -64,23 +64,8 @@ export async function POST(req: Request) {
     );
   }
 
-  // Strict one-role-per-company, front-loaded onto MANUAL adds too: if this
-  // company already has an APPLIED job for the profile, refuse to queue another
-  // role here — the worker sees it the moment they paste the link.
-  if (company) {
-    const perf = await one<{ n: string }>(
-      `select count(*)::text n from jobs
-       where profile_id = $1 and status = 'applied'
-         and lower(coalesce(company,'')) = lower($2)`,
-      [profileId, company.trim()]
-    );
-    if (perf && Number(perf.n) > 0) {
-      return NextResponse.json(
-        { error: `You already applied to ${company.trim()} for this client — only one role per company is allowed. Pick a different company.` },
-        { status: 409 }
-      );
-    }
-  }
+  // (Oct 2026: one-role-per-company pre-check REMOVED per Shalom — manual adds
+  // may queue multiple roles at the same company. Duplicate-posting check below kept.)
 
   // Second-pass duplicate check: now that we know company+title, reject if this
   // posting already exists in the queue under a different URL (same company+title).

@@ -136,7 +136,7 @@ async function scrapeOneProfile(profileId: string, name: string, per: AutoRefill
     await db.createJobs(batch as Job[]);
     added = batch.length;
   }
-  await db.dedupeQueueByCompany(profileId);
+  // (Oct 2026: dedupeQueueByCompany removed per Shalom — one-job-per-company rule gone.)
 
   await db.updateScrapeRun(run.id, {
     status: 'completed',

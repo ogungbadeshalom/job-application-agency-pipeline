@@ -36,7 +36,7 @@ const ENTERPRISE_COMPANIES = new Set<string>([
   'square', 'block', 'paypal', 'intuit', 'adobe', 'atlassian', 'slack',
   'palantir', 'snap', 'pinterest', 'spotify', 'doordash', 'instacart',
   'airtable', 'notion', 'figma', 'canva', 'zapier', 'retool', 'linear',
-  'jpmorgan', 'goldman', 'morgan stanley', 'capital one', 'chase',
+  'jpmorgan', 'goldman', 'morgan stanley', 'capital one', 'chase', 'empower',
   'boeing', 'lockheed', 'northrop', 'raytheon',
 ]);
 

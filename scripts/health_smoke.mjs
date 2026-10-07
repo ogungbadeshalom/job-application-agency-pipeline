@@ -75,6 +75,7 @@ console.log(`\n=== Job Bidder functional smoke test @ ${BASE} ===\n`);
 let adminCookie;
 let workerJobId;
 let workerPdfUrl;
+let workerResumeText;
 
 // Admin creds are user-specific; read from env so the cron can pass them
 // securely. If not provided, verify admin *exists* in DB instead of logging in.
@@ -234,6 +235,21 @@ await check('RESUME: worker Tailor returns text + PDF (POST /api/tailor)', async
   assert(typeof d.tailored_resume === 'string' && d.tailored_resume.length > 100, 'no resume text returned');
   assert(typeof d.tailored_resume_pdf_url === 'string' && d.tailored_resume_pdf_url, 'no PDF url returned');
   workerPdfUrl = d.tailored_resume_pdf_url;
+  workerResumeText = d.tailored_resume;
+});
+
+// Prevention check for the maxTokens-truncation class (Sep 2026): a 3000-token
+// cap truncated the ResumeData JSON mid-object on long postings, so the brace
+// matcher threw "unbalanced braces" and the worker got a 502. The stored
+// tailored_resume (buildResumeText) MUST carry the sections the client reads.
+// This assertion would have caught it — the 502 path never stored anything.
+await check('RESUME: tailored text carries SUMMARY + EXPERIENCE + EDUCATION + SKILLS', async () => {
+  const t = workerResumeText;
+  if (!t) { console.log('  (no resume text captured — skipping, non-fatal)'); return; }
+  for (const section of ['SUMMARY', 'EXPERIENCE', 'EDUCATION', 'SKILLS']) {
+    assert(t.includes(section), `tailored resume is missing the ${section} section — a section dropped silently`);
+  }
+  assert(/Texas Tech|University|College|Institute/i.test(t), 'tailored resume carries no recognizable school (education lost)');
 });
 
 await check('RESUME: generated PDF is downloadable (GET /api/files/<pdf>)', async () => {

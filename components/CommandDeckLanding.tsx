@@ -4,42 +4,70 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import ReviewsSection from './ReviewsSection';
 
-// The Command Deck — public SaaS landing page for JobBidder. This is a React
-// port of /root/job-bidder-landing/a-command-deck.html (the direction Shalom
-// chose), rendered at the app root so pitchr.com.ng/ serves it. The CTA buttons
-// route into the real app (login / pricing-anchor); the console ticks with
-// mock activity the same way the static mockup did.
+// The Command Deck — public SaaS landing page for JobBidder. Rendered at the
+// app root so pitchr.com.ng/ serves it. All numbers and the live console come
+// from /api/stats (REAL pipeline data, cached 5 min server-side); the page
+// renders zeros/quietly until the first fetch lands.
 
-const CONSOLE_CYCLE: [string, string][] = [
-  ['DevOps Engineer', 'Vantiva'],
-  ['Data Platform Eng', 'Cobalt'],
-  ['Analytics Engineer', 'OrbitWorks'],
-  ['ETL Developer', 'DataBridge'],
-];
+type Stats = {
+  totalApplied: number;
+  last7d: number;
+  companies: number;
+  avgReview: number;
+  reviewCount: number;
+  recent: { title: string; company: string; at: string }[];
+};
+
+const EMPTY: Stats = {
+  totalApplied: 0,
+  last7d: 0,
+  companies: 0,
+  avgReview: 0,
+  reviewCount: 0,
+  recent: [],
+};
+
+// Shorten a long JD title for the console row (first clause, max ~42 chars).
+function shortTitle(t: string): string {
+  const cut = t.split(/[-(|,–]|\bUS Remote\b/)[0].trim();
+  return cut.length > 42 ? cut.slice(0, 39).trimEnd() + '…' : cut;
+}
 
 export default function CommandDeckLanding() {
-  const [tick, setTick] = useState(0);
+  const [stats, setStats] = useState<Stats>(EMPTY);
 
-  // Replicate the static page's console tick: prepend a new "submitted" line
-  // every 3s (advance a counter; render the last 5 rows). Respects reduced
-  // motion by just advancing state but the rows are rendered regardless.
+  // Real pipeline stats + recent submissions; poll every 90s so the console
+  // ticks with genuinely fresh sends (no-op if fetch fails: keep last).
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      fetch('/api/stats')
+        .then((r) => r.json())
+        .then((d) => alive && setStats(d))
+        .catch(() => {});
+    load();
+    const id = setInterval(load, 90_000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, []);
+
+  // Rotate a highlight over the 8 most recent real submissions every 3s.
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 3000);
     return () => clearInterval(id);
   }, []);
 
-  const now = new Date();
-  const hh = String(now.getHours()).padStart(2, '0');
-  const mm = String(now.getMinutes()).padStart(2, '0');
-  const nowLabel = `${hh}:${mm}`;
-  const [cycleRole, cycleCo] = CONSOLE_CYCLE[tick % CONSOLE_CYCLE.length];
-  const liveRows: { t: string; r: string; c: string }[] = [
-    { t: nowLabel, r: cycleRole, c: cycleCo },
-    { t: sub(nowLabel, 5), r: 'Data Engineer', c: 'Finastra' },
-    { t: sub(nowLabel, 12), r: 'Analytics Engineer', c: 'Ziff Davis' },
-    { t: sub(nowLabel, 19), r: 'Data Architect', c: 'GovCIO' },
-    { t: sub(nowLabel, 26), r: 'BI Engineer', c: 'Mercury' },
-  ];
+  const recent = stats.recent;
+  const liveRows =
+    recent.length > 0
+      ? Array.from({ length: Math.min(5, recent.length) }, (_, i) => {
+          const j = recent[(tick + i) % recent.length];
+          return { t: j.at, r: shortTitle(j.title), c: j.company };
+        })
+      : [];
 
   return (
     <div className="jb-land-wrap">
@@ -77,8 +105,11 @@ export default function CommandDeckLanding() {
               <span className="jb-con-name">jobbidder · activity</span>
             </div>
             <div className="jb-con-body">
+              {liveRows.length === 0 && (
+                <div className="jb-log"><span className="jb-st">connecting…</span></div>
+              )}
               {liveRows.map((row, i) => (
-                <div key={i} className={i === 0 ? 'jb-log jb-live' : 'jb-log'}>
+                <div key={`${row.t}-${row.c}-${i}`} className={i === 0 ? 'jb-log jb-live' : 'jb-log'}>
                   <span className="jb-t">{row.t}</span>
                   <span className="jb-r">{row.r}</span>
                   <span className="jb-c">{row.c}</span>
@@ -90,13 +121,13 @@ export default function CommandDeckLanding() {
         </div>
       </header>
 
-      {/* metric band */}
+      {/* metric band — REAL numbers from /api/stats */}
       <div className="jb-band">
         <div className="jb-wrap jb-band-in">
-          <div><div className="jb-big-n">4,200+ <small>apps / week</small></div><div className="jb-big-l">across all active campaigns</div></div>
+          <div><div className="jb-big-n">{stats.totalApplied.toLocaleString()} <small>applications submitted</small></div><div className="jb-big-l">{stats.companies.toLocaleString()} real companies reached</div></div>
+          <div><div className="jb-big-n">{stats.last7d.toLocaleString()} <small>this week</small></div><div className="jb-big-l">submissions in the last 7 days</div></div>
           <div className="jb-feat-r"><div className="jb-big-n">Verified</div><div className="jb-big-l">every role, against the posting</div></div>
           <div className="jb-feat-r"><div className="jb-big-n">Tailored</div><div className="jb-big-l">a fresh resume per job</div></div>
-          <div className="jb-feat-r"><div className="jb-big-n">Tracked</div><div className="jb-big-l">in a history you can read</div></div>
         </div>
       </div>
 
@@ -171,13 +202,4 @@ export default function CommandDeckLanding() {
       </footer>
     </div>
   );
-}
-
-// Subtract minutes from an "HH:MM" label (for the console's fake timestamps).
-function sub(hhmm: string, mins: number): string {
-  const [h0, m0] = hhmm.split(':').map(Number);
-  const total = (h0 * 60 + m0 - mins + 1440) % 1440;
-  const h = String(Math.floor(total / 60)).padStart(2, '0');
-  const m = String(total % 60).padStart(2, '0');
-  return `${h}:${m}`;
 }

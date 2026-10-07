@@ -968,7 +968,10 @@ export const db = {
           'TITLE:', job.title, '',
           'BASE RESUME:', profile.base_resume_text,
         ].filter((l) => String(l).trim() !== '').join('\n');
-        const raw = await callAI(RESUME_TAILOR_SYSTEM, user, { maxTokens: 3000, temperature: 0.4 });
+        // 6000, not 3000: the full ResumeData JSON for a long base resume
+        // exceeds 3000 completion tokens and gets truncated mid-object → the
+        // brace matcher throws "unbalanced braces" and the job is skipped.
+        const raw = await callAI(RESUME_TAILOR_SYSTEM, user, { maxTokens: 6000, temperature: 0.4 });
         if (!raw || !raw.trim()) throw new Error('empty AI output');
         const data = parseResumeJson(raw);
         const buf = await renderResumePdf(data, (profile.resume_design || 'classic') as ResumePreset);

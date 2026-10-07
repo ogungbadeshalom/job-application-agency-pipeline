@@ -99,7 +99,18 @@ export async function POST(req: Request) {
 
   let raw: string;
   try {
-    raw = await callAI(RESUME_TAILOR_SYSTEM, user, { maxTokens: 3000, temperature: 0.4 });
+    // 3000 tokens is NOT enough for the full ResumeData JSON on a long base
+    // resume: the model hits finish_reason='length' mid-object, the brace
+    // matcher returns "unbalanced braces", and the worker sees a 502 despite a
+    // perfectly good (if truncated) generation. Measured on Andrew's longest
+    // posting: maxTokens 3000 → truncated ~1-in-3 attempts; 6000 → finish=stop
+    // with ~2480-2780 completion tokens every try. Same class as the ats-scan
+    // maxTokens bug. Keep the retry ladder so a malformed response still heals.
+    try {
+      raw = await callAI(RESUME_TAILOR_SYSTEM, user, { maxTokens: 6000, temperature: 0.4 });
+    } catch {
+      raw = await callAI(RESUME_TAILOR_SYSTEM, user, { maxTokens: 6000, temperature: 0.4 });
+    }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ error: `AI call failed: ${msg}` }, { status: 502 });
@@ -108,12 +119,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'AI returned an empty resume.' }, { status: 502 });
   }
 
+  // Parse the model output. If the JSON is malformed (classically: the model
+  // hit max_tokens mid-object, so no balanced `{...}` exists) retry ONCE — the
+  // same job frequently parses cleanly on the next sample even at the same
+  // maxTokens. This is the worker-facing half of the maxTokens fix above.
   let data: ResumeData;
   try {
     data = parseResumeJson(raw);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    return NextResponse.json({ error: `AI returned invalid JSON: ${msg}` }, { status: 502 });
+    try {
+      const raw2 = await callAI(RESUME_TAILOR_SYSTEM, user, { maxTokens: 6000, temperature: 0.3 });
+      data = parseResumeJson(raw2);
+    } catch (e2) {
+      const msg2 = e2 instanceof Error ? e2.message : String(e2);
+      return NextResponse.json({ error: `AI returned invalid JSON: ${msg2 || msg}` }, { status: 502 });
+    }
   }
 
   // Enforce the Resume Lab's configured bullet counts on the AI output, so a

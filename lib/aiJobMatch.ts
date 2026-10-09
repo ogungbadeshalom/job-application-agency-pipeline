@@ -71,6 +71,7 @@ function domainKeywords(resumeText: string): string[] {
     { kw: 'BACKEND', kws: ['backend', 'back-end', 'fullstack', 'full-stack', 'software engineer', 'platform', 'api', 'microservice'] },
     { kw: 'CLOUD', kws: ['cloud', 'aws', 'azure', 'gcp', 'kubernetes', 'terraform', 'devops'] },
     { kw: 'FRONTEND', kws: ['frontend', 'front-end', 'react', 'ui ', 'web'] },
+    { kw: 'FINANCE', kws: ['account', 'finance', 'financial', 'controller', 'payroll', 'audit', 'tax ', 'ifrs', 'gaap', 'bookkeep', 'treasury', 'FP&A'] },
   ];
   const present = groups.filter((g) => g.kws.some((k) => t.includes(k))).map((g) => g.kw);
   // Always include a reasonable base so we don't reject everything.

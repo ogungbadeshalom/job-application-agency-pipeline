@@ -86,6 +86,7 @@ function mapProfile(r: Record<string, unknown>): Profile {
     allow_resume_download: (r.allow_resume_download as boolean) ?? true,
     allowed_roles: (r.allowed_roles as string[] | null) ?? [],
     blocked_boards: (r.blocked_boards as string[] | null) ?? [],
+    auto_refill: r.auto_refill !== false,
     deleted_at: r.deleted_at ? (r.deleted_at as Date).toISOString() : null,
     created_at: (r.created_at as Date).toISOString(),
     updated_at: (r.updated_at as Date).toISOString(),

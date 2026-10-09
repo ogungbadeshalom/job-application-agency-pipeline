@@ -160,7 +160,7 @@ export async function runAutoRefill(opts: { trigger: 'cron' | 'manual' } = { tri
     return { ok: false, profiles: 0, jobsAdded: 0, message: 'Auto-refill already in progress.' };
   }
 
-  const profiles = await db.listProfiles();
+  const profiles = (await db.listProfiles()).filter((p) => p.auto_refill !== false);
   const errored: string[] = [];
 
   // Reset to a fresh state.

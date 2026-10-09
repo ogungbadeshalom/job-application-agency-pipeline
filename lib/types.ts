@@ -51,6 +51,7 @@ export interface Profile {
   allowed_roles: string[];
   blocked_boards: string[];
   auto_refill?: boolean;
+  requireProof?: boolean;
   deleted_at: string | null;
   created_at: string;
   updated_at: string;

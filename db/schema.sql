@@ -147,6 +147,7 @@ create table if not exists app_config (
   maintenance_enabled  boolean not null default false,
   maintenance_target  text not null default 'all',
   auto_refill_enabled  boolean not null default false,
+  require_proof boolean not null default true,
   auto_refill_time     text not null default '09:00',
   auto_refill_last_run timestamptz,
   updated_at           timestamptz not null default now(),

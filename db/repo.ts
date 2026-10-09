@@ -1360,11 +1360,15 @@ export const db = {
     const cfg = await this.getEarningsConfig();
     const weekStart = `date_trunc('week', now())`; // Monday 00:00
     const weekEnd = `date_trunc('week', now()) + interval '7 days'`;
+    // A profile with require_proof=false (Andrew, Olumuyiwa) counts an 'applied'
+    // row as done WITHOUT a proof image (Shalom: workers just click Mark Applied).
+    // Otherwise keep the proof requirement so paid-per-app work stays verifiable.
     const row = await one<{ c: string }>(
       `select count(*)::text c from jobs
         where profile_id = $1
           and status = 'applied'
-          and proof_of_submission is not null and proof_of_submission <> ''
+          and (coalesce((select require_proof from profiles where id = $1), true) = false
+               or (proof_of_submission is not null and proof_of_submission <> ''))
           and status_changed_at >= ${weekStart}
           and status_changed_at < ${weekEnd}`,
       [profileId]

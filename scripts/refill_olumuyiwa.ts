@@ -3,7 +3,7 @@
  */
 import { db } from '../db/repo';
 import { runJobSpy, dedupeAndMap } from '../lib/scrape';
-import { filterJobsByResume } from '../lib/aiJobMatch';
+import { filterJobsByResume, filterByAllowedRoles } from '../lib/aiJobMatch';
 import { query } from '../db/pool';
 
 const PROFILE_ID = 'd342fb32-7e11-486c-b0e0-255c05ca909c'; // Olumuyiwa Ogungbade
@@ -30,7 +30,14 @@ async function main() {
   const profile = await db.getProfile(PROFILE_ID);
   if (!profile) throw new Error('profile not found');
 
-  const fit = await filterJobsByResume(raw as never, profile.base_resume_text || '');
+  // STRICT per-profile role allowlist FIRST (finance-only for Olumuyiwa), then AI role-fit.
+  // Without this hard gate, data/ML/backend roles leak into a finance client's queue.
+  let matched: typeof raw = raw;
+  if (profile.allowed_roles?.length) {
+    matched = filterByAllowedRoles(matched, profile.allowed_roles);
+    console.log(`after allowlist: ${matched.length}`);
+  }
+  const fit = await filterJobsByResume(matched as never, profile.base_resume_text || '');
   console.log(`after role-fit: ${fit.length}`);
 
   const runRow = await query(

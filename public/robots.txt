@@ -1,0 +1,21 @@
+# Allow search engines to crawl the marketing site.
+User-agent: *
+Allow: /
+Allow: /how-it-works
+Allow: /pricing
+Allow: /about
+Allow: /faq
+Allow: /contact
+Allow: /privacy-policy
+Allow: /terms
+
+# Keep the private app out of search results.
+Disallow: /client
+Disallow: /admin
+Disallow: /worker
+Disallow: /login
+Disallow: /api/
+Disallow: /settings
+Disallow: /index.html
+
+Sitemap: https://pitchr.com.ng/sitemap.xml

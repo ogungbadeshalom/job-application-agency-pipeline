@@ -16,6 +16,7 @@ export interface User {
   full_name: string;
   profile_id: string | null;
   accent: string; // per-user accent color: '' (default/red) or green/blue/purple/orange/cyan
+  avatar_url?: string | null;
   disabled_at: string | null;
   created_at: string;
 }

@@ -99,3 +99,62 @@ export const EMPTY_STRUCTURED_RESUME: StructuredResume = {
   skills: [],
   technicalSkills: [],
 };
+
+// Upgrade legacy resume_data (old flat format: top-level name/email/title,
+// exp {title,start,end}, edu {degree,school}) into the current StructuredResume
+// shape so the Resume Lab never crashes on undefined `contact`. Idempotent:
+// already-new-shape input passes through untouched.
+export function normalizeStructuredResume(raw: unknown): StructuredResume {
+  if (!raw || typeof raw !== 'object') return { ...EMPTY_STRUCTURED_RESUME };
+  const r = raw as Record<string, any>;
+
+  // Legacy flat format has no nested `contact` object -> rebuild everything.
+  if (r.contact && typeof r.contact === 'object') {
+    return {
+      contact: { ...EMPTY_STRUCTURED_RESUME.contact, ...r.contact },
+      summary: typeof r.summary === 'string' ? r.summary : '',
+      experience: Array.isArray(r.experience) ? r.experience : [],
+      education: Array.isArray(r.education) ? r.education : [],
+      certifications: Array.isArray(r.certifications) ? r.certifications : [],
+      skills: Array.isArray(r.skills) ? r.skills : [],
+      technicalSkills: Array.isArray(r.technicalSkills) ? r.technicalSkills : [],
+    };
+  }
+
+  const open = (o: any) => (typeof o === 'string' ? o : o === undefined || o === null ? '' : String(o));
+  const exp = Array.isArray(r.experience)
+    ? r.experience.map((e: any = {}) => ({
+        role: open(e.title ?? e.role),
+        company: open(e.company),
+        dates: e.end === 'Present' ? `${open(e.start ?? '')}–Present` : e.dates ? open(e.dates) : [open(e.start ?? ''), open(e.end ?? '')].filter(Boolean).join('–'),
+        location: open(e.location),
+        bullets: Array.isArray(e.bullets) ? e.bullets.map(open) : [],
+      }))
+    : [];
+  const edu = Array.isArray(r.education)
+    ? r.education.map((e: any = {}) => ({ school: open(e.school), degree: open(e.degree), dates: open(e.dates), detail: open(e.detail) }))
+    : [];
+  const certs = Array.isArray(r.certifications)
+    ? r.certifications.map((c: any = {}) => ({ name: open(c.name), issuer: open(c.issuer), year: open(c.year) }))
+    : [];
+  return {
+    contact: {
+      name: open(r.name),
+      title: open(r.title),
+      email: open(r.email),
+      phone: open(r.phone),
+      location: open(r.location),
+      linkedin: open(r.linkedin),
+      github: open(r.github),
+      website: open(r.website),
+    },
+    summary: Array.isArray(r.summary_lines) ? r.summary_lines.join(' ') : typeof r.summary === 'string' ? r.summary : '',
+    experience: exp,
+    education: edu,
+    certifications: certs,
+    skills: Array.isArray(r.skills) ? r.skills.map(open) : [],
+    technicalSkills: Array.isArray(r.technicalSkills)
+      ? r.technicalSkills.map((g: any = {}) => ({ category: open(g.category ?? g.group), items: Array.isArray(g.items) ? g.items.join(', ') : open(g.skills ? (Array.isArray(g.skills) ? g.skills.join(', ') : g.skills) : g.items) }))
+      : [],
+  };
+}

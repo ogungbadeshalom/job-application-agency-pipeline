@@ -61,6 +61,7 @@ function mapUser(r: Record<string, unknown>): User {
     full_name: r.full_name as string,
     profile_id: (r.profile_id as string) ?? null,
     accent: (r.accent as string) ?? '',
+    avatar_url: (r.avatar_url as string) ?? null,
     disabled_at: r.disabled_at ? (r.disabled_at as Date).toISOString() : null,
     created_at: (r.created_at as Date).toISOString(),
   };

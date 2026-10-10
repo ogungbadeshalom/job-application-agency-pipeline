@@ -6,6 +6,7 @@ import {
   RESUME_PRESETS,
   RESUME_PRESET_STYLES,
   EMPTY_STRUCTURED_RESUME,
+  normalizeStructuredResume,
   type ResumePreset,
   type StructuredResume,
   type ResumeExperienceItem,
@@ -80,9 +81,9 @@ export default function ResumeLabClient({
   );
   // Editor state — seeded from stored structured data, else derived from prose.
   const [data, setData] = useState<StructuredResume>(() =>
-    clientProfiles[0]?.resume_data || (clientProfiles[0]?.base_resume_text
+    normalizeStructuredResume(clientProfiles[0]?.resume_data || (clientProfiles[0]?.base_resume_text
       ? buildPreviewFromText(clientProfiles[0].name || 'Your Name', clientProfiles[0].base_resume_text)
-      : { ...EMPTY_STRUCTURED_RESUME, contact: { ...EMPTY_STRUCTURED_RESUME.contact, name: clientProfiles[0]?.name || '' } })
+      : { ...EMPTY_STRUCTURED_RESUME, contact: { ...EMPTY_STRUCTURED_RESUME.contact, name: clientProfiles[0]?.name || '' } }))
   );
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -95,10 +96,12 @@ export default function ResumeLabClient({
     setClientId(id);
     setPreset((p?.resume_design as ResumePreset) || 'classic');
     setData(
-      p?.resume_data ||
-      (p?.base_resume_text
-        ? buildPreviewFromText(p.name || 'Your Name', p.base_resume_text)
-        : { ...EMPTY_STRUCTURED_RESUME, contact: { ...EMPTY_STRUCTURED_RESUME.contact, name: p?.name || '' } })
+      normalizeStructuredResume(
+        p?.resume_data ||
+        (p?.base_resume_text
+          ? buildPreviewFromText(p.name || 'Your Name', p.base_resume_text)
+          : { ...EMPTY_STRUCTURED_RESUME, contact: { ...EMPTY_STRUCTURED_RESUME.contact, name: p?.name || '' } })
+      )
     );
     setDirty(false);
     setStatus(null);

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0f131e">
+<meta name="description" content="Pitchr pricing: monthly subscriptions from $99 to $399 with proof of submission on every tier. Basic, Standard, Best Value, and Ultimate.">
+<title>Pricing — pitchr</title>
+<link rel="stylesheet" href="assets/css/site.css">
+<style>
+  .price-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:20px; align-items:stretch; }
+  @media(max-width:960px){ .price-grid{grid-template-columns:repeat(2,1fr);} }
+  @media(max-width:520px){ .price-grid{grid-template-columns:1fr;} }
+  .price-card { background:#fff; border:1px solid var(--line); border-radius:var(--radius-lg); padding:26px; display:flex; flex-direction:column; position:relative; box-shadow:var(--shadow-sm); transition:transform .5s var(--spring), box-shadow .5s var(--spring); }
+  .price-card:hover { transform:translateY(-10px); box-shadow:0 18px 40px -12px rgba(0,0,0,.7); }
+  .price-card.featured { border-color:var(--ink); box-shadow:var(--shadow-lg); }
+  .price-card .flag { position:absolute; top:-13px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; padding:6px 14px; border-radius:999px; white-space:nowrap; }
+  .price-card h4 { font-size:20px; }
+  .price-card .who { font-size:13px; color:var(--muted); margin:4px 0 14px; }
+  .price-card .price { font-size:32px; font-weight:750; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+  .price-card .per { font-size:12.5px; color:var(--muted); margin-bottom:16px; }
+  .price-card ul { list-style:none; margin:0 0 22px; flex:1; }
+  .price-card li { display:flex; gap:9px; font-size:13px; color:var(--grey); padding:5px 0; }
+  .price-card li::before { content:"✓"; color:var(--green); font-weight:800; flex-shrink:0; }
+  .price-card .cta { margin-top:auto; text-align:center; border:1px solid var(--line); border-radius:999px; padding:12px; font-size:14px; font-weight:600; cursor:pointer; transition:background .15s,color .15s; }
+  .price-card .cta:hover{ background:var(--ink); color:#fff; }
+  .price-card.featured .cta { background:var(--ink); color:#fff; border-color:var(--ink); }
+  .price-card .note { font-size:11px; color:var(--muted); text-align:center; margin-top:10px; }
+</style>
+</head>
+<body id="top">
+
+<!-- NAV -->
+<header style="background:linear-gradient(180deg,#bfe3cf 0%,#d8eee2 60%,#fbfcf8 100%);">
+  <div class="wrap">
+    <nav class="site">
+      <a class="logo" href="index.html" aria-label="Pitchr home"><span class="p">P</span><span class="itr">itchr</span></a>
+      <div class="nav-links">
+        <a href="how-it-works.html">How it works</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="about.html">About</a>
+        <a href="faq.html">FAQ</a>
+      </div>
+      <a class="nav-cta" href="/login">Client login →</a>
+    </nav>
+  </div>
+  <div class="wrap pagehead" style="padding-top:30px; padding-bottom:56px; background:none;">
+    <div class="crumb"><a href="index.html">Home</a> · Pricing</div>
+    <h1>Monthly subscriptions, paid in advance.</h1>
+    <p class="lede">No per-application invoices, no surprises. Pick an application volume — every plan ships with a live tracker and proof of submission.</p>
+  </div>
+</header>
+
+<section class="section">
+  <div class="wrap">
+    <div class="price-grid">
+      <div class="price-card">
+        <h4>Basic</h4>
+        <span class="who">A hands-off start</span>
+        <div class="price">$99</div>
+        <div class="per">per month · up to 200 applications</div>
+        <ul>
+          <li>AI-matched job search</li>
+          <li>Weekly progress report</li>
+          <li>Live application tracker</li>
+          <li>Proof of submission per application</li>
+          <li>First application shipped within 24 hours</li>
+        </ul>
+        <div class="cta" onclick="location.href='contact.html'">Start Basic</div>
+      </div>
+      <div class="price-card">
+        <h4>Standard</h4>
+        <span class="who">A real person owns your account</span>
+        <div class="price">$199</div>
+        <div class="per">per month · up to 500 applications</div>
+        <ul>
+          <li>Everything in Basic</li>
+          <li>Higher volume &amp; consistent submissions</li>
+          <li>Dedicated application manager</li>
+          <li>ATS keyword match score per job</li>
+          <li>Proof of submission &amp; live tracker</li>
+        </ul>
+        <div class="cta" onclick="location.href='contact.html'">Start Standard</div>
+      </div>
+      <div class="price-card featured">
+        <div class="flag">Best value</div>
+        <h4>Best Value</h4>
+        <span class="who">Active work done for you</span>
+        <div class="price" style="color:#0f6b42;">$299</div>
+        <div class="per">per month · up to 750 applications</div>
+        <ul>
+          <li>Everything in Standard</li>
+          <li>ATS-keyword-matched applications</li>
+          <li>Priority application window</li>
+          <li>Custom cover letter per application</li>
+          <li>Interview prep center</li>
+        </ul>
+        <div class="cta" onclick="location.href='contact.html'">Get Best Value</div>
+        <div class="note">Our recommended package</div>
+      </div>
+      <div class="price-card">
+        <h4>Ultimate</h4>
+        <span class="who">Maximum applications toward interviews</span>
+        <div class="price">$399</div>
+        <div class="per">per month · up to 1,000 applications</div>
+        <ul>
+          <li>Everything in Best Value</li>
+          <li>Live campaign dashboard</li>
+          <li>Monthly progress check-in</li>
+          <li>Resume + LinkedIn optimization</li>
+          <li>Interview prep center</li>
+          <li>Dedicated support line</li>
+        </ul>
+        <div class="cta" onclick="location.href='contact.html'">Start Ultimate</div>
+      </div>
+    </div>
+
+    <div class="custom-strip" style="margin-top:34px; display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap; background:#fff; border:1px solid var(--line); border-radius:var(--radius-lg); padding:20px 24px;">
+      <div><strong style="display:block; font-size:16px; margin-bottom:3px;">Need more than 1,000 applications?</strong><span style="font-size:13.5px; color:var(--grey);">Custom volume, tailoring, and priorities — priced individually.</span></div>
+      <a class="btn" href="contact.html">Talk to us</a>
+    </div>
+
+    <div class="proof-bar" style="margin-top:24px;">
+      <span class="proof-ico">🛡️</span>
+      <div><strong>Proof of submission on every tier.</strong><span>Each application comes with timestamped evidence it was genuinely submitted — confirmation record, reference, and date/time. No asking, no guessing.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURE LADDER -->
+<section class="section tint">
+  <div class="wrap">
+    <span class="eyebrow">Compared</span>
+    <h2 style="font-size:clamp(28px,3.4vw,42px); margin:10px 0 12px;">What you get at each level.</h2>
+    <p style="font-size:15px; color:#4d525c; max-width:620px; margin-bottom:24px;">Each tier stacks on the one before it. Proof of submission runs through every plan.</p>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Feature</th><th>Basic</th><th>Standard</th><th>Best Value</th><th>Ultimate</th></tr></thead>
+      <tbody>
+        <tr><td>Job applications / month</td><td class="yes">200</td><td class="yes">500</td><td class="yes">750</td><td class="yes">1,000</td></tr>
+        <tr><td>AI-matched job search</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        <tr><td>Weekly progress report</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        <tr><td>Proof of submission per application</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        <tr><td>Live application tracker</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        <tr><td>Dedicated application manager</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        <tr><td>ATS keyword match score per job</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        <tr><td>ATS-keyword-matched applications</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        <tr><td>Priority application window</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        <tr><td>Custom cover letter per application</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        <tr><td>Interview prep center</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        <tr><td>Resume + LinkedIn optimization</td><td class="no">add-on</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        <tr><td>Monthly progress check-in</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td></tr>
+        <tr><td>Live campaign dashboard</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td></tr>
+        <tr><td>24/7 support</td><td>basic</td><td>standard</td><td>priority</td><td>dedicated line</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<!-- PAYMENT -->
+<section class="section band">
+  <div class="wrap">
+    <div class="grid two" style="align-items:stretch;">
+      <div class="card">
+        <span class="ic">💳</span>
+        <h3>Monthly payment in advance</h3>
+        <p>Each service period is paid up front. Work begins after we confirm your target roles, locations, experience, and preferences — so we never finance your campaign from our own pocket.</p>
+        <p style="margin-top:10px;">The next month's payment is collected before the next service period begins. Weekly reports are sent throughout.</p>
+      </div>
+      <div class="card">
+        <span class="ic">📈</span>
+        <h3>Sample delivery — Best Value</h3>
+        <p>A 750-application month is paced to stay steady rather than batch late. Planning targets, not guarantees — suitable vacancies and your response times affect delivery.</p>
+        <div class="tbl-wrap" style="margin-top:14px;"><table class="tbl">
+          <thead><tr><th>Period</th><th>Applications</th></tr></thead>
+          <tbody>
+            <tr><td>Week 1</td><td>190</td></tr>
+            <tr><td>Week 2</td><td>190</td></tr>
+            <tr><td>Week 3</td><td>190</td></tr>
+            <tr><td>Week 4</td><td>180</td></tr>
+            <tr><td><strong>Monthly total</strong></td><td class="yes"><strong>750</strong></td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<div class="foot-zone">
+  <div class="foot-card">
+    <div class="fgrid">
+      <div class="foot-brand">
+        <a class="logo" href="index.html" aria-label="Pitchr home"><span class="p">P</span><span class="itr">itchr</span></a>
+        <p>We apply to jobs for you, properly. A done-for-you service with proof behind every submission.</p>
+        <div class="social"><span>𝕏</span><span>◎</span></div>
+      </div>
+      <div class="footcol"><h5>Product</h5><a href="how-it-works.html">How it works</a><a href="pricing.html">Pricing</a><a href="/login">Client portal</a></div>
+      <div class="footcol"><h5>Company</h5><a href="about.html">About</a><a href="faq.html">FAQ</a><a href="contact.html">Contact</a></div>
+      <div class="footcol"><h5>Legal</h5><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></div>
+    </div>
+    <div class="foot-bottom"><span>© 2026 pitchr</span><a href="#top" style="font-weight:600;">Back to top ↑</a></div>
+  </div>
+</div>
+
+</body>
+</html>

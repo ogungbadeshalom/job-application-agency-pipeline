@@ -1,19 +1,19 @@
 import { getSession, homeForRole } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import CommandDeckLanding from '@/components/CommandDeckLanding';
 
 export const metadata = {
-  title: 'JobBidder — Your AI application agency',
+  title: 'pitchr — We apply to jobs for you, properly',
   description:
-    'JobBidder finds verified remote roles, writes a bespoke resume per job, and submits your applications while you work.',
+    'We find genuine remote openings, write a tailored resume for each one, submit the application, and track every send with proof. You do none of it.',
 };
 
 // Server root: an authenticated user lands in their own workspace; everyone
-// else sees the public "Command Deck" landing page (pitchr.com.ng/) whose CTA
-// buttons link into /login (and /auth pages), so the marketing site and the app
-// share the root cleanly.
+// else sees the public marketing landing (public/index.html — the standalone
+// pitchr site). The marketing pages are static HTML served from /, so we
+// redirect anonymous visitors there. /login and /client/* (the live app) are
+// untouched by this.
 export default async function RootPage() {
   const session = await getSession();
   if (session) redirect(homeForRole(session.user.role));
-  return <CommandDeckLanding />;
+  redirect('/index.html');
 }

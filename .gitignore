@@ -46,3 +46,4 @@ Thumbs.db
 
 # throwaway probe/debug scripts (name starts with underscore) — session debris
 /scripts/_*
+.next.bak/

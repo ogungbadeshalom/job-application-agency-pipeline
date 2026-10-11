@@ -34,7 +34,6 @@
   ]
 }
 </script>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="stylesheet" href="assets/css/site.css">
 </head>
 <body id="top">
@@ -130,6 +129,49 @@
   </div>
 </div>
 
+<!-- WHERE WE FIND YOUR ROLES (logo carousel) -->
+<div class="section band">
+  <div class="wrap">
+    <span class="eyebrow">Where we find your roles</span>
+    <h2 style="font-size:clamp(26px,3.4vw,38px); max-width:620px; margin:10px 0 8px;">We sweep the boards that actually list genuine remote work.</h2>
+    <p style="font-size:15px; color:#4d525c; max-width:560px; margin-bottom:30px;">Your applications are submitted where they'll actually be seen — real remote postings, real job sites.</p>
+    <div class="icon-collage" id="boards"><div class="carousel-track">
+      <div class="icon-tile" title="Greenhouse"><img src="assets/logos/greenhouse.svg" alt="Greenhouse"></div>
+      <div class="icon-tile" title="Built In"><img src="assets/logos/builtin.png" alt="Built In"></div>
+      <div class="icon-tile" title="Jobicy"><img src="assets/logos/jobicy.png" alt="Jobicy"></div>
+      <div class="icon-tile" title="Working Nomads"><img src="assets/logos/workingnomads.png" alt="Working Nomads"></div>
+      <div class="icon-tile" title="LinkedIn"><img src="assets/logos/linkedin.svg" alt="LinkedIn"></div>
+      <div class="icon-tile" title="Indeed"><img src="assets/logos/indeed.svg" alt="Indeed"></div>
+      <div class="icon-tile" title="Glassdoor"><img src="assets/logos/glassdoor.svg" alt="Glassdoor"></div>
+      <div class="icon-tile" title="ZipRecruiter"><img src="assets/logos/ziprecruiter.png" alt="ZipRecruiter"></div>
+      <div class="icon-tile" title="Monster"><img src="assets/logos/monster.svg" alt="Monster"></div>
+      <div class="icon-tile" title="Wellfound"><img src="assets/logos/wellfound.svg" alt="Wellfound"></div>
+      <div class="icon-tile" title="FlexJobs"><img src="assets/logos/flexjobs.png" alt="FlexJobs"></div>
+      <div class="icon-tile" title="We Work Remotely"><img src="assets/logos/weworkremotely.png" alt="We Work Remotely"></div>
+      <div class="icon-tile" title="Workable"><img src="assets/logos/workable.png" alt="Workable"></div>
+      <div class="icon-tile" title="RemoteOK"><img src="assets/logos/remoteok.png" alt="RemoteOK"></div>
+      <div class="icon-tile" title="Dynamite Jobs"><img src="assets/logos/dynamite.png" alt="Dynamite Jobs"></div>
+      <!-- duplicated set for a seamless loop -->
+      <div class="icon-tile" title="Greenhouse"><img src="assets/logos/greenhouse.svg" alt="Greenhouse"></div>
+      <div class="icon-tile" title="Built In"><img src="assets/logos/builtin.png" alt="Built In"></div>
+      <div class="icon-tile" title="Jobicy"><img src="assets/logos/jobicy.png" alt="Jobicy"></div>
+      <div class="icon-tile" title="Working Nomads"><img src="assets/logos/workingnomads.png" alt="Working Nomads"></div>
+      <div class="icon-tile" title="LinkedIn"><img src="assets/logos/linkedin.svg" alt="LinkedIn"></div>
+      <div class="icon-tile" title="Indeed"><img src="assets/logos/indeed.svg" alt="Indeed"></div>
+      <div class="icon-tile" title="Glassdoor"><img src="assets/logos/glassdoor.svg" alt="Glassdoor"></div>
+      <div class="icon-tile" title="ZipRecruiter"><img src="assets/logos/ziprecruiter.png" alt="ZipRecruiter"></div>
+      <div class="icon-tile" title="Monster"><img src="assets/logos/monster.svg" alt="Monster"></div>
+      <div class="icon-tile" title="Wellfound"><img src="assets/logos/wellfound.svg" alt="Wellfound"></div>
+      <div class="icon-tile" title="FlexJobs"><img src="assets/logos/flexjobs.png" alt="FlexJobs"></div>
+      <div class="icon-tile" title="We Work Remotely"><img src="assets/logos/weworkremotely.png" alt="We Work Remotely"></div>
+      <div class="icon-tile" title="Workable"><img src="assets/logos/workable.png" alt="Workable"></div>
+      <div class="icon-tile" title="RemoteOK"><img src="assets/logos/remoteok.png" alt="RemoteOK"></div>
+      <div class="icon-tile" title="Dynamite Jobs"><img src="assets/logos/dynamite.png" alt="Dynamite Jobs"></div>
+    </div></div>
+    <p style="margin-top:26px; font-size:12.5px; color:#84898f; text-align:center;">Drag the carousel to inspect each board — it keeps sliding as you hover.</p>
+  </div>
+</div>
+
 <!-- PRICING TEASER -->
 <div class="section band">
   <div class="wrap">
@@ -197,6 +239,38 @@
   }
   if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){ line.innerHTML=splitEm(lines[0]); head.querySelector('.type-caret').style.display='none'; return; }
   setTimeout(step,400);
+})();
+
+/* Autoplaying, draggable logo marquee */
+(function () {
+  var collage = document.querySelector('.icon-collage');
+  if (!collage) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var track = collage.querySelector('.carousel-track');
+  // seamless loop needs a duplicated set — width of one set (half the track)
+  var halfW = track.scrollWidth / 2;
+  var pos = 0, speed = 0.6, dragging = false, raf = null;
+  function wrap(){ if(pos < -halfW) pos += halfW; if(pos > 0) pos -= halfW; }
+  function apply(){ track.style.transform = 'translateX(' + pos + 'px)'; }
+  function tick(){ if(!dragging){ pos -= speed; wrap(); apply(); } raf = requestAnimationFrame(tick); }
+  function bind(){
+    var sx = 0, sp = 0;
+    collage.addEventListener('mousedown', function(e){ dragging = true; sx = e.clientX; sp = pos; collage.style.cursor = 'grabbing'; e.preventDefault(); });
+    window.addEventListener('mousemove', function(e){ if(!dragging) return; pos = sp + (e.clientX - sx); wrap(); apply(); });
+    window.addEventListener('mouseup', function(){ dragging = false; collage.style.cursor = ''; });
+    collage.addEventListener('touchstart', function(e){ dragging = true; sx = e.touches[0].clientX; sp = pos; }, {passive:true});
+    window.addEventListener('touchmove', function(e){ if(!dragging) return; pos = sp + (e.touches[0].clientX - sx); wrap(); apply(); }, {passive:true});
+    window.addEventListener('touchend', function(){ dragging = false; });
+  }
+  // measure after images load so halfW is accurate
+  var pending = track.querySelectorAll('img');
+  var loaded = 0;
+  function ready(){ if(++loaded >= pending.length){ setTimeout(function(){ halfW = track.scrollWidth / 2; }, 300); } }
+  pending.forEach(function(im){ if(im.complete) ready(); else im.addEventListener('load', ready); });
+  if(!pending.length){ halfW = track.scrollWidth / 2; }
+  bind();
+  apply();
+  raf = requestAnimationFrame(tick);
 })();
 </script>
 

@@ -101,7 +101,10 @@ await check('GET /login returns 200+HTML', async () => {
   const res = await fetch(BASE + '/login');
   assert(res.status === 200, `status ${res.status}`);
   const t = await res.text();
-  assert(t.includes('Job Bidder'), 'no app title in HTML');
+  // App rebranded 'Job Bidder' -> 'Pitchr' (commit 35884de). Old brand string is
+  // gone from the HTML; assert the current brand so this stays red-capable on a
+  // real login-page failure (non-200 or missing brand).
+  assert(t.includes('Pitchr'), 'no app title in HTML');
 });
 
 // PUBLIC ROOT CANARY — catches the stale-landing failure class (a commit that

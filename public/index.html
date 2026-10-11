@@ -245,13 +245,7 @@
 (function () {
   var collage = document.querySelector('.icon-collage');
   if (!collage) return;
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    // Fall back to a plain scrollable row instead of animating.
-    collage.style.overflowX = 'auto';
-    collage.style.webkitOverflowScrolling = 'touch';
-    collage.style.cursor = 'grab';
-    return;
-  }
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   var track = collage.querySelector('.carousel-track');
   // seamless loop needs a duplicated set — width of one set (half the track)
   var halfW = track.scrollWidth / 2;

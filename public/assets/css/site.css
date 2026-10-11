@@ -135,6 +135,16 @@ table.tbl { width:100%; border-collapse:collapse; background:#fff; border:1px so
 .proof-bar strong { display:block; font-size:15px; margin-bottom:2px; }
 .proof-bar span { font-size:13.5px; color:var(--grey); }
 
+/* ----- Logo carousel (job boards) ----- */
+.icon-collage { width:100%; overflow:hidden; -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 8%,#000 92%,transparent 100%); mask-image:linear-gradient(90deg,transparent 0,#000 8%,#000 92%,transparent 100%); }
+.carousel-track { display:flex; width:max-content; gap:20px; will-change:transform; }
+.icon-tile { flex:0 0 auto; width:132px; height:72px; background:#fff; border:1px solid var(--line); border-radius:var(--radius); display:grid; place-items:center; padding:10px; cursor:grab; transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease; }
+.icon-tile:active { cursor:grabbing; }
+.icon-tile img { max-width:88px; max-height:30px; object-fit:contain; opacity:.82; filter:saturate(.92) brightness(1.02); transition:opacity .2s ease, filter .2s ease, transform .2s ease; }
+.icon-tile:hover { transform:translateY(-5px) scale(1.04); box-shadow:0 14px 28px rgba(0,0,0,.12); border-color:#bcdcc8; background:#fbfdfb; }
+.icon-tile:hover img { opacity:1; filter:saturate(1) brightness(1); }
+@media (prefers-reduced-motion: reduce){ .carousel-track{ display:grid; grid-auto-flow:column; width:100%; overflow-x:auto; } .icon-tile{ cursor:default; } }
+
 /* ----- NAV ----- */
 nav.site { display:flex; align-items:center; justify-content:space-between; padding:18px 0; gap:16px; }
 nav.site .nav-links { display:flex; gap:30px; font-size:14px; font-weight:500; }
@@ -143,14 +153,6 @@ nav.site .nav-links a { opacity:.85; transition:color .15s,opacity .15s; }
 .nav-cta { background:var(--ink); color:#fff !important; font-size:14px; font-weight:600; padding:11px 20px; border-radius:999px; display:inline-flex; align-items:center; gap:7px; transition:transform .5s var(--spring), box-shadow .5s var(--spring); }
 .nav-cta:hover { transform:translateY(-4px); box-shadow:0 12px 26px -10px rgba(0,0,0,.7) !important; opacity:1 !important; color:#fff !important; }
 @media(max-width:760px){ nav.site .nav-links{display:none;} }
-
-/* ----- Logo carousel ("Where we find your roles") ----- */
-.icon-collage { overflow:hidden; position:relative; border:1px solid var(--line); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); -webkit-mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent); mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent); }
-.icon-collage .carousel-track { display:flex; align-items:center; gap:12px; width:max-content; padding:20px 24px; will-change:transform; }
-.icon-tile { flex-shrink:0; display:flex; align-items:center; justify-content:center; width:132px; height:72px; border:1px solid var(--line-strong); border-radius:10px; background:#fff; padding:12px; transition:border-color .2s,box-shadow .25s,transform .3s var(--spring); }
-.icon-tile:hover { border-color:var(--line-strong); box-shadow:0 10px 24px -10px rgba(16,19,24,.16); transform:translateY(-4px); }
-.icon-tile img { max-width:88px; max-height:30px; width:auto; height:auto; object-fit:contain; opacity:.82; filter:saturate(.92) brightness(1.02); transition:opacity .2s,filter .2s; }
-.icon-tile:hover img { opacity:1; filter:none; }
 
 /* ----- FOOTER ----- */
 .foot-zone { padding:70px 28px 90px; }

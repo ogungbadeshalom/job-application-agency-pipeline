@@ -18,6 +18,11 @@ const nextConfig = {
         { source: '/index.html', destination: '/index.html' },
       ],
       afterFiles: [
+        // Pitchr FX PWA (converter + calculator) — bare /fx must serve the
+        // static shell at /fx/index.html (Next 404s on static subpaths without
+        // a trailing slash / explicit rewrite).
+        { source: '/fx', destination: '/fx/index.html' },
+        { source: '/fx/', destination: '/fx/index.html' },
         // Static marketing pages (public/*.html) at clean URLs. These never
         // touch /login or /client/* (the live system).
         { source: '/how-it-works', destination: '/how-it-works.html' },

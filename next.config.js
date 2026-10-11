@@ -30,6 +30,33 @@ const nextConfig = {
       ],
     };
   },
+
+  // Cache-control: HTML must revalidate every request so a deploy is never
+  // masked by a stale cached page. Next's default `s-maxage=31536000` on
+  // statically-prerendered pages (e.g. /login) makes browsers/CDNs hold the
+  // OLD page for a year, which is exactly why the user must hard-refresh after
+  // every rebuild. Override HTML responses to always revalidate; hashed JS/CSS
+  // (/_next/static) keep long cache lives since they change per build.
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        // Only touch HTML text responses — this header array applies broadly,
+        // but the directives below are safe for documents. Static assets under
+        // /_next are handled separately below.
+        headers: [
+          { key: 'Cache-Control', value: 'private, no-cache, no-store, max-age=0, must-revalidate' },
+        ],
+      },
+      {
+        // Hashed production assets: immutable, cache aggressively.
+        source: '/_next/static/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

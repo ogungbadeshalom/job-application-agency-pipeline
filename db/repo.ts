@@ -920,10 +920,15 @@ export const db = {
           j.compensation_currency,
           cleanText(j.location) ?? null,
           j.status,
-          cleanText(j.tailored_resume) ?? null,
-          j.tailored_resume_pdf_url,
-          j.submitted_at,
-          j.proof_of_submission,
+                  cleanText(j.tailored_resume) ?? null,
+                  j.tailored_resume_pdf_url,
+                  // Client-visible invariant: an APPLIED job must always carry the date
+                  // it was applied. If a caller inserts directly as 'applied' without a
+                  // date, stamp it now so it shows in the client's "Date Applied" column.
+                  (j.status === 'applied' && !j.submitted_at)
+                    ? new Date().toISOString()
+                    : j.submitted_at,
+                  j.proof_of_submission,
           cleanText(j.notes) ?? null,
           j.scrape_run_id,
           j.verified_remote ?? false,

@@ -341,22 +341,6 @@ function JobTable({
                       {BOARD_LABELS[job.board] ?? job.board ?? '—'}
                     </span>
                   </Cell>
-                  {mode === 'client' && (
-                    <Cell>
-                      {job.url ? (
-                        <a
-                          href={job.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-brand-blue hover:underline"
-                        >
-                          Open <External size={12} />
-                        </a>
-                      ) : (
-                        <span className="text-navy-600">—</span>
-                      )}
-                    </Cell>
-                  )}
                   {/* Admin: compact progress dots (resume / JD / proof) in place of
                       three separate check columns — reduces column sprawl. */}
                   {mode === 'admin' && (
@@ -368,7 +352,10 @@ function JobTable({
                       </div>
                     </Cell>
                   )}
-                  {mode !== 'admin' && (
+                  {/* Worker: compensation column (client has NO comp column — see
+                      COLUMNS.client — so the money cell must NOT render for client,
+                      or it shifts Status/Date/Link one column right). */}
+                  {mode === 'worker' && (
                     <Cell className="text-right font-mono text-sm text-navy-200 whitespace-nowrap">{fmtMoney(job.compensation_min, job.compensation_max)}</Cell>
                   )}
                   <Cell>
@@ -424,9 +411,27 @@ function JobTable({
                     </Cell>
                   )}
 
+                  {/* Client: Status | Date Applied | Link (matches COLUMNS.client —
+                      the date must be under "Date Applied" and the Open link AFTER it) */}
                   {mode === 'client' && (
                     <Cell className="text-navy-400 text-xs whitespace-nowrap">
                       {fmtDate(job.submitted_at)}
+                    </Cell>
+                  )}
+                  {mode === 'client' && (
+                    <Cell>
+                      {job.url ? (
+                        <a
+                          href={job.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-brand-blue hover:underline"
+                        >
+                          Open <External size={12} />
+                        </a>
+                      ) : (
+                        <span className="text-navy-600">—</span>
+                      )}
                     </Cell>
                   )}
                 </tr>

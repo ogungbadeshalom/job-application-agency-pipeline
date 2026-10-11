@@ -1,7 +1,7 @@
 'use client';
 
 // Proof Capture extension connector — lets a worker generate/copy their API
-// token and paste it into the JobBidder Proof Capture Chrome extension (one-time
+// token and paste it into the Pitchr Proof Capture Chrome extension (one-time
 // setup). The token authenticates the cross-origin /api/proof/* endpoints the
 // extension uses to screenshot + attach proof + mark Applied in one click.
 import { useEffect, useState } from 'react';
@@ -53,7 +53,7 @@ export default function ProofCaptureSetting() {
         <span className="text-[10px] uppercase tracking-wide text-navy-500">Chrome</span>
       </div>
       <p className="text-sm text-navy-400 mt-1">
-        Connect the &quot;JobBidder Proof Capture&quot; Chrome extension so you can screenshot +
+        Connect the &quot;Pitchr Proof Capture&quot; Chrome extension so you can screenshot +
         attach proof + mark Applied in one click. Copy your token into the extension&apos;s setup once.
       </p>
 

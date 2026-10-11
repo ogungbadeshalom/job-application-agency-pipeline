@@ -67,7 +67,7 @@ export default function LoginPage() {
             <Link href="/" className="flex items-center gap-3 group" title="Back to landing page">
               <LogoMark />
               <div>
-                <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-navy-500 group-hover:text-[var(--accent)] transition-colors">Job Bidder</div>
+                <div className="text-[10px] font-mono tracking-[0.2em] text-navy-500 group-hover:text-[var(--accent)] transition-colors">Pitchr</div>
                 <div className="text-xs text-navy-300 font-medium">Application agency OS</div>
               </div>
             </Link>
@@ -223,7 +223,7 @@ function LogoMark() {
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src="/icon.png?v=2"
-      alt="Job Bidder"
+      alt="Pitchr"
       className="h-10 w-10 rounded-xl object-contain ring-1 ring-white/15 shadow-lg shadow-black/30"
     />
   );

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import ReviewsSection from './ReviewsSection';
 
-// The Command Deck — public SaaS landing page for JobBidder. Rendered at the
+// The Command Deck — public SaaS landing page for Pitchr. Rendered at the
 // app root so pitchr.com.ng/ serves it. All numbers and the live console come
 // from /api/stats (REAL pipeline data, cached 5 min server-side); the page
 // renders zeros/quietly until the first fetch lands.
@@ -77,7 +77,7 @@ export default function CommandDeckLanding() {
       {/* nav */}
       <nav className="jb-nav">
         <div className="jb-nav-in">
-          <a href="#main" className="jb-logo"><span className="jb-mark" /> JobBidder</a>
+          <a href="#main" className="jb-logo"><span className="jb-mark" /> Pitchr</a>
           <div className="jb-nav-links">
             <a href="#how">How it works</a>
             <a href="#features">Capabilities</a>
@@ -93,7 +93,7 @@ export default function CommandDeckLanding() {
         <div className="jb-hero-grid">
           <div>
             <h1>Your applications, handled by a team that <span className="jb-a">never sleeps.</span></h1>
-            <p className="jb-sub">JobBidder finds verified remote roles, writes a resume to match each one, and submits while you build.</p>
+            <p className="jb-sub">Pitchr finds verified remote roles, writes a resume to match each one, and submits while you build.</p>
             <div className="jb-hero-cta">
               <Link href="/login" className="jb-btn jb-btn-solid">Start a campaign</Link>
               <a href="#how" className="jb-btn jb-btn-ghost">See how it works</a>
@@ -102,7 +102,7 @@ export default function CommandDeckLanding() {
           <div className="jb-console" aria-label="Live application activity">
             <div className="jb-con-head">
               <span className="jb-lights"><span className="on" /><span /><span /></span>
-              <span className="jb-con-name">jobbidder · activity</span>
+              <span className="jb-con-name">pitchr · activity</span>
             </div>
             <div className="jb-con-body">
               {liveRows.length === 0 && (
@@ -196,7 +196,7 @@ export default function CommandDeckLanding() {
       {/* footer */}
       <footer className="jb-foot">
         <div className="jb-wrap jb-foot-in">
-          <span>© 2026 JobBidder</span>
+          <span>© 2026 Pitchr</span>
           <span><a href="#how">How it works</a> · <a href="#pricing">Pricing</a></span>
         </div>
       </footer>

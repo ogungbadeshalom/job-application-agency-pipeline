@@ -4,7 +4,7 @@ import { GeistMono } from 'geist/font/mono';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Job Bidder',
+  title: 'Pitchr',
   description: 'Multi-tenant job-bidding agency platform',
 };
 

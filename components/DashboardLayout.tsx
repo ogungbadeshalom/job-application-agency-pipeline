@@ -155,11 +155,11 @@ export default function DashboardLayout({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/icon.png?v=2"
-        alt="Job Bidder"
+        alt="Pitchr"
         className="h-7 w-7 shrink-0 rounded-md object-contain ring-1 ring-white/10"
       />
       <span className="min-w-0 leading-tight">
-        <span className="font-semibold tracking-tight block leading-snug">Job Bidder</span>
+        <span className="font-semibold tracking-tight block leading-snug">Pitchr</span>
         <span className="block text-[10px] font-mono text-[var(--accent-strong)]">v{APP_VERSION}</span>
       </span>
     </Link>

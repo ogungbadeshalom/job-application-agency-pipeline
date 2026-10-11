@@ -137,10 +137,10 @@ table.tbl { width:100%; border-collapse:collapse; background:#fff; border:1px so
 
 /* ----- Logo carousel (job boards) ----- */
 .icon-collage { width:100%; overflow:hidden; -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 8%,#000 92%,transparent 100%); mask-image:linear-gradient(90deg,transparent 0,#000 8%,#000 92%,transparent 100%); }
-.carousel-track { display:flex; width:max-content; gap:20px; will-change:transform; }
+.carousel-track { display:flex; width:max-content; gap:20px; will-change:transform; align-items:center; }
 .icon-tile { flex:0 0 auto; width:132px; height:72px; background:#fff; border:1px solid var(--line); border-radius:var(--radius); display:grid; place-items:center; padding:10px; cursor:grab; transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease; }
 .icon-tile:active { cursor:grabbing; }
-.icon-tile img { max-width:88px; max-height:30px; object-fit:contain; opacity:.82; filter:saturate(.92) brightness(1.02); transition:opacity .2s ease, filter .2s ease, transform .2s ease; }
+.icon-tile img { height:40px; width:auto; max-width:96px; object-fit:contain; opacity:.82; filter:saturate(.92) brightness(1.02); transition:opacity .2s ease, filter .2s ease, transform .2s ease; }
 .icon-tile:hover { transform:translateY(-5px) scale(1.04); box-shadow:0 14px 28px rgba(0,0,0,.12); border-color:#bcdcc8; background:#fbfdfb; }
 .icon-tile:hover img { opacity:1; filter:saturate(1) brightness(1); }
 @media (prefers-reduced-motion: reduce){ .carousel-track{ display:grid; grid-auto-flow:column; width:100%; overflow-x:auto; } .icon-tile{ cursor:default; } }

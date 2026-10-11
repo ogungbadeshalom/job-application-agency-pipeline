@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pitchr FX — Currency & Calculator</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f6b42">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Pitchr FX">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<style>
+  :root { --ink:#101318; --grey:#55565b; --muted:#8a8c91; --line:#e4e4e0; --green:#0f6b42; --green2:#1e8c5a; --mint:#e8f4ec; }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif; background:linear-gradient(180deg,#d8eee2 0%,#f4faf6 40%,#fbfcf8 100%); color:var(--ink); min-height:100vh; margin:0; display:flex; flex-direction:column; }
+  main { flex:1; width:100%; max-width:640px; margin:0 auto; padding:40px 20px 60px; }
+  .brand { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .brand .p { background:var(--green2); color:#fff; width:30px; height:30px; border-radius:8px; display:grid; place-items:center; font-weight:800; }
+  .brand span:last-child { font-weight:600; letter-spacing:-.01em; }
+  h1 { font-family:'Fraunces',Georgia,serif; font-weight:500; font-size:clamp(30px,5vw,40px); letter-spacing:-.02em; margin:6px 0 6px; }
+  .sub { color:var(--grey); font-size:15px; margin-bottom:24px; }
+  /* Tabs */
+  .tabs { display:flex; gap:8px; margin-bottom:20px; }
+  .tabs button { flex:1; font:inherit; font-size:14px; font-weight:600; padding:12px; border-radius:12px; border:1px solid var(--line); background:#fff; color:var(--grey); cursor:pointer; transition:background .15s,color .15s,border-color .15s; }
+  .tabs button.active { background:var(--green2); color:#fff; border-color:var(--green2); }
+  .card { background:#fff; border:1px solid var(--line); border-radius:18px; padding:22px; box-shadow:0 8px 30px rgba(0,0,0,.05); }
+  .row { display:flex; gap:10px; margin-bottom:14px; }
+  .row > div { flex:1; }
+  label { display:block; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:6px; }
+  input, select { width:100%; font:inherit; font-size:16px; padding:12px 14px; border:1px solid var(--line); border-radius:12px; background:#fff; outline:none; }
+  input:focus, select:focus { border-color:var(--green2); }
+  .swap { align-self:flex-end; background:none; border:1px solid var(--line); border-radius:10px; width:42px; height:42px; font-size:18px; cursor:pointer; color:var(--green2); }
+  .result { text-align:center; padding:18px 0 6px; border-top:1px solid var(--line); margin-top:8px; }
+  .result .amt { font-size:34px; font-weight:750; letter-spacing:-.02em; color:var(--green); }
+  .result .note { font-size:13px; color:var(--muted); margin-top:4px; }
+  .rate { text-align:center; font-size:13px; color:var(--grey); padding:10px 0 4px; }
+  .badge { display:inline-block; background:var(--mint); color:var(--green); border:1px solid rgba(30,140,90,.25); font-size:11px; font-weight:600; padding:4px 10px; border-radius:999px; margin-bottom:14px; }
+  .status { font-size:12px; color:var(--muted); text-align:center; margin-top:14px; }
+  .status.on { color:var(--green2); }
+  .install-btn { display:inline-block; margin-top:10px; padding:10px 20px; font:inherit; font-weight:600; font-size:14px; color:#fff; background:var(--green2); border:none; border-radius:12px; cursor:pointer; }
+  .legal { text-align:center; font-size:11px; color:var(--muted); margin-top:26px; }
+  /* Calculator */
+  .calc-display { background:var(--ink); color:#fff; border-radius:14px; padding:18px 16px; text-align:right; font-size:32px; font-weight:600; font-variant-numeric:tabular-nums; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; min-height:64px; display:flex; flex-direction:column; justify-content:space-between; margin-bottom:14px; }
+  .calc-display .expr { font-size:14px; color:rgba(255,255,255,.55); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .calc-display .cur { font-size:30px; }
+  .calc-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+  .calc-grid button { font:inherit; font-size:18px; font-weight:600; padding:18px 0; border:1px solid var(--line); border-radius:12px; background:#fff; color:var(--ink); cursor:pointer; transition:background .12s,transform .08s; }
+  .calc-grid button:active { transform:scale(.96); }
+  .calc-grid button.op { background:var(--mint); color:var(--green); border-color:rgba(30,140,90,.3); }
+  .calc-grid button.eq { background:var(--green2); color:#fff; border-color:var(--green2); }
+  .calc-grid button.clear { background:#fdECEA; color:#b23b3b; border-color:#f5d4d0; }
+  .hidden { display:none; }
+  @media(max-width:520px){ .row{flex-direction:column;} .calc-grid button{padding:16px 0;} }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand"><span class="p">P</span><span>pitchr · Tools</span></div>
+  <h1>Pitchr FX</h1>
+  <p class="sub">Two handy tools — live currency conversion and a quick calculator. Free, works offline.</p>
+
+  <div class="tabs">
+    <button id="tab-currency" class="active" type="button">Currency</button>
+    <button id="tab-calc" type="button">Calculator</button>
+  </div>
+
+  <!-- CURRENCY -->
+  <section id="pane-currency" class="card">
+    <span class="badge">● Live — latest rates</span>
+    <div class="row">
+      <div>
+        <label>Amount</label>
+        <input id="amount" type="number" inputmode="decimal" value="1000" min="0">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>From</label>
+        <select id="from"></select>
+      </div>
+      <button class="swap" id="swap" title="Swap currencies">⇄</button>
+      <div>
+        <label>To</label>
+        <select id="to"></select>
+      </div>
+    </div>
+    <div class="rate" id="rate"></div>
+    <div class="result">
+      <div class="amt" id="converted">—</div>
+      <div class="note" id="note">Enter an amount above</div>
+    </div>
+  </section>
+
+  <!-- CALCULATOR -->
+  <section id="pane-calc" class="card hidden">
+    <div class="calc-display">
+      <div class="expr" id="calc-expr">&nbsp;</div>
+      <div class="cur" id="calc-cur">0</div>
+    </div>
+    <div class="calc-grid">
+      <button class="clear" data-k="C">C</button>
+      <button class="op" data-k="(">(</button>
+      <button class="op" data-k=")">)</button>
+      <button class="op" data-k="/">÷</button>
+      <button data-k="7">7</button>
+      <button data-k="8">8</button>
+      <button data-k="9">9</button>
+      <button class="op" data-k="*">×</button>
+      <button data-k="4">4</button>
+      <button data-k="5">5</button>
+      <button data-k="6">6</button>
+      <button class="op" data-k="-">−</button>
+      <button data-k="1">1</button>
+      <button data-k="2">2</button>
+      <button data-k="3">3</button>
+      <button class="op" data-k="+">+</button>
+      <button data-k="0">0</button>
+      <button data-k=".">.</button>
+      <button class="op" data-k="%">%</button>
+      <button class="eq" data-k="=">=</button>
+    </div>
+  </section>
+
+  <div class="status" id="status">Loading live rates…</div>
+  <div class="status" id="install" style="margin-top:8px;"></div>
+  <div class="legal" id="legal"></div>
+</main>
+
+<script>
+(function () {
+  var $status = document.getElementById('status');
+  var $install = document.getElementById('install');
+
+  /* ---- Tab switching ---- */
+  function showTab(which) {
+    document.getElementById('tab-currency').classList.toggle('active', which === 'currency');
+    document.getElementById('tab-calc').classList.toggle('active', which === 'calc');
+    document.getElementById('pane-currency').classList.toggle('hidden', which !== 'currency');
+    document.getElementById('pane-calc').classList.toggle('hidden', which !== 'calc');
+  }
+  document.getElementById('tab-currency').addEventListener('click', function(){ showTab('currency'); });
+  document.getElementById('tab-calc').addEventListener('click', function(){ showTab('calc'); });
+
+  /* ---- Currency converter ---- */
+  var API = 'https://open.er-api.com/v6/latest/';
+  var REFRESH_MS = 5 * 60 * 1000;
+  var POPULAR = ['USD','EUR','GBP','NGN','ZAR','KES','GHS','AUD','CAD','JPY','CNY','INR','AED','SAR'];
+  var state = { rates: null, base: 'USD' };
+
+  var $amount = document.getElementById('amount');
+  var $from   = document.getElementById('from');
+  var $to     = document.getElementById('to');
+  var $rate   = document.getElementById('rate');
+  var $conv   = document.getElementById('converted');
+  var $note   = document.getElementById('note');
+  var $legal  = document.getElementById('legal');
+
+  function populate(list) {
+    var sorted = list.slice().sort(function(a,b){
+      var ia = POPULAR.indexOf(a), ib = POPULAR.indexOf(b);
+      if (ia===-1&&ib===-1) return a.localeCompare(b);
+      if (ia===-1) return 1;
+      if (ib===-1) return -1;
+      return ia-ib;
+    });
+    $from.innerHTML = sorted.map(function(c){ return '<option value="'+c+'"'+(c==='USD'?' selected':'')+'>'+c+'</option>'; }).join('');
+    $to.innerHTML   = sorted.map(function(c){ return '<option value="'+c+'"'+(c==='NGN'?' selected':'')+'>'+c+'</option>'; }).join('');
+  }
+  function rateFor(from, to) {
+    if (!state.rates) return null;
+    if (from === to) return 1;
+    var rFrom = state.rates[from], rTo = state.rates[to];
+    if (!rFrom || !rTo) return null;
+    return rTo / rFrom;
+  }
+  function render() {
+    var amt = parseFloat($amount.value);
+    if (isNaN(amt) || amt < 0) { $conv.textContent = '—'; $note.textContent = 'Enter a valid amount'; return; }
+    var f = $from.value, t = $to.value;
+    var r = rateFor(f, t);
+    if (r == null) { $conv.textContent = '—'; $note.textContent = 'Rate unavailable'; return; }
+    $conv.textContent = formatMoney(amt * r, t);
+    $note.textContent = amt.toLocaleString() + ' ' + f + ' =';
+    $rate.textContent = '1 ' + f + ' = ' + formatMoney(r, t, 6);
+  }
+  function formatMoney(v, cur, maxDec) {
+    var dec = (maxDec == null) ? (v >= 100 ? 0 : v >= 1 ? 2 : 4) : maxDec;
+    try { return new Intl.NumberFormat('en-US', { style:'currency', currency:cur, maximumFractionDigits:dec, minimumFractionDigits: dec>0?2:0 }).format(v); }
+    catch(e) { return v.toFixed(dec) + ' ' + cur; }
+  }
+  function load() {
+    $status.textContent = 'Loading live rates…';
+    $status.className = 'status';
+    fetch(API + state.base)
+      .then(function(res){ if(!res.ok) throw new Error('HTTP '+res.status); return res.json(); })
+      .then(function(d){
+        if (!d || !d.rates) throw new Error('Bad response');
+        state.rates = d.rates;
+        if ($from.options.length === 0) populate(Object.keys(d.rates));
+        var ngn = d.rates['NGN'];
+        $legal.textContent = (d.time_last_update_utc ? 'Rates from ' + d.time_last_update_utc.split(' ').slice(0,4).join(' ') : '')
+          + (ngn ? ' · 1 USD = ' + ngn.toLocaleString() + ' NGN' : '') + ' · auto-refreshes 5 min · works offline';
+        $status.textContent = '✓ Live rates loaded — auto-refreshing every 5 min';
+        $status.className = 'status on';
+        render();
+      })
+      .catch(function(err){
+        if (state.rates) { render(); $status.textContent = 'Offline — showing last known rates'; $status.className = 'status'; }
+        else { $status.textContent = 'Could not load rates (' + err.message + '). Retrying in 30s…'; $status.className = 'status'; }
+      });
+  }
+  $amount.addEventListener('input', render);
+  $from.addEventListener('change', render);
+  $to.addEventListener('change', render);
+  document.getElementById('swap').addEventListener('click', function(){ var t=$from.value; $from.value=$to.value; $to.value=t; render(); });
+
+  /* ---- Calculator ---- */
+  var $expr = document.getElementById('calc-expr');
+  var $cur  = document.getElementById('calc-cur');
+  var expr = '';   // the full expression to evaluate
+  var justEq = false;
+
+  function normOp(ch) { return ({'×':'*','÷':'/','−':'-'})[ch] || ch; }
+  function fmt(n) {
+    if (typeof n !== 'number' || !isFinite(n)) return 'Error';
+    var s = String(Math.round(n * 1e10) / 1e10);
+    return s.length > 13 ? Number(n).toPrecision(8).replace(/\.?0+e/,'e') : s;
+  }
+  function refresh(showExpr) {
+    $cur.textContent = fmt(tryEval(expr));
+    $expr.innerHTML = showExpr ? (expr.replace(/\*/g,'×').replace(/\//g,'÷').replace(/-/g,'−') || '&nbsp;') : '&nbsp;';
+  }
+  function tryEval(e) {
+    if (!e) return 0;
+    try {
+      // safe: only digits, operators, parens, dot.
+      if (!/^[0-9+\-*/().% ]*$/.test(e)) return 'Error';
+      var clean = e.replace(/%/g, '/100');
+      var v = Function('"use strict"; return (' + clean + ')')();
+      return typeof v === 'number' ? v : 'Error';
+    } catch(err) { return 'Error'; }
+  }
+  document.querySelectorAll('.calc-grid button').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var k = btn.getAttribute('data-k');
+      if (k === 'C') { expr = ''; justEq = false; refresh(false); return; }
+      if (k === '=') {
+        if (!expr) return;
+        var v = tryEval(expr);
+        $cur.textContent = fmt(v);
+        $expr.innerHTML = (expr.replace(/\*/g,'×').replace(/\//g,'÷').replace(/-/g,'−') || '&nbsp;') + ' =';
+        expr = (typeof v === 'number') ? String(v) : '';
+        justEq = true;
+        return;
+      }
+      // if last press was =, start fresh unless pressing an operator
+      if (justEq && /[0-9.(]/.test(normOp(k))) { expr = ''; }
+      justEq = false;
+      if (k === '(') { expr += '('; }
+      else if (k === ')') { expr += ')'; }
+      else { expr += normOp(k); }
+      refresh(true);
+    });
+  });
+  // Keyboard support
+  document.addEventListener('keydown', function(e){
+    var k = e.key;
+    if (k === 'Enter' || k === '=') { var eq = document.querySelector('.eq'); if (eq) eq.click(); e.preventDefault(); return; }
+    if (k === 'Escape') { var cl = document.querySelector('.clear'); if (cl) cl.click(); return; }
+    if ('0123456789.+-*/()'.indexOf(k) >= 0) {
+      var btn = document.querySelector('.calc-grid button[data-k="'+k+'"]');
+      if (!btn) btn = document.querySelector('.calc-grid button[data-k="'+({'+':'+','-' : '-'})[k]+'"]');
+      if (btn) btn.click();
+    } else if (k === 'Backspace' && expr) { expr = expr.slice(0,-1); refresh(true); }
+  });
+
+  /* ---- PWA install ---- */
+  if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(function(){}); }
+  var deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', function(e){
+    e.preventDefault(); deferredPrompt = e;
+    var b = document.createElement('button');
+    b.className = 'install-btn'; b.textContent = 'Install app';
+    b.addEventListener('click', function(){ if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt.userChoice; deferredPrompt = null; b.remove(); } });
+    $install.appendChild(b);
+  });
+  window.addEventListener('appinstalled', function(){ $install.textContent = 'App installed ✓'; });
+
+  load();
+  setInterval(load, REFRESH_MS);
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden) load(); });
+})();
+</script>
+</body>
+</html>

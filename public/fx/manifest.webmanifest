@@ -1,0 +1,18 @@
+{
+  "name": "Pitchr Currency Converter",
+  "short_name": "Pitchr FX",
+  "description": "Self-updating live currency converter. Free, no sign-up, works offline.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#d8eee2",
+  "theme_color": "#0f6b42",
+  "lang": "en",
+  "categories": ["finance", "utilities"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

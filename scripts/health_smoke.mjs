@@ -114,7 +114,7 @@ await check('PUBLIC ROOT / serves the Command Deck landing (not stale)', async (
   assert(res.status === 200, `status ${res.status}`);
   const t = await res.text();
   assert(
-    /Start a campaign|Registrar|Scout|Scribe/.test(t),
+    /We apply to jobs|genuine remote|properly/.test(t),
     'root / is not serving the current landing (deploy missed?)'
   );
 });

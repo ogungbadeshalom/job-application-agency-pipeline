@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shalom — Frontend Projects | Ogungbade Shalom</title>
+<meta name="description" content="Selected frontend projects by Ogungbade Shalom — React, Next.js, TypeScript. Live demos included.">
+<style>
+  :root{
+    --bg:#0b1220; --panel:#111a2e; --panel2:#0e1730; --border:#1f2c47;
+    --text:#e6edf7; --muted:#93a4bd; --accent:#2dd4a7; --accent2:#4c9ffe;
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;line-height:1.6}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+  /* ---------- header ---------- */
+  header{padding:64px 0 40px;border-bottom:1px solid var(--border);background:
+    radial-gradient(800px 300px at 80% -10%, rgba(45,212,167,.12), transparent 60%),
+    radial-gradient(600px 260px at 15% -10%, rgba(76,159,254,.10), transparent 60%)}
+  .kicker{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:14px}
+  h1{font-size:clamp(28px,4.5vw,42px);line-height:1.15;letter-spacing:-.02em;font-weight:800}
+  h1 .grad{background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{margin-top:14px;color:var(--muted);max-width:720px;font-size:16px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+  .chip{font-family:var(--mono);font-size:12px;padding:6px 12px;border:1px solid var(--border);border-radius:999px;color:var(--muted);background:var(--panel2)}
+  .chip b{color:var(--text);font-weight:600}
+
+  /* ---------- sections ---------- */
+  .section{padding:44px 0 8px}
+  .section h2{font-size:13px;font-family:var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:6px}
+  .section p.lead{color:var(--muted);font-size:14px;margin-bottom:22px;max-width:760px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+  @media(min-width:900px){.grid-3{grid-template-columns:repeat(3,1fr)}}
+
+  /* ---------- cards ---------- */
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:10px;transition:border-color .15s ease, transform .15s ease}
+  .card:hover{border-color:#31446b;transform:translateY(-2px)}
+  .card h3{font-size:17px;font-weight:700;letter-spacing:-.01em}
+  .card .tagline{color:var(--muted);font-size:14px}
+  .stack{display:flex;flex-wrap:wrap;gap:6px}
+  .stack span{font-family:var(--mono);font-size:11px;padding:3px 9px;border-radius:6px;background:var(--panel2);border:1px solid var(--border);color:#b7c6dd}
+  .links{display:flex;gap:14px;margin-top:auto;padding-top:6px}
+  .links a{font-size:13.5px;font-weight:600;text-decoration:none;color:var(--accent2)}
+  .links a:hover{text-decoration:underline}
+  .links a.demo{color:var(--accent)}
+  .links a.dead{color:var(--muted)}
+  .note{font-size:12px;color:var(--muted);font-style:italic}
+  .badge{display:inline-block;font-size:10.5px;font-family:var(--mono);letter-spacing:.06em;padding:3px 8px;border-radius:6px;background:rgba(45,212,167,.12);border:1px solid rgba(45,212,167,.35);color:var(--accent)}
+  .badge.blue{background:rgba(76,159,254,.12);border-color:rgba(76,159,254,.35);color:var(--accent2)}
+
+  /* ---------- footer ---------- */
+  footer{margin-top:56px;border-top:1px solid var(--border);padding:28px 0 48px;color:var(--muted);font-size:13.5px}
+  footer .cols{display:flex;flex-wrap:wrap;gap:28px;justify-content:space-between;align-items:center}
+  footer a{color:var(--accent2);text-decoration:none}
+  footer a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<header class="wrap">
+  <div class="kicker">Ogungbade Shalom · badeshalom@gmail.com</div>
+  <h1>Frontend projects, <span class="grad">built and shipped</span></h1>
+  <p class="sub">Selected work across React, Next.js, and TypeScript — production systems, client sites, and apps built on internships and freelance engagements. Every demo link below was live when this page was published.</p>
+  <div class="chips">
+    <span class="chip"><b>React</b></span><span class="chip"><b>Next.js</b></span><span class="chip"><b>TypeScript</b></span><span class="chip">Tailwind CSS</span><span class="chip">REST APIs</span><span class="chip">PostgreSQL</span><span class="chip">Git/GitHub</span>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="section" id="production">
+    <h2>Production Systems</h2>
+    <p class="lead">Live, real-user products — the strongest evidence of shipping ability.</p>
+    <div class="grid grid-3">
+      <div class="card">
+        <span class="badge">LIVE · pitchr.com.ng</span>
+        <h3>Pitchr — AI Job-Application Agency</h3>
+        <p class="tagline">Multi-tenant SaaS running a real agency: marketing site, worker/client dashboards, resume tailoring, role-gated UIs. Next.js + TypeScript + Postgres.</p>
+        <div class="stack"><span>Next.js</span><span>TypeScript</span><span>Tailwind</span><span>PostgreSQL</span></div>
+        <div class="links">
+          <a class="demo" href="https://pitchr.com.ng" target="_blank" rel="noreferrer">Live site ↗</a>
+          <a href="https://github.com/OgungbadeShalom/job-application-agency-pipeline" target="_blank" rel="noreferrer">Code ↗</a>
+        </div>
+      </div>
+      <div class="card">
+        <span class="badge">LIVE · pitchr.com.ng/fx</span>
+        <h3>Pitchr FX — Converter + Calculator PWA</h3>
+        <p class="tagline">Installable currency-converter + calculator app with offline support and mobile-first UI.</p>
+        <div class="stack"><span>PWA</span><span>JavaScript</span><span>Service Worker</span><span>CSS</span></div>
+        <div class="links">
+          <a class="demo" href="https://pitchr.com.ng/fx" target="_blank" rel="noreferrer">Live app ↗</a>
+          <a href="https://pitchr.com.ng/fx" target="_blank" rel="noreferrer">Try calculator ↗</a>
+        </div>
+      </div>
+      <div class="card">
+        <span class="badge blue">INTERNSHIP · IHS Towers</span>
+        <h3>Travel-Request App (IHS Towers)</h3>
+        <p class="tagline">Internal approval system built during my 5-month internship: multi-stage manager approval, role-based access, transactional request state.</p>
+        <div class="stack"><span>React</span><span>TypeScript</span><span>PostgreSQL</span><span>Drizzle ORM</span></div>
+        <div class="links">
+          <a href="https://github.com/OgungbadeShalom/Travel-Request-Appv2" target="_blank" rel="noreferrer">Code ↗</a>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <span class="badge blue">INTERNSHIP · 390 (Lagos)</span>
+      <h3>390 Calculator</h3>
+      <p class="tagline">Built during my frontend internship at 390: a Next.js calculator with keyboard support and clean state handling.</p>
+      <div class="stack"><span>Next.js</span><span>JavaScript</span><span>CSS</span></div>
+      <div class="links">
+        <a class="demo" href="https://nextjs-390-calculator.vercel.app" target="_blank" rel="noreferrer">Live demo ↗</a>
+        <a href="https://github.com/OgungbadeShalom/nextjs_390_calculator" target="_blank" rel="noreferrer">Code ↗</a>
+      </div>
+      </div>
+      </section>
+
+  <section class="section" id="saas">
+    <h2>SaaS & Product Interfaces</h2>
+    <p class="lead">Full products with auth, dashboards, and API integrations.</p>
+    <div class="grid grid-3">
+      <div class="card">
+        <span class="badge blue">FULL-STACK</span>
+        <h3>BidPro — Job-Bidding Agency</h3>
+        <p class="tagline">Client-acquisition and job-bidding platform for freelancers — landing, auth, service tiers.</p>
+        <div class="stack"><span>HTML/CSS</span><span>JavaScript</span></div>
+        <div class="links">
+          <a class="demo" href="https://bidpro-ochre.vercel.app" target="_blank" rel="noreferrer">Live demo ↗</a>
+          <a href="https://github.com/OgungbadeShalom/bidpro" target="_blank" rel="noreferrer">Code ↗</a>
+        </div>
+      </div>
+      <div class="card">
+        <span class="badge blue">REACT APP</span>
+        <h3>MoviePub — Movie Search</h3>
+        <p class="tagline">React movie search app consuming a public movies API — search, ratings, detail views.</p>
+        <div class="stack"><span>React</span><span>CSS</span><span>REST API</span></div>
+        <div class="links">
+          <a class="demo" href="https://movieappdemo2.vercel.app" target="_blank" rel="noreferrer">Live demo ↗</a>
+          <a href="https://github.com/OgungbadeShalom/moviepub" target="_blank" rel="noreferrer">Code ↗</a>
+        </div>
+      </div>
+      <div class="card">
+        <span class="badge blue">NEXT.JS 14</span>
+        <h3>Anisun — Anime Streaming PWA</h3>
+        <p class="tagline">Anime streaming PWA on Next.js 14 App Router — installable, API-driven catalog and player.</p>
+        <div class="stack"><span>Next.js 14</span><span>TypeScript</span><span>PWA</span></div>
+        <div class="links">
+          <a class="demo" href="https://anisun.vercel.app" target="_blank" rel="noreferrer">Live demo ↗</a>
+          <a href="https://github.com/OgungbadeShalom/anisun" target="_blank" rel="noreferrer">Code ↗</a>
+        </div>
+        <p class="note">Active rewrite; originally my first Next.js 14 build.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="clients">
+    <h2>Client & Freelance Work</h2>
+    <p class="lead">Responsive marketing sites and landing pages shipped for real clients.</p>
+    <div class="grid grid-3">
+      <div class="card">
+        <span class="badge blue">CLIENT SITE</span>
+        <h3>Real-Estate Site Sample 2</h3>
+        <p class="tagline">Responsive real-estate site for Lagos agents — listings, galleries, mobile-first layout.</p>
+        <div class="stack"><span>HTML</span><span>CSS</span><span>JS</span></div>
+        <div class="links">
+          <a class="demo" href="https://real-estate-sample-2.vercel.app" target="_blank" rel="noreferrer">Live demo ↗</a>
+          <a href="https://github.com/OgungbadeShalom/real-estate-sample-2" target="_blank" rel="noreferrer">Code ↗</a>
+        </div>
+      </div>
+      <div class="card">
+        <span class="badge blue">CLIENT SITE</span>
+        <h3>Real-Estate Site Sample 1</h3>
+        <p class="tagline">Responsive real-estate landing built for a Lagos agent.</p>
+        <div class="stack"><span>HTML</span><span>CSS</span></div>
+        <div class="links">
+          <a class="demo" href="https://real-estate-sample-1.vercel.app" target="_blank" rel="noreferrer">Live demo ↗</a>
+          <a href="https://github.com/OgungbadeShalom/real-estate-sample-1" target="_blank" rel="noreferrer">Code ↗</a>
+        </div>
+      </div>
+      <div class="card">
+        <span class="badge blue">CLIENT SITE</span>
+        <h3>FreelanceNG Landing</h3>
+        <p class="tagline">Landing page for a Nigerian freelance community.</p>
+        <div class="stack"><span>HTML</span><span>CSS</span><span>JS</span></div>
+        <div class="links">
+          <a class="demo" href="https://freelanceng-langingpage.vercel.app" target="_blank" rel="noreferrer">Live demo ↗</a>
+          <a href="https://github.com/OgungbadeShalom/freelanceng-langingpage" target="_blank" rel="noreferrer">Code ↗</a>
+        </div>
+      </div>
+      <div class="card">
+        <span class="badge blue">SAAS LANDING</span>
+        <h3>Fintech SaaS Landing</h3>
+        <p class="tagline">Conversion-focused fintech SaaS landing page — clean utility-first styling.</p>
+        <div class="stack"><span>JavaScript</span><span>CSS</span></div>
+        <div class="links">
+          <a class="demo" href="https://landingpage-pr02.vercel.app/" target="_blank" rel="noreferrer">Live demo ↗</a>
+          <a href="https://github.com/OgungbadeShalom/landingpage-pr02" target="_blank" rel="noreferrer">Code ↗</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="more">
+    <h2>More Frontend Builds</h2>
+    <p class="lead">Smaller apps — same fundamentals: component design, API consumption, responsive styling.</p>
+    <div class="grid grid-3">
+      <div class="card">
+        <span class="badge blue">REACT</span>
+        <h3>Weather App</h3>
+        <p class="tagline">Weather dashboard consuming a public REST API.</p>
+        <div class="stack"><span>JavaScript</span><span>CSS</span><span>REST API</span></div>
+        <div class="links">
+          <a class="demo" href="https://weather-app-kohl-seven-65.vercel.app" target="_blank" rel="noreferrer">Live demo ↗</a>
+          <a href="https://github.com/OgungbadeShalom/weather-app" target="_blank" rel="noreferrer">Code ↗</a>
+        </div>
+      </div>
+      <div class="card">
+        <span class="badge blue">FULL-STACK</span>
+        <h3>Book Tracker</h3>
+        <p class="tagline">Full-stack tracker — React frontend, Node.js backend.</p>
+        <div class="stack"><span>React</span><span>Node.js</span></div>
+        <div class="links">
+          <a href="https://github.com/OgungbadeShalom/book-tracker" target="_blank" rel="noreferrer">Code ↗</a>
+        </div>
+      </div>
+      <div class="card">
+        <span class="badge blue">FULL-STACK</span>
+        <h3>Blood Donation Management</h3>
+        <p class="tagline">Management system for blood-donation workflows.</p>
+        <div class="stack"><span>JavaScript</span><span>CSS</span></div>
+        <div class="links">
+          <a href="https://github.com/OgungbadeShalom/online-blood-donation-management-system" target="_blank" rel="noreferrer">Code ↗</a>
+        </div>
+      </div>
+      <div class="card">
+        <span class="badge blue">TYPESCRIPT</span>
+        <h3>App-Meeting</h3>
+        <p class="tagline">Meeting app for discovering people in a specific environment (e.g. campus).</p>
+        <div class="stack"><span>TypeScript</span><span>CSS</span></div>
+        <div class="links">
+          <a href="https://github.com/OgungbadeShalom/App-Meeting" target="_blank" rel="noreferrer">Code ↗</a>
+        </div>
+      </div>
+      <div class="card">
+        <span class="badge blue">FULL-STACK</span>
+        <h3>Travel App v1</h3>
+        <p class="tagline">First travel-request build — React frontend, Node backend, SQLite.</p>
+        <div class="stack"><span>React</span><span>Node.js</span><span>SQLite</span></div>
+        <div class="links">
+          <a href="https://github.com/OgungbadeShalom/travel-app" target="_blank" rel="noreferrer">Code ↗</a>
+        </div>
+      </div>
+      <div class="card">
+        <span class="badge blue">FULL-STACK</span>
+        <h3>Fitness Hub Tracker</h3>
+        <p class="tagline">Fitness-tracking app with workout logging.</p>
+        <div class="stack"><span>JavaScript</span><span>CSS</span></div>
+        <div class="links">
+          <a href="https://github.com/OgungbadeShalom/fitness-hub-tracker" target="_blank" rel="noreferrer">Code ↗</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="ai">
+    <h2>Beyond the Browser</h2>
+    <p class="lead">The systems behind my frontend work — automation, scrapers, AI pipelines.</p>
+    <div class="grid grid-3">
+      <div class="card">
+        <span class="badge">AI PIPELINE</span>
+        <h3>Hermes — Autonomous Job-Application Pipeline</h3>
+        <p class="tagline">Agentic system (Scout → Matcher → Writer → Submitter) that discovers roles and submits tailored applications at scale — 15,000+ sent.</p>
+        <div class="stack"><span>TypeScript</span><span>Node.js</span><span>LLM APIs</span></div>
+        <div class="links">
+          <a href="https://github.com/OgungbadeShalom/job-application-agency-pipeline" target="_blank" rel="noreferrer">Code ↗</a>
+        </div>
+      </div>
+      <div class="card">
+        <span class="badge">SCRAPER</span>
+        <h3>JobSpy integrations & Pluck scraper</h3>
+        <p class="tagline">Job-board scraping and contact-extraction tooling powering Pitchr's refill pipeline.</p>
+        <div class="stack"><span>Python</span><span>Cheerio</span></div>
+        <div class="links">
+          <a href="https://github.com/OgungbadeShalom/JobSpy" target="_blank" rel="noreferrer">JobSpy ↗</a>
+          <a href="https://github.com/OgungbadeShalom/Pluck" target="_blank" rel="noreferrer">Pluck ↗</a>
+        </div>
+      </div>
+      <div class="card">
+        <span class="badge">AUTOMATION</span>
+        <h3>YouTube Automation Agents</h3>
+        <p class="tagline">Fully automated channel management with AI agents — scripting, rendering, upload, analytics.</p>
+        <div class="stack"><span>Python</span><span>ffmpeg</span></div>
+        <div class="links">
+          <a href="https://github.com/OgungbadeShalom/youtube-automation-agent" target="_blank" rel="noreferrer">Code ↗</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="wrap">
+  <div class="cols">
+    <div>© 2026 Ogungbade Shalom</div>
+    <div>
+      <a href="https://github.com/OgungbadeShalom" target="_blank" rel="noreferrer">GitHub</a> ·
+      <a href="https://www.linkedin.com/in/ogungbade-shalom" target="_blank" rel="noreferrer">LinkedIn</a> ·
+      <a href="mailto:badeshalom@gmail.com">badeshalom@gmail.com</a>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

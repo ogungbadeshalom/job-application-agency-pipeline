@@ -30,6 +30,7 @@ const nextConfig = {
         { source: '/about', destination: '/about.html' },
         { source: '/faq', destination: '/faq.html' },
         { source: '/contact', destination: '/contact.html' },
+        { source: '/projects', destination: '/projects.html' },
         { source: '/privacy-policy', destination: '/privacy.html' },
         { source: '/terms', destination: '/terms.html' },
       ],

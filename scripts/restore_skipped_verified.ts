@@ -33,6 +33,14 @@ function looksRemote(location: string | null, description: string): boolean {
   ) {
     return false;
   }
+  // STORED location is primary evidence (verify-all-boards rule). A concrete
+  // city/state/metro location (e.g. "Pittsburgh, PA", "San Francisco, CA") is
+  // ON-SITE even if the description mentions "remote" — only an explicit
+  // remote signal or a country-level location (United States / US / empty)
+  // passes. This blocks the on-site-leak for strictly-remote clients.
+  if (loc.trim() && !(/\bremote\b|work from home|\bwfh\b/.test(loc) || /^(united states|us|usa)$/.test(loc.trim()))) {
+    return false;
+  }
   if (/\bremote\b|work from home|\bwfh\b/.test(loc)) return true;
   if (/\bremote\b|work from home|\bwfh\b/.test(desc)) return true;
   return false;

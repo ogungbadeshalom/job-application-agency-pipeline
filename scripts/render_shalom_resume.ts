@@ -42,7 +42,10 @@ const resume: StructuredResume = {
       bullets: [
         'Designed and built an internal travel-request application covering submission, multi-stage manager approval, and status tracking across employee, manager, and admin roles.',
         'Engineered the PostgreSQL/Drizzle ORM backend — normalized schema, migrations, and transactional handling that kept request state consistent under concurrent approvals.',
-        'Built a responsive React/Next.js frontend with role-based access control, REST API integration, form validation, and automated email notifications that cut manual follow-up.',
+        'Built a responsive React/Next.js frontend with role-based access control, REST API integration, and form validation.',
+        'Integrated automated email notifications so approvers are alerted instantly, cutting manual follow-up during the approval cycle.',
+        'Wrote and maintained clean, typed TypeScript across the stack, following Git-based code review and branching workflows with the engineering team.',
+        'Participated in sprint planning, standups, and code reviews, gathering requirements from staff users and translating them into shipped features.',
       ],
     },
     {
@@ -51,8 +54,12 @@ const resume: StructuredResume = {
       dates: 'Jan 2025',
       location: 'Lagos, Nigeria',
       bullets: [
-        'Built responsive, pixel-accurate, accessible React components from designs, styled mobile-first with Tailwind CSS.',
+        'Studied the company codebase and internal documentation to understand existing architecture, conventions, and component patterns before shipping changes.',
+        'Worked directly on the company website UI, implementing responsive, pixel-accurate React components from designs.',
+        'Styled interfaces with Tailwind CSS, shipping mobile-first layouts that held up across breakpoints and devices.',
         'Consumed REST APIs and wired client-side state management to power data-driven views and dynamic user flows.',
+        'Improved frontend accessibility and performance — semantic HTML, keyboard-friendly interactions, and leaner component rendering.',
+        'Collaborated with senior engineers via Git/GitHub — feature branches, pull requests, and iterative feedback on UI changes.',
       ],
     },
   ],
@@ -60,7 +67,7 @@ const resume: StructuredResume = {
     {
       school: 'Babcock University',
       degree: 'B.Sc. Software Engineering',
-      dates: '',
+      dates: '2022 – 2026',
       detail: 'Relevant coursework: Cloud Computing, Formal Methods, Human-Computer Interaction',
     },
   ],

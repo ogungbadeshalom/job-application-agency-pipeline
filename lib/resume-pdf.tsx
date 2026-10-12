@@ -213,7 +213,7 @@ function ResumeDoc({ d, preset }: { d: ResumeData; preset: ResumePreset }) {
 
         <Text style={styles.sectionT}>Experience</Text>
         {(d.experience || []).map((e, ei) => (
-          <View key={ei} style={styles.expBlock}>
+          <View key={ei} style={styles.expBlock} wrap={false}>
             <View style={styles.roleRow}>
               <Text style={styles.roleText}>{e.role}</Text>
             </View>

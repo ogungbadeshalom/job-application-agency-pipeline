@@ -9,12 +9,17 @@ import {
   Text,
   View,
   StyleSheet,
+  Font,
   renderToBuffer,
 } from '@react-pdf/renderer';
 
 import type { ResumePreset, StructuredResume } from './resume-presets';
 export type { ResumePreset } from './resume-presets';
 export { RESUME_PRESETS, isResumePreset } from './resume-presets';
+
+// Never split words with auto-hyphenation across line breaks (react-pdf's
+// English hyphenation dictionary would otherwise render "opportuni-ties").
+Font.registerHyphenationCallback((word) => [word]);
 
 // ---- Structured shape the AI must produce --------------------------------
 export interface ResumeData {
@@ -226,7 +231,7 @@ function ResumeDoc({ d, preset }: { d: ResumeData; preset: ResumePreset }) {
         ))}
 
         {(d.education && d.education.length > 0) && (
-          <>
+          <View wrap={false}>
             <Text style={styles.sectionT}>Education</Text>
             {(d.education || []).map((e, ei) => (
               <View key={ei} style={styles.expBlock}>
@@ -240,11 +245,11 @@ function ResumeDoc({ d, preset }: { d: ResumeData; preset: ResumePreset }) {
                 {e.detail ? <Text style={styles.summary}>{e.detail}</Text> : null}
               </View>
             ))}
-          </>
+          </View>
         )}
 
         {(d.certifications && d.certifications.length > 0) && (
-          <>
+          <View wrap={false}>
             <Text style={styles.sectionT}>Certifications</Text>
             {d.certifications.map((c, ci) => (
               <View key={ci} style={styles.skillRow}>
@@ -254,7 +259,7 @@ function ResumeDoc({ d, preset }: { d: ResumeData; preset: ResumePreset }) {
                 </Text>
               </View>
             ))}
-          </>
+          </View>
         )}
       </Page>
     </Document>

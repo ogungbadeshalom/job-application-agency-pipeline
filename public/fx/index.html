@@ -229,8 +229,20 @@
     var s = String(Math.round(n * 1e10) / 1e10);
     return s.length > 13 ? Number(n).toPrecision(8).replace(/\.?0+e/,'e') : s;
   }
+  // Is the expression "complete" enough to evaluate as a preview? An expr that
+  // ends in an operator, a decimal point, an open paren, or a bare number's %
+  // is INCOMPLETE — we must NOT show 'Error' while the user is mid-entry.
+  function isIncomplete(e) {
+    if (!e) return true;
+    return /[+\-*/(.]$/.test(e) || /[%.]$/.test(e);
+  }
   function refresh(showExpr) {
-    $cur.textContent = fmt(tryEval(expr));
+    if (isIncomplete(expr)) {
+      // mid-entry: show the raw expression, never a scary 'Error'
+      $cur.textContent = expr ? expr.replace(/\*/g,'×').replace(/\//g,'÷').replace(/-/g,'−') : '0';
+    } else {
+      $cur.textContent = fmt(tryEval(expr));
+    }
     $expr.innerHTML = showExpr ? (expr.replace(/\*/g,'×').replace(/\//g,'÷').replace(/-/g,'−') || '&nbsp;') : '&nbsp;';
   }
   function tryEval(e) {

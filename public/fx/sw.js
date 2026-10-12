@@ -10,7 +10,7 @@
  * Versioning: bump CACHE (or the SW file) to force installed devices to fetch
  * the new shell on next load.
  */
-const CACHE = 'pitchr-fx-v2';
+const CACHE = 'pitchr-fx-v3';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
 const FX_ORIGIN = 'https://open.er-api.com';
 

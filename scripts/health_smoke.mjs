@@ -205,18 +205,19 @@ await check('DATA: no duplicate APPLIED postings since guard (same profile + URL
   if (postGuard.length === 0) { console.log(`  (${applied.length} applied jobs, all pre-guard — green)`); return; }
   const norm = (s) => String(s || '').trim().toLowerCase().replace(/^https?:\/\//, '');
   const seen = new Set();
+  // Mirror db.hasAppliedDuplicate (repo.ts): the apply-time guard dedupes on the
+  // NORMALIZED URL ONLY. The one-role-per-company rule was REMOVED (Oct 2026) —
+  // multiple distinct postings at the same company (different URLs / job IDs,
+  // e.g. different greenhouse gh_jid) are now allowed and correctly NOT blocked
+  // by the guard. A company+title pair-key here previously mirrored a guard that
+  // no longer exists and flagged legitimately distinct postings (real Samsara
+  // dup on 2026-10-13: same "Senior AI Data & Analytics Engineer II" title,
+  // gh_jid 8262123 vs 7917475) as duplicates. Keep this URL-only to match live policy.
   const dups = postGuard.filter((j) => {
     const urlKey = `${j.profile_id}||${norm(j.url)}`;
-    // Mirror db.hasAppliedDuplicate: company+title pair-key dedup applies ONLY
-    // when BOTH are truthy (repo.ts guards `if (job.company && job.title)`).
-    // Manual postings with an empty company but placeholder title "Untitled" are
-    // distinct postings (different URLs/companies) — collapsing them on the pair
-    // key is a false positive.
-    const hasPair = Boolean(j.company && j.title);
-    const pairKey = hasPair ? `${j.profile_id}||${String(j.company).trim().toLowerCase()}||${String(j.title).trim().toLowerCase()}` : null;
-    if (!j.url && !hasPair) return false;
-    if (seen.has(urlKey) || (pairKey && seen.has(pairKey))) return true;
-    seen.add(urlKey); if (pairKey) seen.add(pairKey);
+    if (!j.url) return false; // no URL -> not dedupable (mirrors URL-only guard)
+    if (seen.has(urlKey)) return true;
+    seen.add(urlKey);
     return false;
   });
   assert(dups.length === 0, `${dups.length} post-guard duplicate applied posting(s) (e.g. "${dups[0]?.title?.slice(0, 40)}" profile=${dups[0]?.profile_id})`);

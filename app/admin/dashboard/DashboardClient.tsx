@@ -48,6 +48,7 @@ export default function DashboardClient({
   profiles,
   users,
   scrapeRuns,
+  defaultRefillOpen = false,
 }: {
   user: User;
   nav: { href: string; label: string; badge?: number }[];
@@ -55,9 +56,22 @@ export default function DashboardClient({
   profiles: Profile[];
   users: User[];
   scrapeRuns: ScrapeRun[];
+  defaultRefillOpen?: boolean;
 }) {
   const [section, setSection] = useState<Section>('applications');
-  const [refillOpen, setRefillOpen] = useState(false);
+  // Progressive enhancement: the Refill button is an <a href="?refill=1">, so a
+  // click that lands BEFORE React hydrates (heavy table, slow first seconds on
+  // the $4 box) still works — the page reloads server-rendered with the modal
+  // open. After hydration the anchor's onClick preventDefaults and opens the
+  // modal instantly without a reload.
+  const [refillOpen, setRefillOpen] = useState(defaultRefillOpen);
+
+  function closeRefill() {
+    setRefillOpen(false);
+    if (typeof window !== 'undefined' && window.location.search.includes('refill=1')) {
+      window.history.replaceState(null, '', '/admin/dashboard');
+    }
+  }
 
   // Clicking the top-nav "Dashboard" link while already on /admin/dashboard does
   // NOT re-render the route (Next.js same-route navigation is a no-op), so the
@@ -171,13 +185,15 @@ export default function DashboardClient({
         </div>
         {section === 'applications' && (
           <div className="flex items-center gap-2 flex-wrap sm:ml-auto">
-            <button
-              onClick={() => setRefillOpen(true)}
+            <a
+              href="/admin/dashboard?refill=1"
+              onClick={(e) => { e.preventDefault(); setRefillOpen(true); }}
+              role="button"
               className="inline-flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium rounded-lg text-white shadow-[0_6px_18px_-6px_var(--accent-glow)] transition-[filter] hover:brightness-110"
               style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-dark))' }}
             >
               <Refresh size={15} /> Refill Jobs
-            </button>
+            </a>
           </div>
         )}
       </div>
@@ -238,7 +254,7 @@ export default function DashboardClient({
 
       <RefillJobsModal
         open={refillOpen}
-        onClose={() => setRefillOpen(false)}
+        onClose={closeRefill}
         profiles={profiles}
         onDone={refresh}
       />

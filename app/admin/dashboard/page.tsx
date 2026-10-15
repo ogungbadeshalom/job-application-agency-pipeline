@@ -3,7 +3,7 @@ import { requireRole } from '@/lib/auth';
 import { db } from '@/lib/db';
 import DashboardClient from './DashboardClient';
 
-export default async function AdminDashboardPage() {
+export default async function AdminDashboardPage({ searchParams }: { searchParams: { refill?: string } }) {
   const user = await requireRole('admin').catch(() => null);
   if (!user) redirect('/login');
 
@@ -28,6 +28,7 @@ export default async function AdminDashboardPage() {
       profiles={profiles}
       users={users}
       scrapeRuns={scrapeRuns}
+      defaultRefillOpen={searchParams.refill === '1'}
     />
   );
 }

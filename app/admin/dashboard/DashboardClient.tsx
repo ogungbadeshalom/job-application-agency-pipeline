@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import JobTable from '@/components/JobTable';
 import RefillJobsModal from '@/components/RefillJobsModal';
-import ExperimentalExportModal from '@/components/ExperimentalExportModal';
 import { Refresh } from '@/components/Icon';
 import type { Job, Profile, User, ScrapeRun } from '@/lib/types';
 import { useJobs } from './hooks/useJobs';
@@ -77,7 +76,6 @@ export default function DashboardClient({
     document.addEventListener('click', onNavClick);
     return () => document.removeEventListener('click', onNavClick);
   }, [section]);
-  const [exportOpen, setExportOpen] = useState(false);
   const { jobs, refresh } = useJobs(initialJobs);
 
   // ---- Command Deck KPI stats, ALL computed from live data (never fabricated) ----
@@ -174,13 +172,6 @@ export default function DashboardClient({
         {section === 'applications' && (
           <div className="flex items-center gap-2 flex-wrap sm:ml-auto">
             <button
-              onClick={() => setExportOpen(true)}
-              title="Export jobs to a spreadsheet (no queue changes)"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-white/[0.05] text-navy-300 border border-white/10 hover:bg-white/[0.09] hover:text-navy-100 transition-colors"
-            >
-              ⬇ Export
-            </button>
-            <button
               onClick={() => setRefillOpen(true)}
               className="inline-flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium rounded-lg text-white shadow-[0_6px_18px_-6px_var(--accent-glow)] transition-[filter] hover:brightness-110"
               style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-dark))' }}
@@ -250,12 +241,6 @@ export default function DashboardClient({
         onClose={() => setRefillOpen(false)}
         profiles={profiles}
         onDone={refresh}
-      />
-
-      <ExperimentalExportModal
-        open={exportOpen}
-        onClose={() => setExportOpen(false)}
-        profiles={profiles}
       />
     </DashboardLayout>
   );

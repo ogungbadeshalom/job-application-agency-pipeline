@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Modal from './Modal';
-import { Spinner } from './Icon';
+import { Check, Close, Spinner } from './Icon';
 import type { Profile, ProfilePreset } from '@/lib/types';
 
 const SCRAPE_TIMEOUT_MS = 600_000; // 10 min — generous ceiling for JobSpy
@@ -41,7 +41,7 @@ export default function RefillJobsModal({
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ jobs_found: number; jobs_added: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [progress, setProgress] = useState<{ step: number; totalSteps: number; current: string; jobsFound: number } | null>(null);
+  const [progress, setProgress] = useState<{ step: number; totalSteps: number; current: string; jobsFound: number; log?: { site: string; term: string; count: number; status?: string }[] } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   // Presets: one-click refill + save the current form as a reusable preset.
   const [presetName, setPresetName] = useState('');
@@ -52,6 +52,8 @@ export default function RefillJobsModal({
   function presetsFor(p: Profile): ProfilePreset[] {
     return localPresets[p.id] ?? p.presets ?? [];
   }
+
+  const hasPresets = profiles.some((p) => presetsFor(p).length > 0);
 
   // Poll live progress while a scrape runs.
   useEffect(() => {
@@ -64,7 +66,13 @@ export default function RefillJobsModal({
         if (!cancelled && res.ok) {
           const p = (await res.json().catch(() => ({})))?.progress;
           if (p && typeof p.totalSteps === 'number') {
-            setProgress({ step: p.step ?? 0, totalSteps: p.totalSteps, current: p.current ?? '', jobsFound: p.jobsFound ?? 0 });
+            setProgress({
+              step: p.step ?? 0,
+              totalSteps: p.totalSteps,
+              current: p.current ?? '',
+              jobsFound: p.jobsFound ?? 0,
+              log: p.log,
+            });
           }
         }
       } catch {}
@@ -197,7 +205,7 @@ export default function RefillJobsModal({
       }
       setResult({ jobs_found: data.jobs_found, jobs_added: data.jobs_added });
       onDone?.({ jobs_added: data.jobs_added });
-      setTimeout(() => onClose(), 1200);
+      setTimeout(() => onClose(), 2600);
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') {
         setError('The scrape took too long and was stopped. Check Scrape Run History for partial results, then try again.');
@@ -211,6 +219,21 @@ export default function RefillJobsModal({
     }
   }
 
+  // One-line summary of what a Run will do, shown in the footer.
+  const whoLabel =
+    profileIds.length === 1
+      ? profiles.find((p) => p.id === profileIds[0])?.name?.trim()
+      : profileIds.length > 1
+        ? `${profileIds.length} clients`
+        : null;
+  const runSummary = [
+    whoLabel,
+    `${sites.length} ${sites.length === 1 ? 'board' : 'boards'}`,
+    remoteOnly ? 'remote only' : location || 'any location',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
   return (
     <Modal
       open={open}
@@ -219,107 +242,144 @@ export default function RefillJobsModal({
       subtitle="Scrape fresh postings into the queue."
       wide
       footer={
-        <>
-          <button onClick={onClose} className="px-3 py-1.5 text-sm rounded-md text-navy-300 hover:bg-navy-800">
-            {result ? 'Close' : 'Cancel'}
+        result ? (
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium rounded-lg text-white transition-[filter] hover:brightness-110"
+            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-dark))' }}
+          >
+            Done
           </button>
-          {!result && (
+        ) : (
+          <>
+            {!loading && (
+              <span className="mr-auto truncate text-xs text-navy-500">
+                {profileIds.length === 0 ? 'Select at least one client to run.' : runSummary}
+              </span>
+            )}
+            <button onClick={onClose} className="px-3 py-1.5 text-sm rounded-md text-navy-300 hover:bg-navy-800">
+              {loading ? 'Hide' : 'Cancel'}
+            </button>
             <button
               onClick={submit}
               disabled={loading || profileIds.length === 0}
-              className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-md bg-brand-greenDark text-white hover:bg-brand-green disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white shadow-[0_6px_18px_-6px_var(--accent-glow)] transition-[filter] hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:brightness-100"
+              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-dark))' }}
             >
               {loading ? <Spinner /> : null}
               {loading ? 'Scraping…' : 'Run scrape'}
             </button>
-          )}
-        </>
+          </>
+        )
       }
     >
       {result ? (
-        <div className="text-center py-8">
-          <div className="text-4xl mb-2">✅</div>
-          <div className="text-lg font-semibold text-navy-100">
-            {result.jobs_added} new {result.jobs_added === 1 ? 'job' : 'jobs'} added
+        <div className="py-6 text-center">
+          <div
+            className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full"
+            style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+          >
+            <Check size={22} />
           </div>
-          <div className="text-sm text-navy-400 mt-1">
-            {result.jobs_found} found across {sites.length} {sites.length === 1 ? 'site' : 'sites'} · deduped by URL
-          </div>
+          <p className="font-mono text-3xl font-bold tracking-tight text-navy-50">+{result.jobs_added}</p>
+          <p className="mt-0.5 text-sm text-navy-300">
+            new {result.jobs_added === 1 ? 'job' : 'jobs'} added to the queue
+          </p>
+          <p className="mt-2 text-xs text-navy-500">
+            {result.jobs_found} found across {sites.length} {sites.length === 1 ? 'board' : 'boards'} · duplicates skipped by URL
+          </p>
         </div>
       ) : (
-        <div className="space-y-4">
-          <Field label="Sites">
-            <div className="flex flex-wrap gap-2 items-center">
-              <button
-                type="button"
-                onClick={() => setSites(SITE_OPTIONS.map((o) => o.site))}
-                className="px-3 py-1.5 text-sm rounded-full border border-navy-600 text-navy-300 hover:border-brand-blue hover:text-navy-100"
-              >
-                All
-              </button>
-              <span className="text-navy-600">·</span>
-              {SITE_OPTIONS.map((opt) => (
-                <button
-                  key={opt.site}
-                  type="button"
-                  onClick={() => toggle(sites, setSites, opt.site)}
-                  className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
-                    sites.includes(opt.site)
-                      ? 'bg-brand-green/20 text-brand-green border-brand-green/40'
-                      : 'bg-navy-800 text-navy-400 border-navy-700 hover:border-navy-600'
-                  }`}
-                >
-                  {opt.name}
-                </button>
-              ))}
+        <div className="space-y-6">
+          {/* ---- Clients ---- */}
+          <section>
+            <SectionLabel>Who is this refill for</SectionLabel>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {profiles.map((p) => {
+                const active = profileIds.includes(p.id);
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => toggle(profileIds, setProfileIds, p.id)}
+                    aria-pressed={active}
+                    className={`flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-colors ${
+                      active
+                        ? 'border-[var(--accent)] bg-[var(--accent-soft)]'
+                        : 'border-navy-700 bg-navy-900/50 hover:border-navy-500'
+                    }`}
+                  >
+                    <span
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                        active ? 'text-navy-950' : 'bg-navy-800 text-navy-300'
+                      }`}
+                      style={active ? { background: 'var(--accent)' } : undefined}
+                    >
+                      {active ? <Check size={13} /> : p.name.trim().charAt(0).toUpperCase()}
+                    </span>
+                    <span className={`truncate text-sm ${active ? 'font-medium text-white' : 'text-navy-200'}`}>
+                      {p.name}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-          </Field>
+          </section>
 
-          <Field label="Presets (click to fill)">
-            <div className="space-y-2">
-              {profiles.flatMap((p) =>
-                presetsFor(p).length ? (
-                  <div key={p.id} className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-xs text-navy-500 w-28 truncate">{p.name}:</span>
-                    {presetsFor(p).map((pr) => (
-                      <span key={pr.id} className="inline-flex items-center gap-1">
-                        <button
-                          type="button"
-                          disabled={loading}
-                          onClick={() => {
-                            // Target ONLY this profile when a preset is chosen —
-                            // clears the all-selected default so just this chip
-                            // highlights and the scrape runs for this client alone.
-                            setProfileIds([p.id]);
-                            applyPreset(pr);
-                          }}
-                          title={`${pr.search_terms.length} terms`}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-md bg-navy-800 text-navy-200 hover:bg-brand-green/30 hover:text-white"
-                        >
-                          <span className="text-brand-green">●</span> {pr.name}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => deletePreset(p.id, pr.id)}
-                          title={`Delete ${pr.name}`}
-                          aria-label={`Delete ${pr.name}`}
-                          className="p-1 rounded text-navy-500 hover:text-red-400 hover:bg-red-500/10"
-                        >
-                          ×
-                        </button>
+          {/* ---- Presets ---- */}
+          {hasPresets && (
+            <section>
+              <SectionLabel hint="one click fills the form + targets that client">Quick refill</SectionLabel>
+              <div className="space-y-1.5">
+                {profiles.flatMap((p) =>
+                  presetsFor(p).length ? (
+                    <div key={p.id} className="flex flex-wrap items-center gap-1.5">
+                      <span className="w-24 truncate text-[11px] font-mono uppercase tracking-wider text-navy-500">
+                        {p.name}
                       </span>
-                    ))}
-                  </div>
-                ) : null
-              )}
-              <div className="flex flex-wrap items-end gap-2 pt-1">
+                      {presetsFor(p).map((pr) => (
+                        <span
+                          key={pr.id}
+                          className="inline-flex items-center overflow-hidden rounded-md border border-navy-700 bg-navy-900"
+                        >
+                          <button
+                            type="button"
+                            disabled={loading}
+                            onClick={() => {
+                              // Target ONLY this profile when a preset is chosen —
+                              // clears the all-selected default so just this chip
+                              // highlights and the scrape runs for this client alone.
+                              setProfileIds([p.id]);
+                              applyPreset(pr);
+                            }}
+                            title={`${pr.search_terms.length} search terms`}
+                            className="px-2.5 py-1 text-xs text-navy-200 transition-colors hover:bg-[var(--accent-soft)] hover:text-white disabled:opacity-50"
+                          >
+                            {pr.name}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deletePreset(p.id, pr.id)}
+                            title={`Delete ${pr.name}`}
+                            aria-label={`Delete ${pr.name}`}
+                            className="h-full px-1.5 text-navy-600 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                          >
+                            <Close size={11} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : null
+                )}
+              </div>
+              <div className="mt-2.5 flex flex-wrap items-center gap-2">
                 <select
                   value={presetTargetId}
                   onChange={(e) => setPresetTargetId(e.target.value)}
                   disabled={presetBusy}
-                  className="bg-navy-950 border border-navy-700 rounded-md px-2 py-1.5 text-sm text-navy-100 focus:outline-none focus:border-brand-blue"
+                  className="rounded-md border border-navy-700 bg-navy-950 px-2 py-1.5 text-xs text-navy-100 focus:border-[var(--accent)] focus:outline-none"
                 >
-                  <option value="">Save for…</option>
+                  <option value="">Save current form as…</option>
                   {profiles.map((p) => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
@@ -330,106 +390,192 @@ export default function RefillJobsModal({
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); savePreset(); } }}
                   placeholder="Preset name"
                   disabled={presetBusy}
-                  className="flex-1 min-w-[130px] bg-navy-950 border border-navy-700 rounded-md px-2.5 py-1.5 text-sm text-navy-100 focus:outline-none focus:border-brand-green"
+                  className="min-w-[130px] flex-1 rounded-md border border-navy-700 bg-navy-950 px-2.5 py-1.5 text-xs text-navy-100 placeholder:text-navy-600 focus:border-[var(--accent)] focus:outline-none"
                 />
                 <button
                   type="button"
                   disabled={presetBusy || !presetTargetId || !presetName.trim()}
                   onClick={savePreset}
-                  className="px-3 py-1.5 text-sm rounded-md bg-brand-green text-navy-950 font-medium hover:bg-brand-greenDark disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="rounded-md border border-navy-700 px-2.5 py-1.5 text-xs font-medium text-navy-200 transition-colors hover:border-[var(--accent)] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {presetBusy ? 'Saving…' : 'Save preset'}
                 </button>
               </div>
-            </div>
-          </Field>
-
-          <Field label="Search terms (comma-separated)">
-            <input
-              value={searchTerms}
-              onChange={(e) => setSearchTerms(e.target.value)}
-              placeholder="backend engineer, platform engineer"
-              className="w-full bg-navy-950 border border-navy-700 rounded-md px-3 py-2 text-sm text-navy-100 focus:outline-none focus:border-brand-blue"
-            />
-            <p className="text-xs text-navy-500 mt-1">Leave blank to use each client&apos;s saved search terms.</p>
-          </Field>
-
-          <div className="flex items-center gap-2">
-            <input
-              id="remote-only"
-              type="checkbox"
-              checked={remoteOnly}
-              onChange={(e) => setRemoteOnly(e.target.checked)}
-              className="h-4 w-4 rounded border-navy-700 bg-navy-950 text-brand-green focus:ring-brand-green"
-            />
-            <label htmlFor="remote-only" className="text-sm text-navy-200 cursor-pointer">
-              Remote only — overrides the location field
-            </label>
-          </div>
-
-          {!remoteOnly && (
-            <Field label="Location">
-              <input
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                className="w-full bg-navy-950 border border-navy-700 rounded-md px-3 py-2 text-sm text-navy-100 focus:outline-none focus:border-brand-blue"
-              />
-            </Field>
+            </section>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Results / term">
-              <input
-                type="number"
-                value={resultsWanted}
-                onChange={(e) => setResultsWanted(e.target.value)}
-                placeholder="100"
-                className="w-full bg-navy-950 border border-navy-700 rounded-md px-3 py-2 text-sm text-navy-100 focus:outline-none focus:border-brand-blue"
-              />
-            </Field>
-            <Field label="Hours old">
-              <input
-                type="number"
-                value={hoursOld}
-                onChange={(e) => setHoursOld(e.target.value)}
-                placeholder="72"
-                className="w-full bg-navy-950 border border-navy-700 rounded-md px-3 py-2 text-sm text-navy-100 focus:outline-none focus:border-brand-blue"
-              />
-            </Field>
-          </div>
-
-          <Field label="Target profiles">
-            <div className="flex flex-wrap gap-2">
-              {profiles.map((p) => (
-                <Chip key={p.id} active={profileIds.includes(p.id)} onClick={() => toggle(profileIds, setProfileIds, p.id)}>
-                  {p.name}
-                </Chip>
-              ))}
-            </div>
-          </Field>
-
-          {loading && (
-            <div className="rounded-lg border border-brand-green/30 bg-brand-green/5 p-3">
-              {progress && progress.totalSteps > 0 && (
-                <>
-                  <div className="flex justify-between text-xs text-navy-300 mb-1">
-                    <span>{progress.current || 'working'}</span>
-                    <span>{progress.jobsFound} jobs</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-navy-800 overflow-hidden">
-                    <div
-                      className="h-full bg-[var(--accent)] transition-all duration-500"
-                      style={{ width: `${Math.min(100, ((progress.step + 1) / progress.totalSteps) * 100)}%` }}
-                    />
-                  </div>
-                </>
+          {/* ---- Search ---- */}
+          <section>
+            <SectionLabel>Search</SectionLabel>
+            <div className="space-y-3">
+              <div>
+                <input
+                  value={searchTerms}
+                  onChange={(e) => setSearchTerms(e.target.value)}
+                  placeholder="backend engineer, platform engineer"
+                  className="w-full rounded-lg border border-navy-700 bg-navy-950 px-3 py-2 text-sm text-navy-100 placeholder:text-navy-600 focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/40"
+                />
+                <p className="mt-1 text-xs text-navy-500">
+                  Comma-separated. Leave blank to use each client&apos;s saved search terms.
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={remoteOnly}
+                onClick={() => setRemoteOnly(!remoteOnly)}
+                className="flex items-center gap-2.5"
+              >
+                <span
+                  className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
+                    remoteOnly ? '' : 'bg-navy-700'
+                  }`}
+                  style={remoteOnly ? { background: 'var(--accent)' } : undefined}
+                >
+                  <span
+                    className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${
+                      remoteOnly ? 'left-[18px]' : 'left-0.5'
+                    }`}
+                  />
+                </span>
+                <span className="text-sm text-navy-200">
+                  Remote only{remoteOnly ? <span className="text-navy-500"> — location ignored</span> : ''}
+                </span>
+              </button>
+              {!remoteOnly && (
+                <input
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="City, state or country"
+                  className="w-full rounded-lg border border-navy-700 bg-navy-950 px-3 py-2 text-sm text-navy-100 placeholder:text-navy-600 focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/40"
+                />
               )}
             </div>
+          </section>
+
+          {/* ---- Volume ---- */}
+          <section>
+            <SectionLabel>Volume &amp; freshness</SectionLabel>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min={1}
+                    value={resultsWanted}
+                    onChange={(e) => setResultsWanted(e.target.value)}
+                    placeholder="100"
+                    className="w-full rounded-lg border border-navy-700 bg-navy-950 px-3 py-2 pr-14 text-sm text-navy-100 placeholder:text-navy-600 focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/40"
+                  />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-navy-500">per term</span>
+                </div>
+                <p className="mt-1 text-xs text-navy-500">Results wanted, per board per term.</p>
+              </div>
+              <div>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min={1}
+                    value={hoursOld}
+                    onChange={(e) => setHoursOld(e.target.value)}
+                    placeholder="72"
+                    className="w-full rounded-lg border border-navy-700 bg-navy-950 px-3 py-2 pr-12 text-sm text-navy-100 placeholder:text-navy-600 focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/40"
+                  />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-navy-500">hrs old</span>
+                </div>
+                <p className="mt-1 text-xs text-navy-500">Only postings newer than this.</p>
+              </div>
+            </div>
+          </section>
+
+          {/* ---- Boards ---- */}
+          <section>
+            <SectionLabel>Boards</SectionLabel>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setSites(SITE_OPTIONS.map((o) => o.site))}
+                className="rounded-full border border-navy-600 px-2.5 py-1 text-xs text-navy-300 transition-colors hover:border-[var(--accent)] hover:text-navy-100"
+              >
+                All
+              </button>
+              <button
+                type="button"
+                onClick={() => setSites([])}
+                className="rounded-full border border-navy-600 px-2.5 py-1 text-xs text-navy-300 transition-colors hover:border-navy-400 hover:text-navy-100"
+              >
+                None
+              </button>
+              <span className="mx-0.5 h-4 w-px bg-navy-700" aria-hidden />
+              {SITE_OPTIONS.map((opt) => {
+                const active = sites.includes(opt.site);
+                return (
+                  <button
+                    key={opt.site}
+                    type="button"
+                    onClick={() => toggle(sites, setSites, opt.site)}
+                    aria-pressed={active}
+                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                      active
+                        ? 'border-[var(--accent)]/50 bg-[var(--accent-soft)] text-white'
+                        : 'border-navy-700 bg-navy-900 text-navy-400 hover:border-navy-500'
+                    }`}
+                  >
+                    {active && <Check size={11} />}
+                    {opt.name}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* ---- Live run console ---- */}
+          {loading && (
+            <section className="overflow-hidden rounded-xl border border-[var(--accent)]/30 bg-navy-950" aria-live="polite">
+              <div className="flex items-center justify-between gap-3 border-b border-navy-800 px-3.5 py-2.5">
+                <span className="flex min-w-0 items-center gap-2 font-mono text-xs text-navy-300">
+                  <Spinner size={13} />
+                  <span className="truncate">{progress?.current || 'Starting…'}</span>
+                </span>
+                <span className="shrink-0 font-mono text-xs text-navy-500">
+                  {progress ? `${progress.step}/${progress.totalSteps}` : '—'} · {progress?.jobsFound ?? 0} jobs
+                </span>
+              </div>
+              <div className="h-[3px] bg-navy-800">
+                <div
+                  className="h-full transition-all duration-500"
+                  style={{
+                    width: progress && progress.totalSteps > 0 ? `${Math.min(100, ((progress.step + 1) / progress.totalSteps) * 100)}%` : '4%',
+                    background: 'linear-gradient(90deg, var(--accent), var(--accent-strong))',
+                  }}
+                />
+              </div>
+              {progress?.log && progress.log.length > 0 && (
+                <div className="max-h-36 overflow-y-auto divide-y divide-navy-800/60">
+                  {progress.log.slice(-6).map((l, i) => {
+                    const failed = !!l.status && l.status !== 'ok';
+                    return (
+                      <div key={i} className="flex items-center justify-between gap-3 px-3.5 py-1.5 font-mono text-[11px]">
+                        <span className="truncate text-navy-400">{l.site} — {l.term}</span>
+                        <span className={`shrink-0 ${failed ? 'text-red-400' : 'text-[var(--accent)]'}`}>
+                          {failed ? `✕ ${String(l.status).replace('failed — ', '')}` : `${l.count} found`}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <p className="border-t border-navy-800/60 px-3.5 py-2 text-[11px] text-navy-500">
+                You can hide this — the run keeps going. Check Scrape Run History for the result.
+              </p>
+            </section>
           )}
 
+          {/* ---- Error ---- */}
           {error && (
-            <div className="text-sm text-brand-red bg-red-500/10 border border-red-500/30 rounded-md px-3 py-2">
-              {error}
+            <div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-300">
+              <span aria-hidden>⚠</span>
+              <span>{error}</span>
             </div>
           )}
         </div>
@@ -438,27 +584,11 @@ export default function RefillJobsModal({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function SectionLabel({ children, hint }: { children: React.ReactNode; hint?: string }) {
   return (
-    <div>
-      <label className="block th-uppercase mb-1.5">{label}</label>
-      {children}
+    <div className="mb-2.5 flex items-baseline justify-between gap-3">
+      <label className="text-[10px] font-mono uppercase tracking-[0.14em] text-navy-500">{children}</label>
+      {hint && <span className="truncate text-[11px] text-navy-600">{hint}</span>}
     </div>
-  );
-}
-
-function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`px-3 py-1.5 text-sm rounded-full capitalize border transition-colors ${
-        active
-          ? 'bg-brand-green/20 text-brand-green border-brand-green/40'
-          : 'bg-navy-800 text-navy-400 border-navy-700 hover:border-navy-600'
-      }`}
-    >
-      {children}
-    </button>
   );
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { spawn } from 'node:child_process';
+import * as crypto from 'node:crypto';
 
 // Auto-deploy webhook receiver.
 // GitHub POSTs here on push to main. We verify the shared secret, then launch
@@ -9,7 +10,6 @@ export const runtime = 'nodejs';
 
 function verifyHmac(payload: string, signature: string | null, secret: string): boolean {
   if (!signature) return false;
-  const crypto = require('node:crypto');
   const expected = crypto.createHmac('sha256', secret).update(payload, 'utf8').digest('hex');
   const received = signature.toLowerCase();
   // Accept both "sha256=..." (hub standard) and the bare hex.

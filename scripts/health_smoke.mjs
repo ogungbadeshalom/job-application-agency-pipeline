@@ -377,16 +377,15 @@ await check('auth: wrong password is rejected', async () => {
   assert(!hasSession, 'got a session with a wrong password!');
 });
 
-// ---- capacity warning (informational, non-gating) ----
-try {
+// ---- capacity (GATING: auto-refill broke PG in a past incident when / filled up) ----
+await check('CAPACITY: ≥1.5G free on /disk (auto-refill ENOSPC took down PG in a past incident)', async () => {
   const execSync = (await import('node:child_process')).execSync;
   const out = execSync("df -B1 / | awk 'NR==2{print $4}'").toString().trim();
-  const freeBytes = Number(out);
-  const freeGB = freeBytes / 1024 ** 3;
-  if (Number.isFinite(freeGB) && freeGB < 2.0) {
-    console.log(`  ⚠️  CAPACITY: only ${freeGB.toFixed(1)}G free on / (auto-refill hit ENOSPC below this) — clean disk before next refill`);
-  }
-} catch { /* df unavailable; skip */ }
+  const freeGB = Number(out) / 1024 ** 3;
+  assert(Number.isFinite(freeGB), `unable to read free disk space: ${out}`);
+  assert(freeGB >= 1.5, `only ${freeGB.toFixed(2)}G free on / — below the 1.5G safety floor; the refill worker hits ENOSPC and PG drops connections below this. Free disk before next refill.`);
+  return `${freeGB.toFixed(2)}G free`;
+});
 
 // ---- summary ----
 const failed = results.filter((r) => !r.ok);

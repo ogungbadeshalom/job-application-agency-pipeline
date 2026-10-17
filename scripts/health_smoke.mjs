@@ -377,6 +377,17 @@ await check('auth: wrong password is rejected', async () => {
   assert(!hasSession, 'got a session with a wrong password!');
 });
 
+// ---- capacity warning (informational, non-gating) ----
+try {
+  const execSync = (await import('node:child_process')).execSync;
+  const out = execSync("df -B1 / | awk 'NR==2{print $4}'").toString().trim();
+  const freeBytes = Number(out);
+  const freeGB = freeBytes / 1024 ** 3;
+  if (Number.isFinite(freeGB) && freeGB < 2.0) {
+    console.log(`  ⚠️  CAPACITY: only ${freeGB.toFixed(1)}G free on / (auto-refill hit ENOSPC below this) — clean disk before next refill`);
+  }
+} catch { /* df unavailable; skip */ }
+
 // ---- summary ----
 const failed = results.filter((r) => !r.ok);
 console.log(`\n=== RESULT: ${results.length - failed.length}/${results.length} passed ===`);

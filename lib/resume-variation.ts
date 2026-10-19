@@ -25,16 +25,17 @@ function bulletsOf(data: ResumeData): { key: string; raw: string }[] {
   return data.experience.flatMap((e) => (e.bullets ?? []).map((b) => ({ key: norm(b), raw: b })));
 }
 
-// Collect normalized bullets from stored resume texts (buildResumeText format:
-// lines under EXPERIENCE start with "- " until the EDUCATION marker).
-function bulletsFromText(text: string): Set<string> {
+// Collect normalized bullets + summary paragraphs from stored resume texts
+// (buildResumeText format: summary paragraphs sit between SUMMARY and
+// EXPERIENCE; bullets under EXPERIENCE start with "- " until EDUCATION).
+function knownTexts(text: string): Set<string> {
   const set = new Set<string>();
-  let inExp = false;
+  let section = '';
   for (const line of text.split('\n')) {
     const l = line.trim();
-    if (l === 'EXPERIENCE') { inExp = true; continue; }
-    if (l === 'EDUCATION' || l === 'CERTIFICATIONS' || l === 'SKILLS') { inExp = false; continue; }
-    if (inExp && l.startsWith('- ') && l.length > 17) set.add(norm(l.slice(2)));
+    if (l === 'SUMMARY' || l === 'EXPERIENCE' || l === 'EDUCATION' || l === 'CERTIFICATIONS' || l === 'SKILLS') { section = l; continue; }
+    if (section === 'SUMMARY' && l.length > 25) set.add(norm(l));
+    if (section === 'EXPERIENCE' && l.startsWith('- ') && l.length > 17) set.add(norm(l.slice(2)));
   }
   return set;
 }
@@ -73,7 +74,11 @@ export async function enforceExperienceVariation(
   opts: { profileId: string; jobId?: string; userPrompt: string; maxTokens?: number }
 ): Promise<VariationResult> {
   try {
-    const fresh = bulletsOf(data).filter((b) => b.key.length > 15);
+    const bulletEntries = bulletsOf(data).filter((b) => b.key.length > 15);
+    const summaryEntries = (data.summary ?? [])
+      .map((p) => ({ key: norm(p), raw: p }))
+      .filter((p) => p.key.length > 25);
+    const fresh = [...bulletEntries, ...summaryEntries];
     if (!fresh.length) return { data, regenerated: false, dupRateBefore: 0, dupRateAfter: 0 };
 
     const prevRows = await all(
@@ -88,7 +93,7 @@ export async function enforceExperienceVariation(
     if (!prevRows.length) return { data, regenerated: false, dupRateBefore: 0, dupRateAfter: 0 };
 
     const seen = new Set<string>();
-    for (const r of prevRows) bulletsFromText(String(r.tailored_resume)).forEach((b) => seen.add(b));
+    for (const r of prevRows) knownTexts(String(r.tailored_resume)).forEach((b) => seen.add(b));
 
     const dupBefore = fresh.filter((b) => seen.has(b.key)).length;
     const rateBefore = dupBefore / fresh.length;
@@ -102,7 +107,7 @@ export async function enforceExperienceVariation(
     for (let attempt = 1; attempt <= 2 && best.rate > DUP_THRESHOLD; attempt++) {
       const varUser =
         opts.userPrompt +
-        `\n\nVARIATION REQUIREMENT (CRITICAL): a previous tailored resume for this candidate reused ${Math.round(best.rate * fresh.length)} of these bullets verbatim. Rewrite EVERY experience bullet with fresh wording for THIS job: different sentence structures, different verb choices, re-selected achievements that matter for THIS posting, and this job's exact vocabulary. Bullets may carry the same facts and metrics, but the phrasing must be entirely new — no bullet string may appear in any earlier resume for this candidate.`;
+        `\n\nVARIATION REQUIREMENT (CRITICAL): a previous tailored resume for this candidate reused ${Math.round(best.rate * fresh.length)} of these experience bullets / summary paragraphs verbatim. Rewrite EVERY experience bullet AND every summary paragraph with fresh wording for THIS job: different sentence structures, different verb choices, re-selected achievements that matter for THIS posting, and this job's exact vocabulary. Bullets and summary paragraphs may carry the same facts and metrics, but the phrasing must be entirely new — no bullet or summary string may appear in any earlier resume for this candidate.`;
 
       const rawV = await callAI(RESUME_TAILOR_SYSTEM, varUser, { maxTokens: opts.maxTokens ?? 6000, temperature: attempt === 1 ? 0.7 : 0.9 });
       const dataV = parseResumeJsonLoose(rawV);

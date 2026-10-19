@@ -16,6 +16,7 @@
 <meta property="twitter:title" content="Get started — pitchr" />
 <meta name="twitter:image" content="https://pitchr.com.ng/assets/og-default.jpg" />
 <link rel="canonical" href="https://pitchr.com.ng/contact" />
+<link rel="icon" href="favicon.ico">
 <link rel="stylesheet" href="assets/css/site.css">
 </head>
 <body id="top">
@@ -28,6 +29,7 @@
       <div class="nav-links">
         <a href="how-it-works.html">How it works</a>
         <a href="pricing.html">Pricing</a>
+        <a href="receipts.html">Receipts</a>
         <a href="about.html">About</a>
         <a href="faq.html">FAQ</a>
       </div>
@@ -47,7 +49,7 @@
       <span class="eyebrow">How to reach us</span>
       <h2 style="font-size:clamp(24px,3vw,34px); margin:10px 0 18px;">Prefer to talk it through?</h2>
       <div class="check">
-        <li>Email — hello@pitchr.com</li>
+        <li>Email — <a href="mailto:badeshalom@gmail.com" style="color:#0f6b42; font-weight:600;">badeshalom@gmail.com</a></li>
         <li>WhatsApp / Telegram — for quick questions</li>
         <li>Response — within one business day</li>
         <li>Payments — monthly, in advance, before work begins</li>
@@ -61,13 +63,13 @@
     <div class="formcard">
       <h3>Tell us about your search</h3>
       <p class="hint">Fields marked * are required.</p>
-      <form onsubmit="this.querySelector('.done').hidden=false; return false;">
-        <div class="field"><label>Name *</label><input type="text" required></div>
-        <div class="field"><label>Email *</label><input type="email" required></div>
-        <div class="field"><label>Target roles (comma separated) *</label><input type="text" placeholder="e.g. senior data engineer, finance manager" required></div>
-        <div class="field"><label>Location &amp; remote preference</label><input type="text" placeholder="Remote (US / Canada / international)"></div>
+      <form id="contactForm">
+        <div class="field"><label>Name *</label><input type="text" id="cf-name" required></div>
+        <div class="field"><label>Email *</label><input type="email" id="cf-email" required></div>
+        <div class="field"><label>Target roles (comma separated) *</label><input type="text" id="cf-roles" placeholder="e.g. senior data engineer, finance manager" required></div>
+        <div class="field"><label>Location &amp; remote preference</label><input type="text" id="cf-location" placeholder="Remote (US / Canada / international)"></div>
         <div class="field"><label>Application volume you're considering</label>
-          <select>
+          <select id="cf-volume">
             <option>Starter — up to 150 / month</option>
             <option>Growth — up to 400 / month</option>
             <option>Pro — up to 800 / month</option>
@@ -76,13 +78,50 @@
             <option>Not sure yet — recommend something</option>
           </select>
         </div>
-        <div class="field"><label>Anything else to know?</label><textarea placeholder="Timeline, restrictions, or questions..."></textarea></div>
-        <button type="submit" class="btn green block">Request my plan →</button>
-        <p class="done" hidden style="margin-top:12px; font-size:13px; color:#0f6b42; text-align:center; font-weight:600;">Thanks — we'll be in touch shortly. (Demo form.)</p>
+        <div class="field"><label>Anything else to know?</label><textarea id="cf-message" placeholder="Timeline, restrictions, or questions..."></textarea></div>
+        <button type="submit" class="btn green block" id="cf-submit">Request my plan →</button>
+        <p class="done" id="cf-done" hidden style="margin-top:12px; font-size:13px; color:#0f6b42; text-align:center; font-weight:600;">Thanks — your message is in. We'll be in touch shortly.</p>
+        <p class="cferr" id="cf-error" hidden style="margin-top:12px; font-size:13px; color:#b42318; text-align:center; font-weight:600;"></p>
       </form>
     </div>
   </div>
 </section>
+
+<script>
+document.getElementById('contactForm').addEventListener('submit', async function (e) {
+  e.preventDefault();
+  var btn = document.getElementById('cf-submit');
+  var err = document.getElementById('cf-error');
+  var done = document.getElementById('cf-done');
+  err.hidden = true; done.hidden = true;
+  btn.disabled = true; var old = btn.textContent; btn.textContent = 'Sending…';
+  try {
+    var res = await fetch('/api/contact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: document.getElementById('cf-name').value,
+        email: document.getElementById('cf-email').value,
+        roles: document.getElementById('cf-roles').value,
+        location: document.getElementById('cf-location').value,
+        volume: document.getElementById('cf-volume').value,
+        message: document.getElementById('cf-message').value
+      })
+    });
+    if (res.ok) { done.hidden = false; this.reset(); }
+    else {
+      var d = null; try { d = await res.json(); } catch (_) {}
+      err.textContent = (d && d.error) || 'Something went wrong — please email badeshalom@gmail.com directly.';
+      err.hidden = false;
+    }
+  } catch (_) {
+    err.textContent = 'Network error — please email badeshalom@gmail.com directly.';
+    err.hidden = false;
+  } finally {
+    btn.disabled = false; btn.textContent = old;
+  }
+});
+</script>
 
 <!-- FOOTER -->
 <div class="foot-zone">
@@ -93,7 +132,7 @@
         <p>We apply to jobs for you, properly. A done-for-you service with proof behind every submission.</p>
         <div class="social"><span>𝕏</span><span>◎</span></div>
       </div>
-      <div class="footcol"><h5>Product</h5><a href="how-it-works.html">How it works</a><a href="pricing.html">Pricing</a><a href="/login">Client portal</a></div>
+      <div class="footcol"><h5>Product</h5><a href="how-it-works.html">How it works</a><a href="pricing.html">Pricing</a><a href="receipts.html">Receipts</a><a href="/login">Client portal</a></div>
       <div class="footcol"><h5>Company</h5><a href="about.html">About</a><a href="faq.html">FAQ</a><a href="contact.html">Contact</a></div>
       <div class="footcol"><h5>Legal</h5><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></div>
     </div>

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { callAI, RESUME_TAILOR_SYSTEM } from '@/lib/ai';
+import { enforceExperienceVariation } from '@/lib/resume-variation';
 import { renderResumePdf, type ResumeData, type ResumePreset } from '@/lib/resume-pdf';
 import { newStoragePath, writeStorage } from '@/lib/storage';
 import { isUuid } from '@/lib/validate';
@@ -147,6 +148,28 @@ export async function POST(req: Request) {
       // Non-fatal: if enforcement fails, keep the AI output rather than erroring.
       console.warn('[tailor] bullet-count enforcement skipped:', (e as Error).message);
     }
+  }
+
+  // EXPERIENCE VARIATION ENFORCEMENT: every resume must carry freshly-worded
+  // experience bullets — no verbatim bullet reuse across this client's other
+  // tailored resumes. Regenerates once (temperature 0.7) when >20% duplicate.
+  try {
+    const v = await enforceExperienceVariation(data, {
+      profileId: profile.id,
+      jobId,
+      userPrompt: user,
+      maxTokens: 6000,
+    });
+    if (v.regenerated) {
+      data = v.data;
+      // The regenerated resume must still honor the Resume Lab bullet counts.
+      if (profile.resume_data?.experience?.length) {
+        try { data = enforceBulletCounts(data, profile.resume_data.experience); } catch { /* keep */ }
+      }
+      console.log(`[tailor] variation regen: dup ${v.dupRateBefore.toFixed(2)} -> ${v.dupRateAfter.toFixed(2)}`);
+    }
+  } catch (e) {
+    console.warn('[tailor] variation enforcement skipped:', (e as Error).message);
   }
 
   // Render + persist the PDF for download, honoring the client's design preset.

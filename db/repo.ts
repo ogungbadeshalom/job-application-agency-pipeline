@@ -13,6 +13,7 @@ import { all, one, query } from './pool';
 import { encryptSecret, decryptSecret } from '../lib/crypto';
 import { randomBytes } from 'node:crypto';
 import { callAI, RESUME_TAILOR_SYSTEM } from '../lib/ai';
+import { enforceExperienceVariation } from '../lib/resume-variation';
 import { renderResumePdf, type ResumeData, type ResumePreset } from '../lib/resume-pdf';
 import { newStoragePath, writeStorage } from '../lib/storage';
 import type { StructuredResume } from '../lib/resume-presets';
@@ -980,7 +981,20 @@ export const db = {
         // brace matcher throws "unbalanced braces" and the job is skipped.
         const raw = await callAI(RESUME_TAILOR_SYSTEM, user, { maxTokens: 6000, temperature: 0.4 });
         if (!raw || !raw.trim()) throw new Error('empty AI output');
-        const data = parseResumeJson(raw);
+        let data = parseResumeJson(raw);
+        // EXPERIENCE VARIATION ENFORCEMENT: every resume carries freshly-worded
+        // bullets — regenerates once when >20% verbatim-duplicate vs earlier
+        // tailored resumes for this client. Fail-open (returns original on error).
+        const v = await enforceExperienceVariation(data, {
+          profileId: profile.id,
+          jobId: job.id,
+          userPrompt: user,
+          maxTokens: 6000,
+        });
+        if (v.regenerated) {
+          data = v.data;
+          console.log(`[autoTailor] variation regen on ${job.company || '?'}: dup ${v.dupRateBefore.toFixed(2)} -> ${v.dupRateAfter.toFixed(2)}`);
+        }
         const buf = await renderResumePdf(data, (profile.resume_design || 'classic') as ResumePreset);
         const rel = newStoragePath('tailored', 'pdf');
         await writeStorage(rel, buf);

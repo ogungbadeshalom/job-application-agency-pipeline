@@ -273,6 +273,7 @@ Rules:
 - "certifications": array of {"name","issuer","year"} from the BASE RESUME. Use [] if none.
 - "skills": PRESERVE the candidate's FULL categorized skills from the BASE RESUME. Do NOT condense to a handful of tools. Keep every category AND every technology the base resume lists (e.g. Data Engineering & Analytics, Cloud Platforms, Orchestration & DevOps, Data Warehousing), even if the job doesn't mention it — a data/cloud engineer's ATS score depends on these exact keywords. Return each category as one line ("Category: tool, tool, tool") in the same order as the base resume, one string per category. If the base resume is flat/un-categorized, keep it flat but still list every tool. Aim for the same number of skill lines as the base resume (do NOT shrink a ~6-line categorized block to 4-8 generic lines).
 - Keep every bullet concise so the output stays complete — do not truncate older roles to save space. It is far better to keep all companies with 1-2 bullets each than to drop a company.
+- VARIATION (STRICT): rewrite every experience bullet fresh for THIS job. Never output a bullet you would also output for a different job: rephrase fully (different sentence structure and verb choices), re-select which achievements surface based on THIS posting, reorder for this role's priorities, and echo this job's exact vocabulary. Facts, metrics, and employer names stay truthful, but no bullet string may be shared between tailored resumes for different jobs.
 - All fields required.
 
 JSON schema:

@@ -387,6 +387,23 @@ await check('CAPACITY: ≥1.5G free on /disk (auto-refill ENOSPC took down PG in
   return `${freeGB.toFixed(2)}G free`;
 });
 
+// ---- refill supply (GATING): the app spawns bare `python3` to run run_jobspy.py.
+// If the PM2 process inherited a PATH whose first python3 lacks jobspy (e.g. a venv),
+// the auto-refill silently adds 0 jobs while all functional checks stay green. Guard it. ----
+await check('REFILL: spawn python3 can import jobspy (auto-refill supply not silently down)', async () => {
+  const execSync = (await import('node:child_process')).execSync;
+  const pyBin = process.platform === 'win32' ? 'python' : 'python3';
+  let out;
+  try {
+    out = execSync(`${pyBin} -c "import jobspy; print(jobspy.__file__)"`, { encoding: 'utf8' }).trim();
+  } catch (e) {
+    out = `FAIL (${pyBin} not resolving to a jobspy-capable interpreter)`;
+  }
+  const resolved = execSync(`${pyBin} -c "import sys; print(sys.executable)"`, { encoding: 'utf8' }).trim();
+  assert(!out.startsWith('FAIL'), `spawn '${pyBin}' resolves to ${resolved} which cannot import jobspy — auto-refill adds 0 jobs. Wanted the system python (/usr/bin/python3). Restart PM2 with a clean PATH (not a Hermes/venv PATH).`);
+  return `${resolved} -> ${out.split('/').pop()}`;
+});
+
 // ---- summary ----
 const failed = results.filter((r) => !r.ok);
 console.log(`\n=== RESULT: ${results.length - failed.length}/${results.length} passed ===`);

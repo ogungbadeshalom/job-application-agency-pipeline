@@ -186,10 +186,16 @@ export async function POST(req: Request) {
   }
 
   const resumeText = buildResumeText(data);
+  // Re-tailoring must never demote a job that has already progressed:
+  // 'applied' stays 'applied' (only saved/skipped jobs become 'tailored').
+  const statusPatch =
+    !job.status || job.status === 'saved' || job.status === 'skipped'
+      ? { status: 'tailored' as const }
+      : {};
   await db.updateJob(jobId, {
     tailored_resume: resumeText,
     tailored_resume_pdf_url: pdfUrl,
-    status: 'tailored',
+    ...statusPatch,
   });
 
   return NextResponse.json({ tailored_resume: resumeText, tailored_resume_pdf_url: pdfUrl });

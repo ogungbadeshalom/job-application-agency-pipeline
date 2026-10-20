@@ -392,15 +392,28 @@ await check('CAPACITY: ≥1.5G free on /disk (auto-refill ENOSPC took down PG in
 // the auto-refill silently adds 0 jobs while all functional checks stay green. Guard it. ----
 await check('REFILL: spawn python3 can import jobspy (auto-refill supply not silently down)', async () => {
   const execSync = (await import('node:child_process')).execSync;
+  // Resolve the interpreter exactly the way the app does: through the running
+  // PM2 job's PATH. Reading THIS script's env is wrong — the shift runner may
+  // execute from a venv-wrapped shell (e.g. Hermes cron prepends its venv to
+  // PATH), producing a false red that does NOT reflect the app's interpreter.
+  let appPath = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
+  try {
+    const pid = execSync('pm2 pid job-bidder', { encoding: 'utf8' }).trim();
+    if (pid) {
+      const p = execSync(`tr '\\0' '\\n' < /proc/${pid}/environ | sed -n 's/^PATH=//p'`, { encoding: 'utf8' }).trim();
+      if (p) appPath = p;
+    }
+  } catch {}
+  const run = (cmd) => execSync(cmd, { encoding: 'utf8', env: { ...process.env, PATH: appPath } }).trim();
   const pyBin = process.platform === 'win32' ? 'python' : 'python3';
   let out;
   try {
-    out = execSync(`${pyBin} -c "import jobspy; print(jobspy.__file__)"`, { encoding: 'utf8' }).trim();
+    out = run(`${pyBin} -c "import jobspy; print(jobspy.__file__)"`);
   } catch (e) {
-    out = `FAIL (${pyBin} not resolving to a jobspy-capable interpreter)`;
+    out = 'FAIL';
   }
-  const resolved = execSync(`${pyBin} -c "import sys; print(sys.executable)"`, { encoding: 'utf8' }).trim();
-  assert(!out.startsWith('FAIL'), `spawn '${pyBin}' resolves to ${resolved} which cannot import jobspy — auto-refill adds 0 jobs. Wanted the system python (/usr/bin/python3). Restart PM2 with a clean PATH (not a Hermes/venv PATH).`);
+  const resolved = run(`${pyBin} -c "import sys; print(sys.executable)"`);
+  assert(!out.startsWith('FAIL'), `app-spawn '${pyBin}' (PATH=${appPath}) resolves to ${resolved} which cannot import jobspy — auto-refill adds 0 jobs. Wanted the system python (/usr/bin/python3). Restart PM2 with a clean PATH.`);
   return `${resolved} -> ${out.split('/').pop()}`;
 });
 

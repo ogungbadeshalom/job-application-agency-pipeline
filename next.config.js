@@ -33,8 +33,28 @@ const nextConfig = {
         { source: '/projects', destination: '/projects.html' },
         { source: '/privacy-policy', destination: '/privacy.html' },
         { source: '/terms', destination: '/terms.html' },
+        { source: '/receipts', destination: '/receipts.html' },
       ],
     };
+  },
+
+  // 301 the .html twins to their clean canonical URLs so Search Console stops
+  // flagging them as "Alternate page with proper canonical tag". The clean
+  // versions (rewrites above) are the canonical pages; the literal static file
+  // paths are duplicates Google keeps discovering. NOTE: never redirect the
+  // Trustpilot verification file (must stay byte-exact at its exact URL).
+  async redirects() {
+    return [
+      { source: '/pricing.html', destination: '/pricing', permanent: true },
+      { source: '/about.html', destination: '/about', permanent: true },
+      { source: '/faq.html', destination: '/faq', permanent: true },
+      { source: '/how-it-works.html', destination: '/how-it-works', permanent: true },
+      { source: '/contact.html', destination: '/contact', permanent: true },
+      { source: '/projects.html', destination: '/projects', permanent: true },
+      { source: '/privacy.html', destination: '/privacy-policy', permanent: true },
+      { source: '/terms.html', destination: '/terms', permanent: true },
+      { source: '/receipts.html', destination: '/receipts', permanent: true },
+    ];
   },
 
   // Cache-control: HTML must revalidate every request so a deploy is never

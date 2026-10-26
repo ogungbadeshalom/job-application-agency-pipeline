@@ -10,7 +10,7 @@
  * Versioning: bump CACHE (or the SW file) to force installed devices to fetch
  * the new shell on next load.
  */
-const CACHE = 'pitchr-fx-v3';
+const CACHE = 'pitchr-fx-v4';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
 const FX_ORIGIN = 'https://open.er-api.com';
 
@@ -30,6 +30,12 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
+
+  // Only ever manage FX paths — the SW must NOT touch /login, /api/auth, or
+  // any app route. (Bug fix Oct 26: the old handler cached every same-origin
+  // GET, which served stale auth responses and broke logins in browsers that
+  // had installed the SW. New cache version forces the fix to every device.)
+  if (!url.pathname.startsWith('/fx/') && url.origin !== FX_ORIGIN) return;
 
   // Live FX rates: network-first, stash each success, fall back to cache.
   if (url.origin === FX_ORIGIN) {

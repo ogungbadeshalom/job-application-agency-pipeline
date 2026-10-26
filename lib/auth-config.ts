@@ -38,6 +38,7 @@ export const authConfig: NextAuthConfig = {
           name: row.full_name,
           role: row.role,
           accent: row.accent,
+          isDemo: !!(row as { is_demo?: boolean }).is_demo,
         };
       },
     }),
@@ -51,6 +52,7 @@ export const authConfig: NextAuthConfig = {
         token.role = (user as { role: string }).role;
         token.name = user.name;
         token.accent = (user as { accent: string }).accent ?? '';
+        token.isDemo = (user as { isDemo?: boolean }).isDemo ?? false;
       }
       return token;
     },
@@ -62,12 +64,14 @@ export const authConfig: NextAuthConfig = {
           email?: string;
           name?: string;
           accent?: string;
+          isDemo?: boolean;
         };
         user.id = token.id as string;
         user.role = token.role as string;
         user.email = (token.email as string) ?? user.email;
         user.name = (token.name as string) ?? user.name;
         user.accent = (token.accent as string) ?? '';
+        user.isDemo = (token.isDemo as boolean) ?? false;
       }
       return session;
     },

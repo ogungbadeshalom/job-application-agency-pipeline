@@ -172,3 +172,9 @@ create trigger profiles_touch_updated_at before update on profiles
 drop trigger if exists jobs_touch_updated_at on jobs;
 create trigger jobs_touch_updated_at before update on jobs
   for each row execute function touch_updated_at();
+-- Demo accounts (Oct 20): is_demo users are read-only showcases. Middleware
+-- blocks every mutating request + sensitive GETs; admin/worker reads are
+-- scoped to demo profiles so real client data never reaches a demo session.
+do $$ begin
+  alter table users add column if not exists is_demo boolean not null default false;
+exception when duplicate_column then null; end $$;

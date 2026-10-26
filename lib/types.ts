@@ -19,6 +19,7 @@ export interface User {
   avatar_url?: string | null;
   disabled_at: string | null;
   created_at: string;
+  is_demo?: boolean; // demo showcase account: read-only (enforced in middleware.ts)
 }
 
 export interface ProfilePreset {

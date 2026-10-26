@@ -10,6 +10,12 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   if (session.user.role === 'admin') {
+    // Demo admins are caged to demo profiles — real client data never leaves.
+    if (session.user.is_demo) {
+      const demoProfiles = await db.listProfiles();
+      const demoOnly = demoProfiles.filter((p) => p.email.toLowerCase().endsWith('@demo.pitchr'));
+      return NextResponse.json({ profiles: demoOnly });
+    }
     const profiles = await db.listProfiles();
     return NextResponse.json({ profiles });
   }

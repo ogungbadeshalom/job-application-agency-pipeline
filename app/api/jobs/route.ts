@@ -130,7 +130,15 @@ export async function GET(req: Request) {
   if (searchParam) filter.search = searchParam;
 
   if (session.user.role === 'admin') {
-    // sees everything
+    // Demo admins are caged to demo profiles — real client data never leaves.
+    if (session.user.is_demo) {
+      const demoProfiles = await db.listProfiles();
+      filter.profile_ids = demoProfiles
+        .filter((p) => p.email.toLowerCase().endsWith('@demo.pitchr'))
+        .map((p) => p.id);
+      if (!filter.profile_ids.length) return NextResponse.json({ jobs: [] });
+    }
+    // sees everything (non-demo)
   } else if (session.user.role === 'worker') {
     const profiles = await db.listProfilesByWorker(session.user.id);
     if (!profiles.length) return NextResponse.json({ jobs: [] });
@@ -150,6 +158,10 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'profile_id must be a valid uuid' }, { status: 400 });
     }
     filter.profile_id = pid;
+    // Demo override-guard: a demo admin can only ever select demo profiles.
+    if (session.user.is_demo && !filter.profile_ids?.includes(pid)) {
+      return NextResponse.json({ jobs: [] });
+    }
   }
 
   const jobs = await db.listJobsSlim(filter);

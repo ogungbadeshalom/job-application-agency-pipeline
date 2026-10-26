@@ -65,6 +65,7 @@ function mapUser(r: Record<string, unknown>): User {
     avatar_url: (r.avatar_url as string) ?? null,
     disabled_at: r.disabled_at ? (r.disabled_at as Date).toISOString() : null,
     created_at: (r.created_at as Date).toISOString(),
+    is_demo: !!r.is_demo,
   };
 }
 
@@ -418,6 +419,7 @@ export const db = {
     role: User['role'];
     full_name: string;
     accent: string;
+    is_demo: boolean;
   } | null> {
     const row = await one(
       `select * from users where lower(email) = lower($1) and disabled_at is null`,
@@ -431,6 +433,7 @@ export const db = {
       role: row.role as User['role'],
       full_name: row.full_name as string,
       accent: (row.accent as string) ?? '',
+      is_demo: !!(row as { is_demo?: boolean }).is_demo,
     };
   },
 

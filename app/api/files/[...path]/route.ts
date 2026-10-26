@@ -77,6 +77,12 @@ export async function GET(_req: Request, { params }: { params: { path: string[] 
         const preset = ((prof?.resume_design as string) || 'classic') as ResumePreset;
         const data = resumeTextToData(full.tailored_resume);
         if (data && (data.experience.length || data.summary.length)) {
+          // Contact line from the profile's REAL data — old stored texts may
+          // carry a LinkedIn URL; the email always wins on download.
+          const realContact = [prof?.email, prof?.resume_data?.contact?.phone, prof?.resume_data?.contact?.location]
+            .filter(Boolean)
+            .join(' · ');
+          if (realContact) data.contact = realContact;
           const buf = await renderResumePdf(data, preset);
           const base = `${owningJob.company || 'job'}-${owningJob.title || 'resume'}`.replace(/[^\w\-.]/g, '_').slice(0, 90);
           return new NextResponse(new Uint8Array(buf), {

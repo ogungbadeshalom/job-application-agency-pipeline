@@ -857,6 +857,20 @@ export const db = {
       title: (row.title as string | null) ?? null,
     };
   },
+
+  // Slim tailored-resume row for download re-rendering: tailored text only.
+  async getJobTailoredForRender(
+    rel: string
+  ): Promise<{ id: string; profile_id: string; tailored_resume: string | null } | null> {
+    const row = await one(
+      `select id, profile_id, tailored_resume from jobs
+        where tailored_resume_pdf_path = $1
+        limit 1`,
+      [rel]
+    );
+    if (!row) return null;
+    return { id: String(row.id), profile_id: String(row.profile_id), tailored_resume: (row.tailored_resume as string | null) ?? null };
+  },
   async updateJob(id: string, patch: Partial<Job>): Promise<Job | null> {
     const allowed: Record<string, string> = {
       status: 'status',

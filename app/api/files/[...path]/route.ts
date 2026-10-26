@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { readStorage, statStorage } from '@/lib/storage';
+import { renderResumePdf, type ResumePreset } from '@/lib/resume-pdf';
+import { resumeTextToData } from '@/lib/resume-text';
 
 // GET /api/files/...  — serve a stored file (resume, tailored PDF, proof image)
 // with auth. Authorization:
@@ -61,6 +63,36 @@ export async function GET(_req: Request, { params }: { params: { path: string[] 
 
   const meta = await statStorage(rel);
   if (!meta) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  // Design-sync (Oct 26): tailored PDFs used to be frozen at tailor time, so a
+  // design-preset change in Resume Lab never reached already-generated resumes
+  // and downloads didn't match the preview. Re-render tailored PDFs from the
+  // stored resume text with the profile's CURRENT preset; fall back to the
+  // stored file if anything (parse/render) fails.
+  if (rel.startsWith('tailored/') && rel.toLowerCase().endsWith('.pdf') && owningJob) {
+    try {
+      const full = await db.getJobTailoredForRender(rel); // slim row incl. tailored_resume text
+      if (full?.tailored_resume) {
+        const prof = await db.getProfile(full.profile_id);
+        const preset = ((prof?.resume_design as string) || 'classic') as ResumePreset;
+        const data = resumeTextToData(full.tailored_resume);
+        if (data && (data.experience.length || data.summary.length)) {
+          const buf = await renderResumePdf(data, preset);
+          const base = `${owningJob.company || 'job'}-${owningJob.title || 'resume'}`.replace(/[^\w\-.]/g, '_').slice(0, 90);
+          return new NextResponse(new Uint8Array(buf), {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/pdf',
+              'Content-Length': String(buf.length),
+              'Content-Disposition': `attachment; filename="${base}.pdf"`,
+            },
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('[files] tailored re-render failed, serving stored PDF:', (e as Error).message);
+    }
+  }
 
   const data = await readStorage(rel);
   const contentType = rel.toLowerCase().endsWith('.pdf')

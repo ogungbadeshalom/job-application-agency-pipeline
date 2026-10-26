@@ -172,6 +172,15 @@ export async function POST(req: Request) {
     console.warn('[tailor] variation enforcement skipped:', (e as Error).message);
   }
 
+  // Kevin spec (Oct 26): contact line is built from the profile's REAL contact
+  // data (email · phone · location) — never the AI-echoed LinkedIn URL.
+  {
+    const realContact = [profile.email, profile.resume_data?.contact?.phone, profile.resume_data?.contact?.location]
+      .filter(Boolean)
+      .join(' · ');
+    if (realContact) data.contact = realContact;
+  }
+
   // Render + persist the PDF for download, honoring the client's design preset.
   let pdfUrl: string | null = null;
   try {

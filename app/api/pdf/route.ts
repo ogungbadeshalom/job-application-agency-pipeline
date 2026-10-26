@@ -24,6 +24,33 @@ export async function POST(req: Request) {
   if (!text) return NextResponse.json({ error: 'text required' }, { status: 400 });
 
   try {
+    // Design-sync (Oct 26): the client download must use the SAME renderer as
+    // the Resume Lab — renderResumePdf with the profile's design preset and
+    // real contact line — not the old pdf-lib plain renderer.
+    if (session.user?.profile_id) {
+      const profile = await db.getProfile(session.user.profile_id).catch(() => null);
+      if (profile) {
+        const { renderResumePdf } = await import('@/lib/resume-pdf');
+        const { resumeTextToData } = await import('@/lib/resume-text');
+        const data = resumeTextToData(text);
+        if (data && (data.experience.length || data.summary.length)) {
+          const c = (profile.resume_data as any)?.contact || {};
+          const realContact = [profile.email, c.phone, c.location].filter(Boolean).join(' · ');
+          if (realContact) data.contact = realContact;
+          const preset = ((profile.resume_design as string) || 'classic') as any;
+          const buf = await renderResumePdf(data, preset);
+          return new NextResponse(new Uint8Array(buf), {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/pdf',
+              'Content-Length': String(buf.length),
+              'Content-Disposition': 'attachment; filename="tailored-resume.pdf"',
+            },
+          });
+        }
+      }
+    }
+    // Fallback for texts that don't parse (shouldn't happen for tailored resumes).
     const bytes = await generateResumePdf(text);
     return new NextResponse(bytes, {
       status: 200,

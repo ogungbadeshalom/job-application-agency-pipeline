@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
-import { callAI, RESUME_TAILOR_SYSTEM } from '@/lib/ai';
+import { callAI, RESUME_TAILOR_SYSTEM, RESUME_ATS_SYSTEM } from '@/lib/ai';
+import { parseAtsScore } from '@/lib/ats';
 import { enforceExperienceVariation } from '@/lib/resume-variation';
 import { renderResumePdf, type ResumeData, type ResumePreset } from '@/lib/resume-pdf';
+import type { AtsScore } from '@/lib/types';
 import { newStoragePath, writeStorage } from '@/lib/storage';
 import { isUuid } from '@/lib/validate';
 
@@ -138,6 +140,46 @@ export async function POST(req: Request) {
     }
   }
 
+  // ATS-informed quality pass (Oct 26): score the tailored output like a real
+  // ATS; below the interview-credible threshold, regenerate ONCE with the
+  // concrete gap feedback injected and keep the better-scoring version. This
+  // closes the "relevant requirements missing / content too close to base"
+  // complaint class. Entirely fail-open — never break tailoring.
+  let atsFeedback: unknown = null;
+  let atsScoreFinal: number | null = null;
+  try {
+    const scoreResumeText = (d: ResumeData) =>
+      [
+        'JOB DESCRIPTION:', cap(job.description || '(no description available)', 4000), '',
+        'TITLE:', job.title, '', 'RESUME:', buildResumeText(d),
+      ].join('\n');
+    const score1 = parseAtsScore(await callAI(RESUME_ATS_SYSTEM, scoreResumeText(data), { maxTokens: 3000, temperature: 0.2 }));
+    atsScoreFinal = score1.overallScore;
+    atsFeedback = score1;
+    if (score1.overallScore < 70) {
+      const gaps = (score1.missingSkills ?? []).slice(0, 12).join(', ') || 'keyword coverage and requirement evidence';
+      const fixUser = user + '\n\nIMPROVEMENT DIRECTIVE: a previous tailored version of this resume scored ' +
+        score1.overallScore + '/100 on a strict ATS scan. Regenerate, fixing these concrete gaps: ' + gaps +
+        '. Cover every hard requirement the JD lists using ONLY the candidate\u2019s real experience, reworded to the job\u2019s exact terminology. All other rules unchanged.';
+      try {
+        const raw3 = await callAI(RESUME_TAILOR_SYSTEM, fixUser, { maxTokens: 6000, temperature: 0.5 });
+        let data3 = parseResumeJson(raw3);
+        // Re-apply bullet-count enforcement so a regen can't drift from the editor.
+        if (profile.resume_data?.experience?.length) {
+          try { data3 = enforceBulletCounts(data3, profile.resume_data.experience); } catch { /* keep */ }
+        }
+        const score2 = parseAtsScore(await callAI(RESUME_ATS_SYSTEM, scoreResumeText(data3), { maxTokens: 3000, temperature: 0.2 }));
+        atsScoreFinal = score2.overallScore;
+        atsFeedback = score2;
+        if (score2.overallScore > score1.overallScore) data = data3; // keep the better resume
+      } catch (e3) {
+        console.warn('[tailor] ATS regen pass skipped:', (e3 as Error).message);
+      }
+    }
+  } catch (e) {
+    console.warn('[tailor] ATS quality pass skipped:', (e as Error).message);
+  }
+
   // Enforce the Resume Lab's configured bullet counts on the AI output, so a
   // tailored PDF reflects the editor (e.g. 9/8/5 bullets per experience entry).
   // Matches by company name (case-insensitive) since the model may reorder.
@@ -204,6 +246,8 @@ export async function POST(req: Request) {
   await db.updateJob(jobId, {
     tailored_resume: resumeText,
     tailored_resume_pdf_url: pdfUrl,
+    ...(atsScoreFinal != null ? { ats_score: atsScoreFinal } : {}),
+    ...(atsFeedback != null ? { ats_feedback: JSON.stringify(atsFeedback) as unknown as AtsScore } : {}),
     ...statusPatch,
   });
 

@@ -876,12 +876,12 @@ export const db = {
       status: 'status',
       tailored_resume: 'tailored_resume',
       tailored_resume_pdf_url: 'tailored_resume_pdf_path',
+      ats_score: 'ats_score',
+      ats_feedback: 'ats_feedback',
       submitted_at: 'submitted_at',
       proof_of_submission: 'proof_of_submission',
       notes: 'notes',
       last_viewed_at: 'last_viewed_at',
-      ats_score: 'ats_score',
-      ats_feedback: 'ats_feedback',
     };
     const sets: string[] = [];
     const params: unknown[] = [];

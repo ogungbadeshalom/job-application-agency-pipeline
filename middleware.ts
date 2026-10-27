@@ -61,6 +61,11 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL(home[token.role as string] ?? '/login', req.url));
   }
 
+  // Auth lifecycle (login/callback/signout/csrf/session) must NEVER be caged.
+  // Bug (Oct 26): a stale demo-session cookie made the middleware 403 the very
+  // POST that would replace it, permanently locking that browser out of login.
+  if (pathname.startsWith('/api/auth')) return NextResponse.next();
+
   // Demo read-only cage.
   if (token?.isDemo) {
     const mutating = !['GET', 'HEAD', 'OPTIONS'].includes(req.method);

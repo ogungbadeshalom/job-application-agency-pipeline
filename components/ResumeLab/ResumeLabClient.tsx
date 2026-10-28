@@ -11,6 +11,7 @@ import {
   type StructuredResume,
   type ResumeExperienceItem,
 } from '@/lib/resume-presets';
+import ResumeLabTest from './ResumeLabTest';
 import type { Role } from '@/lib/types';
 
 interface NavItem { href: string; label: string; badge?: number }
@@ -262,6 +263,9 @@ export default function ResumeLabClient({
           {saving ? 'Saving…' : dirty ? 'Save resume' : 'Saved ✓'}
         </button>
       </div>
+
+      {/* Test resume generation — paste a JD, see your tailored resume live */}
+      <ResumeLabTest />
 
       {/* Client picker (only when the viewer manages several clients) */}
       {!single && (

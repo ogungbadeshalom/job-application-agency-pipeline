@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import JobTable from '@/components/JobTable';
 import Modal from '@/components/Modal';
@@ -109,6 +109,47 @@ export default function ClientJobsClient({
     URL.revokeObjectURL(url);
   }
 
+  // --- Live tailor: stages + order (mirrors the server-side stages) ---
+  const TAILOR_STAGES = [
+    { id: 'generating', label: 'Generating' },
+    { id: 'ats-scoring', label: 'ATS scoring' },
+    { id: 'improving', label: 'Improving' },
+    { id: 'finalizing', label: 'Finalizing' },
+  ];
+  const STAGE_ORDER: Record<string, number> = {
+    generating: 1,
+    'ats-scoring': 2,
+    improving: 3,
+    finalizing: 4,
+  };
+
+  // While the worker is tailoring the selected job, poll its live stage (ATS
+  // score + tailored resume included) so the client watches it happen.
+  useEffect(() => {
+    const job = selected;
+    if (!job || !job.tailor_status) return;
+    let stopped = false;
+    const tick = async () => {
+      if (stopped) return true;
+      const res = await fetch(`/api/client/jobs/${job.id}`, { cache: 'no-store' })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null);
+      if (stopped || !res) return true;
+      setSelected((prev) => (prev && prev.id === res.id ? { ...prev, ...res } : prev));
+      // Stop once tailoring finished (server clears tailor_status to null).
+      return Boolean(res.tailor_status);
+    };
+    const id = setInterval(async () => {
+      if (!(await tick())) clearInterval(id);
+    }, 2000);
+    tick();
+    return () => {
+      stopped = true;
+      clearInterval(id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.id]);
+
   return (
     <DashboardLayout user={user} nav={nav} active="/client/jobs">
       <div data-onboard="client-header" className="mb-4">
@@ -212,6 +253,43 @@ export default function ClientJobsClient({
                 View posting <External size={13} />
               </a>
             </div>
+
+            {selected.tailor_status && (
+              <div className="rounded-md border border-brand-blue/40 bg-brand-blue/10 px-4 py-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-brand-blue">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-blue opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-blue"></span>
+                  </span>
+                  Tailoring your resume in real time
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+                  {TAILOR_STAGES.map((s) => {
+                    const ts = selected.tailor_status as string;
+                    const active = s.id === ts;
+                    const passed = STAGE_ORDER[ts] > STAGE_ORDER[s.id];
+                    return (
+                      <span
+                        key={s.id}
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 border font-medium ${
+                          active
+                            ? 'text-white bg-brand-blue border-brand-blue'
+                            : passed
+                              ? 'text-brand-green border-brand-green/40 bg-brand-green/10'
+                              : 'text-navy-500 border-navy-700'
+                        }`}
+                      >
+                        {passed ? '✓ ' : active ? '● ' : ''}
+                        {s.label}
+                      </span>
+                    );
+                  })}
+                </div>
+                <p className="mt-2 text-xs text-navy-400">
+                  The tailored resume, ATS score and outcome appear here the moment they&apos;re ready.
+                </p>
+              </div>
+            )}
 
             {selected.tailored_resume && (
               <div>

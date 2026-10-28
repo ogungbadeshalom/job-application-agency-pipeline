@@ -40,6 +40,11 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
+  // Live-tailor: surface the current stage to the client so they can watch the
+  // resume being written against the JD in real time. Cleared when the run ends.
+  const stage = (s: string | null) =>
+    db.updateJob(jobId, { tailor_status: s }).catch(() => {});
+  await stage('generating');
   // Build the prompt. The BASE RESUME is the critical input — it must not be
   // truncated or the model will drop/invent employers. So the JD is clipped if
   // needed, but the resume is always sent whole. (The AI call has retries, so a
@@ -116,6 +121,7 @@ export async function POST(req: Request) {
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    await stage(null);
     return NextResponse.json({ error: `AI call failed: ${msg}` }, { status: 502 });
   }
   if (!raw || !raw.trim()) {
@@ -136,6 +142,7 @@ export async function POST(req: Request) {
       data = parseResumeJson(raw2);
     } catch (e2) {
       const msg2 = e2 instanceof Error ? e2.message : String(e2);
+      await stage(null);
       return NextResponse.json({ error: `AI returned invalid JSON: ${msg2 || msg}` }, { status: 502 });
     }
   }
@@ -145,6 +152,7 @@ export async function POST(req: Request) {
   // concrete gap feedback injected and keep the better-scoring version. This
   // closes the "relevant requirements missing / content too close to base"
   // complaint class. Entirely fail-open — never break tailoring.
+  await stage('ats-scoring');
   let atsFeedback: unknown = null;
   let atsScoreFinal: number | null = null;
   try {
@@ -157,6 +165,7 @@ export async function POST(req: Request) {
     atsScoreFinal = score1.overallScore;
     atsFeedback = score1;
     if (score1.overallScore < 70) {
+      await stage('improving');
       const gaps = (score1.missingSkills ?? []).slice(0, 12).join(', ') || 'keyword coverage and requirement evidence';
       const fixUser = user + '\n\nIMPROVEMENT DIRECTIVE: a previous tailored version of this resume scored ' +
         score1.overallScore + '/100 on a strict ATS scan. Regenerate, fixing these concrete gaps: ' + gaps +
@@ -224,6 +233,7 @@ export async function POST(req: Request) {
   }
 
   // Render + persist the PDF for download, honoring the client's design preset.
+  await stage('finalizing');
   let pdfUrl: string | null = null;
   try {
     const preset = (profile.resume_design || 'classic') as ResumePreset;
@@ -233,6 +243,7 @@ export async function POST(req: Request) {
     pdfUrl = rel;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    await stage(null);
     return NextResponse.json({ error: `PDF render failed: ${msg}` }, { status: 500 });
   }
 
@@ -246,6 +257,7 @@ export async function POST(req: Request) {
   await db.updateJob(jobId, {
     tailored_resume: resumeText,
     tailored_resume_pdf_url: pdfUrl,
+    tailor_status: null,
     ...(atsScoreFinal != null ? { ats_score: atsScoreFinal } : {}),
     ...(atsFeedback != null ? { ats_feedback: JSON.stringify(atsFeedback) as unknown as AtsScore } : {}),
     ...statusPatch,

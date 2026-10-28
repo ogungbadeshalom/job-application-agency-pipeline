@@ -80,6 +80,7 @@ export interface Job {
   scrape_run_id: string | null;
   verified_remote: boolean; // pipeline confirmed remote via description + link
   easy_apply: boolean;      // LinkedIn "Easy Apply" (excluded from refills)
+  tailor_status?: string | null; // live tailoring stage (null = idle): generating | ats-scoring | improving | finalizing | done
   created_at: string;
   updated_at: string;
   last_viewed_at: string | null;
@@ -216,6 +217,9 @@ export interface ListJobsFilter {
   profile_id?: string | string[];
   profile_ids?: string[];
   status?: JobStatus | JobStatus[];
+  /** Also include rows with an active tailor_status (live tailoring), so a
+   *  client can watch a resume being tailored in real time. */
+  liveTailoring?: boolean;
   search?: string;
   limit?: number;
 }

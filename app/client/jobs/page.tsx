@@ -9,7 +9,7 @@ export default async function ClientJobsPage() {
   if (!user || !user.profile_id) redirect('/login');
 
   const [jobs, profile, resumeWeeks] = await Promise.all([
-    db.listJobs({ profile_id: user.profile_id, status: ['applied', 'tailored'] }),
+    db.listJobs({ profile_id: user.profile_id, status: ['applied', 'tailored'], liveTailoring: true }),
     db.getProfile(user.profile_id),
     db.listResumeWeeks(user.profile_id),
   ]);

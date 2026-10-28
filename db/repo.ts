@@ -164,6 +164,7 @@ function mapJob(r: Record<string, unknown>): Job {
     scrape_run_id: (r.scrape_run_id as string) ?? null,
     verified_remote: Boolean(r.verified_remote),
     easy_apply: Boolean(r.easy_apply),
+    tailor_status: (r.tailor_status as string | null) ?? null,
     created_at: (r.created_at as Date).toISOString(),
     updated_at: (r.updated_at as Date).toISOString(),
     last_viewed_at: r.last_viewed_at ? (r.last_viewed_at as Date).toISOString() : null,
@@ -214,6 +215,7 @@ function mapJobSlim(r: Record<string, unknown>): Job {
     scrape_run_id: (r.scrape_run_id as string) ?? null,
     verified_remote: Boolean(r.verified_remote),
     easy_apply: Boolean(r.easy_apply),
+    tailor_status: (r.tailor_status as string | null) ?? null,
     created_at: (r.created_at as Date).toISOString(),
     updated_at: (r.updated_at as Date).toISOString(),
     last_viewed_at: r.last_viewed_at ? (r.last_viewed_at as Date).toISOString() : null,
@@ -697,7 +699,10 @@ export const db = {
     }
     if (filter.status) {
       const s = Array.isArray(filter.status) ? filter.status : [filter.status];
-      where.push(`status = ANY($${params.push(s)}::job_status[])`);
+      const statusClause = `status = ANY($${params.push(s)}::job_status[])`;
+      // liveTailoring also surfaces rows currently being tailored, so a client
+      // can watch a resume being written against the JD in real time.
+      where.push(filter.liveTailoring ? `(${statusClause} or tailor_status is not null)` : statusClause);
     }
     if (filter.search) {
       const n = params.length + 1;
@@ -882,6 +887,7 @@ export const db = {
       proof_of_submission: 'proof_of_submission',
       notes: 'notes',
       last_viewed_at: 'last_viewed_at',
+      tailor_status: 'tailor_status',
     };
     const sets: string[] = [];
     const params: unknown[] = [];

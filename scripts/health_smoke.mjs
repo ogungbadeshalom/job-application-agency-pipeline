@@ -387,6 +387,21 @@ await check('CAPACITY: ≥1.5G free on /disk (auto-refill ENOSPC took down PG in
   return `${freeGB.toFixed(2)}G free`;
 });
 
+// ---- deleted-open inode leak (informational, NOT gating). Incidence: unrotated
+// cloudflared tunnel logs get unlinked (e.g. pm2/quick-tunnel log handling) but the
+// process keeps writing to the dead inode — the space never returns (invisible to
+// `du`, counted in `df`) and silently erodes the capacity floor above. Reclaim by
+// restarting the holder (dead inodes are freed on fd close); durable fix is log
+// rotation so tunnel logs never grow unbounded. Source usually `cloudflared`. ----
+try {
+  const execSync = (await import('node:child_process')).execSync;
+  const lsofOut = execSync("lsof +L1 2>/dev/null | awk '$7>0{print $7}' | awk '{s+=$1} END{print s}'").toString().trim();
+  const leakMB = Math.round(Number(lsofOut) / 1048576);
+  if (leakMB > 0) console.log(`  (info) ${leakMB}MiB held by deleted-but-open log inodes (mostly cloudflared tunnels) — invisible to du; restart holders / rotate logs to reclaim. Non-gating.`);
+} catch (e) {
+  console.log('  (info) deleted-open inode leak check skipped (lsof unavailable)');
+}
+
 // ---- refill supply (GATING): the app spawns bare `python3` to run run_jobspy.py.
 // If the PM2 process inherited a PATH whose first python3 lacks jobspy (e.g. a venv),
 // the auto-refill silently adds 0 jobs while all functional checks stay green. Guard it. ----

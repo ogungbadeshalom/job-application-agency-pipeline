@@ -384,6 +384,10 @@ await check('CAPACITY: ≥1.5G free on /disk (auto-refill ENOSPC took down PG in
   const freeGB = Number(out) / 1024 ** 3;
   assert(Number.isFinite(freeGB), `unable to read free disk space: ${out}`);
   assert(freeGB >= 1.5, `only ${freeGB.toFixed(2)}G free on / — below the 1.5G safety floor; the refill worker hits ENOSPC and PG drops connections below this. Free disk before next refill.`);
+  // soft early-warning below 2G: give maintenance lead time above the 1.5G hard
+  // floor (past incidents arrived already under-floor — disk fills silently between
+  // runs from HF models/torch venvs/backups/POV renders). Informational, NOT gating.
+  if (freeGB < 2.0) console.log(`  (info) CAPACITY-BUFFER: only ${freeGB.toFixed(2)}G free — under the 2G cushion; reclaim headroom before the next auto-refill, or ENOSPC can drop PG.`);
   return `${freeGB.toFixed(2)}G free`;
 });
 

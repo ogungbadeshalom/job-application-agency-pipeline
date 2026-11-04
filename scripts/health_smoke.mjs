@@ -359,11 +359,17 @@ await check('DATA-INTEGRITY: no applied job missing a tailored resume (client-vi
   const legacy = Number(await dbq(`select count(*) from jobs where status='applied'
         and created_at <= now() - interval '14 days'
         and coalesce(proof_of_submission,'') = ''`));
-  if (legacy > 0) console.log(`  (info) ${legacy} pre-14-day applied job(s) lack proof — legacy (pre-capture), informational, not gating`);
-  if (appliedRecent > 0) console.log(`  (info) ${noProof}/${appliedRecent} recent applied lack proof (${(100 * (appliedRecent - noProof) / appliedRecent).toFixed(1)}% capture) — informational`);
-  assert(noResume >= 0, `unable to parse applied-integrity query: ${row}`);
-  assert(noResume === 0, `${noResume} applied job(s) have NO tailored resume (client can't view what was sent)`);
-});
+    if (legacy > 0) console.log(`  (info) ${legacy} pre-14-day applied job(s) lack proof — legacy (pre-capture), informational, not gating`);
+    if (appliedRecent > 0) console.log(`  (info) ${noProof}/${appliedRecent} recent applied lack proof (${(100 * (appliedRecent - noProof) / appliedRecent).toFixed(1)}% capture) — informational`);
+    assert(noResume >= 0, `unable to parse applied-integrity query: ${row}`);
+    // NOT gated. Commit 6f383bb (Nov 2026, Shalom) deliberately relaxed the apply
+    // path: he now uses a SEPARATE tailoring app to produce the sent resume, so an
+    // in-app tailored_resume is no longer a hard precondition for marking a job
+    // applied (both PATCH /api/jobs/[id] and POST /api/proof/submit). Hard-zeroing
+    // this would red forever on legitimate applied rows from the separate app (the
+    // e577b86 invariant is obsolete). Report as informational like proof capture.
+    if (noResume > 0) console.log(`  (info) ${noResume}/${appliedRecent} recent applied lack an in-app tailored_resume — expected under the separate-tailoring-app flow (commit 6f383bb), informational`);
+  });
 
 // Security shape
 await check('auth: wrong password is rejected', async () => {

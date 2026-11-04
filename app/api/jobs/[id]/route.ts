@@ -90,17 +90,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         { status: 409 }
       );
     }
-    // Client-visible invariant: a job the client can view as "applied" MUST have
-    // a tailored resume they can open. Reject the transition if the worker tries
-    // to mark applied without first tailoring (the Tailor tab/prompt generates
-    // and stores tailored_resume + a downloadable PDF). Prevents the silent-rot
-    // class where applied rows carry no resume the client can view.
-    if (!job!.tailored_resume || !job!.tailored_resume.trim()) {
-      return NextResponse.json(
-        { error: 'Tailor a resume for this job before marking it as applied (the client needs to view what was sent).' },
-        { status: 409 }
-      );
-    }
+    // Apply without an in-app tailored resume is allowed (Shalom 2026-11-04: a
+    // separate tailoring app produces the sent resume now, so the Tailor step is
+    // no longer a hard precondition for marking a job applied).
   }
 
   const updated = await db.updateJob(params.id, patch);

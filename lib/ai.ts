@@ -189,8 +189,23 @@ async function callOpenAICompat(a: OpenAICompatArgs): Promise<string> {
   // worker-facing 502 in the nightly health check), so the cap now covers the
   // tail instead of failing a request the model would have answered.
   const ATTEMPT_TIMEOUT_MS = 90_000;
-  const attempts = 3;
-  for (let attempt = 0; attempt < attempts; attempt++) {
+
+  // Concurrency-cap detection: freeinference.org throttles 2 in-flight
+  // completions with HTTP 429 "Too many concurrent requests (limit: 2)". That
+  // is a WAIT-FOR-A-SLOT condition, not a permanent failure — but the plain
+  // 3-attempt / short-backoff loop burns all attempts inside ~3s and surfaces
+  // a worker-facing 502 while the provider is merely momentarily saturated.
+  // On seeing this class, escalate to more attempts with longer backoff
+  // (~60s total) so a free slot (provider completions run ~2-4s each) has time
+  // to appear. Pattern found live: 3 consecutive nightly-gate tailor 502s.
+  const isConcurrencyCap = (e: any): boolean =>
+    e?.status === 429 && /concurrent|rate.?limit/i.test(String(e?.message ?? ''));
+  let sawConcurrency = false;
+  let maxAttempts = 3;
+  const backoffMs = (attempt: number, sawCap: boolean): number =>
+    sawCap ? 2500 * (attempt + 1) : 800 * (attempt + 1);
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), ATTEMPT_TIMEOUT_MS);
     try {
@@ -216,10 +231,16 @@ async function callOpenAICompat(a: OpenAICompatArgs): Promise<string> {
       } else {
         lastErr = e;
       }
+      if (isConcurrencyCap(e)) {
+        sawConcurrency = true;
+        maxAttempts = 7; // escalate remaining slots to the slow wait-for-slot schedule
+      }
     } finally {
       clearTimeout(timer);
     }
-    if (attempt < attempts - 1) await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+    if (attempt < maxAttempts - 1) {
+      await new Promise((r) => setTimeout(r, backoffMs(attempt, sawConcurrency)));
+    }
   }
   // Cross-model failover: when the primary model exhausts all attempts
   // (timeouts/5xx/empty), try once on a secondary model on the SAME endpoint

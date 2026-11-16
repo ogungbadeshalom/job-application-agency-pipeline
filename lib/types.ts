@@ -3,7 +3,7 @@ import type { StructuredResume } from './resume-presets';
 
 export type Role = 'admin' | 'worker' | 'client';
 
-export type JobStatus = 'saved' | 'tailored' | 'applied' | 'skipped';
+export type JobStatus = 'saved' | 'tailored' | 'applied' | 'skipped' | 'failed' | 'confirmed' | 'interview';
 
 export type ScrapeRunStatus = 'pending' | 'running' | 'completed' | 'failed';
 
@@ -81,6 +81,8 @@ export interface Job {
   verified_remote: boolean; // pipeline confirmed remote via description + link
   easy_apply: boolean;      // LinkedIn "Easy Apply" (excluded from refills)
   tailor_status?: string | null; // live tailoring stage (null = idle): generating | ats-scoring | improving | finalizing | done
+  reason_string?: string | null; // Hermes: human-readable outcome reason (duplicate/dead-post/OTP-unconfirmed/...)
+  run_id?: string | null;        // Hermes: per-drain attribution id linking a job to the batch run that drove it
   created_at: string;
   updated_at: string;
   last_viewed_at: string | null;
@@ -230,6 +232,9 @@ export const STATUS_ORDER: Record<JobStatus, number> = {
   tailored: 1,
   applied: 2,
   skipped: 3,
+  failed: 4,
+  confirmed: 5,
+  interview: 6,
 };
 
 // Client view shows applied jobs (not skipped/saved/tailored).

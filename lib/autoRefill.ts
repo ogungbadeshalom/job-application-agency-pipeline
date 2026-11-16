@@ -15,10 +15,28 @@
 // `autoRefillStatus.active` flag is a real single-flight lock within one process.
 // The status object is deliberately module-scoped (shared across all requests)
 // so the status API + worker disable read the SAME state.
+import { statfsSync } from 'node:fs';
 import { db } from '@/lib/db';
 import { runJobSpy, dedupeAndMap } from '@/lib/scrape';
 import { filterJobsByResume, filterByAllowedRoles } from '@/lib/aiJobMatch';
+import { riverJobs } from '@/lib/jobRiver';
 import type { Job, ScrapeResultJob } from '@/lib/types';
+
+// Safety floor mirrored from the CAPACITY check in scripts/health_smoke.mjs.
+// Below this front the auto-refill worker can hit ENOSPC mid-write and drop PG
+// connections (the past SEV incident that motivated the floor). Abort the whole
+// run BEFORE scraping a single job rather than letting ENOSPC take PG down.
+const MIN_FREE_BYTES = 1.5 * 1024 * 1024 * 1024;
+
+function freeDiskBytes(): number {
+  try {
+    const s = statfsSync('/');
+    return Number(s.bavail) * Number(s.bsize);
+  } catch {
+    // If we can't read disk state, don't block the refill on a check we can't make.
+    return Number.POSITIVE_INFINITY;
+  }
+}
 
 export interface AutoRefillStatus {
   active: boolean;
@@ -105,10 +123,19 @@ async function scrapeOneProfile(profileId: string, name: string, per: AutoRefill
     is_remote: true, // worker refills are always remote-only
     remove_easy_apply: true,
   });
-  per.jobsFound = raw.length;
-  autoRefillStatus.currentJobsFound = raw.length;
+  // Job River: extra $0 keyless source so a queue never runs dry even when the
+  // board scrapes return thin. Same gates + dedupe + tailor as JobSpy.
+  let riverRaw: ScrapeResultJob[] = [];
+  try {
+    riverRaw = await riverJobs(terms, { perTermLimit: 30, maxTotal: 120 });
+  } catch (e) {
+    console.warn('[auto-refill] job river skipped:', e instanceof Error ? e.message : e);
+  }
+  const mergedRaw = [...raw, ...riverRaw];
+  per.jobsFound = mergedRaw.length;
+  autoRefillStatus.currentJobsFound = mergedRaw.length;
 
-  let matched: ScrapeResultJob[] = raw;
+  let matched: ScrapeResultJob[] = mergedRaw;
   // STRICT role allowlist (profile.allowed_roles) — hard gate first.
   if (profile.allowed_roles?.length) {
     matched = filterByAllowedRoles(matched, profile.allowed_roles);
@@ -184,6 +211,19 @@ export async function runAutoRefill(opts: { trigger: 'cron' | 'manual' } = { tri
     autoRefillStatus.active = false;
     autoRefillStatus.finishedAt = new Date().toISOString();
     return { ok: true, profiles: 0, jobsAdded: 0, message: 'No client profiles found.' };
+  }
+
+  // Capacity gate BEFORE any scraping: never let the refill write until ENOSPC
+  // drops PG connections. Abort cleanly with a surveyable message instead.
+  if (freeDiskBytes() < MIN_FREE_BYTES) {
+    const msg =
+      'Auto-refill aborted before scraping: free disk below the 1.5G safety floor. Refilling now risks ENOSPC taking PostgreSQL down. Free disk and retry.';
+    autoRefillStatus.active = false;
+    autoRefillStatus.finishedAt = new Date().toISOString();
+    autoRefillStatus.currentStep = 'Idle';
+    autoRefillStatus.message = msg;
+    autoRefillStatus.error = msg;
+    return { ok: false, profiles: 0, jobsAdded: 0, message: msg, error: msg };
   }
 
   for (const p of profiles) {

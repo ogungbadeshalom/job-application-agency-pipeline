@@ -2,9 +2,10 @@
 // by client components and API routes without pulling the PDF renderer into the
 // client bundle.
 
-export type ResumePreset = 'classic' | 'modern' | 'bold' | 'minimal';
+export type ResumePreset = 'kevin' | 'classic' | 'modern' | 'bold' | 'minimal';
 
 export const RESUME_PRESETS: { id: ResumePreset; label: string; note: string }[] = [
+  { id: 'kevin', label: 'Engraved (Kevin)', note: 'Helvetica, uppercase ruled sections, left-aligned' },
   { id: 'classic', label: 'Classic', note: 'Traditional blue-accent sections' },
   { id: 'modern', label: 'Modern', note: 'Teal accent, airy spacing' },
   { id: 'bold', label: 'Bold / Tech', note: 'Big headings, high contrast' },
@@ -31,6 +32,7 @@ export interface ResumePresetStyle {
 }
 
 export const RESUME_PRESET_STYLES: Record<ResumePreset, ResumePresetStyle> = {
+  kevin:   { accent: '#111827', nameSize: 28, titleSize: 12.5, sectionSize: 12.5, ruleWidth: 0.8, name: '#111827', title: '#1f2937', body: '#1f2937', muted: '#6b7280' },
   classic: { accent: '#2a5f8f', nameSize: 26, titleSize: 14, sectionSize: 14, ruleWidth: 1.5, name: '#111', title: '#2a5f8f', body: '#222', muted: '#444' },
   modern:  { accent: '#0f766e', nameSize: 26, titleSize: 14, sectionSize: 13, ruleWidth: 2,   name: '#111', title: '#0f766e', body: '#222', muted: '#444' },
   bold:    { accent: '#111111', nameSize: 30, titleSize: 15, sectionSize: 15, ruleWidth: 2.5, name: '#111', title: '#111111', body: '#1a1a1a', muted: '#333' },
@@ -58,6 +60,8 @@ export interface ResumeExperienceItem {
   company: string;
   dates: string;
   location: string;
+  description?: string;
+  technologies?: string;
   bullets: string[];
 }
 

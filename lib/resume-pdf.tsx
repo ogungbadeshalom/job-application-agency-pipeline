@@ -31,6 +31,9 @@ export interface ResumeData {
     role: string;
     company: string;
     dates: string;
+    location?: string;
+    description?: string;
+    technologies?: string;
     bullets: string[];
   }[];
   education: {
@@ -65,6 +68,17 @@ interface PresetPalette {
 }
 
 const PALETTES: Record<ResumePreset, PresetPalette> = {
+  kevin: {
+    accent: '#111827',
+    nameSize: 28,
+    titleSize: 12.5,
+    sectionSize: 12.5,
+    ruleWidth: 0.8,
+    sectionPadding: 2,
+    headerMargin: 12,
+    font: 'Helvetica',
+    titleFont: 'Helvetica-Bold',
+  },
   classic: {
     accent: '#2a5f8f',
     nameSize: 26,
@@ -173,7 +187,126 @@ export function makeResumeStyles(preset: ResumePreset) {
   });
 }
 
+// ---- Engraved (Kevin) preset: faithful to the approved Helvetica design. ----
+// US Letter, left-aligned name + contact, uppercase ruled section headers,
+// two-line job blocks (company|location / role|dates), hanging bullets.
+const engraved = StyleSheet.create({
+  page: { paddingTop: 40, paddingBottom: 44, paddingLeft: 46, paddingRight: 46, fontFamily: 'Helvetica', fontSize: 10, lineHeight: 1.35, color: '#1f2937' },
+  name: { fontSize: 28, fontFamily: 'Helvetica-Bold', color: '#111827', lineHeight: 1.05, marginBottom: 14 },
+  contact: { fontSize: 10.5, color: '#6b7280', marginBottom: 16 },
+  section: {
+    fontSize: 12.5, fontFamily: 'Helvetica-Bold', color: '#111827', textTransform: 'uppercase',
+    borderBottomWidth: 0.8, borderBottomColor: '#111827', letterSpacing: 0.5, paddingBottom: 3, marginBottom: 7, marginTop: 14,
+  },
+  sum: { fontSize: 10, lineHeight: 1.35, textAlign: 'left' },
+  skillGroup: { flexDirection: 'row', marginBottom: 2 },
+  skillLbl: { fontFamily: 'Helvetica-Bold', color: '#111827' },
+  skillVal: { flex: 1 },
+  job: { marginBottom: 10 },
+  jline1: { flexDirection: 'row', justifyContent: 'space-between' },
+  jrole: { fontFamily: 'Helvetica-Bold', color: '#111827', fontSize: 10.5 },
+  jcomp: { fontStyle: 'italic', color: '#1f2937' },
+  jloc: { fontSize: 9.5, color: '#6b7280' },
+  jdates: { fontSize: 9.5, color: '#6b7280' },
+  jline2: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 1 },
+  jdesc: { fontSize: 9.6, lineHeight: 1.35, color: '#1f2937', marginTop: 3 },
+  kc: { fontFamily: 'Helvetica-Bold', color: '#111827', marginTop: 6 },
+  tech: { fontSize: 9.5, marginTop: 3, color: '#1f2937' },
+  techLbl: { fontFamily: 'Helvetica-Bold', color: '#111827' },
+  bullet: { flexDirection: 'row', marginBottom: 2, paddingLeft: 14 },
+  bulletDot: { width: 9, fontSize: 10, marginLeft: -14 },
+  bulletText: { flex: 1, fontSize: 9.6, textAlign: 'left' },
+  eduRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 1 },
+  eduInst: { fontFamily: 'Helvetica-Bold', color: '#111827' },
+  eduD: { fontSize: 9.5, color: '#6b7280' },
+  cert: { flexDirection: 'row', marginBottom: 2, paddingLeft: 14 },
+  certDot: { width: 9, fontSize: 10, marginLeft: -14 },
+  certText: { flex: 1, fontSize: 9.6 },
+});
+
+function EngravedResumeDoc({ d }: { d: ResumeData }) {
+  const showTech = d.technicalSkills && d.technicalSkills.length > 0;
+  return (
+    <Document>
+      <Page size="LETTER" style={engraved.page}>
+        <Text style={engraved.name}>{d.name || ''}</Text>
+        <Text style={engraved.contact}>{d.contact || ''}</Text>
+
+        <Text style={engraved.section}>Professional Summary</Text>
+        {(d.summary || []).map((p, i) => (
+          <Text key={i} style={engraved.sum}>{p}</Text>
+        ))}
+
+        {showTech ? (
+          <><Text style={engraved.section}>Technical Skills</Text>
+          {(d.technicalSkills || []).map((g, gi) => (
+            <View key={gi} style={engraved.skillGroup}>
+              <Text style={engraved.skillLbl}>{g.category}: </Text>
+              <Text style={engraved.skillVal}>{g.items}</Text>
+            </View>
+          ))}</>
+        ) : (d.skills && d.skills.length > 0) ? (
+          <><Text style={engraved.section}>Technical Skills</Text>
+          {(d.skills || []).map((s, si) => (
+            <Text key={si} style={engraved.sum}>{s}</Text>
+          ))}</>
+        ) : null}
+
+        <Text style={engraved.section}>Work Experience</Text>
+        {(d.experience || []).map((e, ei) => (
+          <View key={ei} style={engraved.job} wrap={false}>
+            <View style={engraved.jline1}>
+              <Text style={engraved.jrole}>{e.role || ''}</Text>
+              <Text style={engraved.jdates}>{e.dates || ''}</Text>
+            </View>
+            <View style={engraved.jline2}>
+              <Text style={engraved.jcomp}>{e.company || ''}</Text>
+              {e.location ? <Text style={engraved.jloc}>{e.location}</Text> : null}
+            </View>
+            {e.description ? <Text style={engraved.jdesc}>{e.description}</Text> : null}
+            <Text style={engraved.kc}>Key Contributions</Text>
+            {(e.bullets || []).map((b, bi) => (
+              <View key={bi} style={engraved.bullet}>
+                <Text style={engraved.bulletDot}>{'\u2022'}</Text>
+                <Text style={engraved.bulletText}>{b}</Text>
+              </View>
+            ))}
+            {e.technologies ? (
+              <Text style={engraved.tech}><Text style={engraved.techLbl}>Technologies:</Text>{' '}{e.technologies}</Text>
+            ) : null}
+          </View>
+        ))}
+
+        {(d.education && d.education.length > 0) && (
+          <><Text style={engraved.section}>Education</Text>
+          {(d.education || []).map((e, ei) => (
+            <View key={ei} wrap={false}>
+              <View style={engraved.eduRow}>
+                <Text style={engraved.eduInst}>{e.school || e.degree}</Text>
+                <Text style={engraved.eduD}>{e.dates}</Text>
+              </View>
+              {e.degree && e.degree !== e.school ? <Text style={{ fontSize: 9.6 }}>{e.degree}</Text> : null}
+              {e.detail ? <Text style={engraved.sum}>{e.detail}</Text> : null}
+            </View>
+          ))}</>
+        )}
+
+        {(d.certifications && d.certifications.length > 0) && (
+          <><Text style={engraved.section}>Certifications</Text>
+          {d.certifications.map((c, ci) => (
+            <View key={ci} style={engraved.cert}>
+              <Text style={engraved.certDot}>{'\u2022'}</Text>
+              <Text style={engraved.certText}>{c.name}{c.issuer ? ` — ${c.issuer}` : ''}{c.year ? ` · ${c.year}` : ''}</Text>
+            </View>
+          ))}</>
+        )}
+      </Page>
+    </Document>
+  );
+}
+
 function ResumeDoc({ d, preset }: { d: ResumeData; preset: ResumePreset }) {
+  if (preset === 'kevin') return <EngravedResumeDoc d={d} />;
   const styles = makeResumeStyles(preset);
   return (
     <Document>
@@ -287,6 +420,9 @@ export function structuredToResumeData(s: StructuredResume): ResumeData {
       role: e.role || '',
       company: e.company || '',
       dates: e.dates || '',
+      location: e.location || '',
+      description: e.description || '',
+      technologies: e.technologies || '',
       bullets: (e.bullets || []).filter((b) => b.trim()),
     })),
     education: (s.education || []).map((e) => ({

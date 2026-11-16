@@ -165,6 +165,8 @@ function mapJob(r: Record<string, unknown>): Job {
     verified_remote: Boolean(r.verified_remote),
     easy_apply: Boolean(r.easy_apply),
     tailor_status: (r.tailor_status as string | null) ?? null,
+    reason_string: (r.reason_string as string | null) ?? null,
+    run_id: (r.run_id as string | null) ?? null,
     created_at: (r.created_at as Date).toISOString(),
     updated_at: (r.updated_at as Date).toISOString(),
     last_viewed_at: r.last_viewed_at ? (r.last_viewed_at as Date).toISOString() : null,
@@ -216,6 +218,8 @@ function mapJobSlim(r: Record<string, unknown>): Job {
     verified_remote: Boolean(r.verified_remote),
     easy_apply: Boolean(r.easy_apply),
     tailor_status: (r.tailor_status as string | null) ?? null,
+    reason_string: (r.reason_string as string | null) ?? null,
+    run_id: (r.run_id as string | null) ?? null,
     created_at: (r.created_at as Date).toISOString(),
     updated_at: (r.updated_at as Date).toISOString(),
     last_viewed_at: r.last_viewed_at ? (r.last_viewed_at as Date).toISOString() : null,
@@ -479,6 +483,22 @@ export const db = {
       [workerId]
     );
     return rows.map(mapProfile);
+  },
+  // Hermes: saved-job count per profile for a worker (powers the app's connect
+  // -> pick-profile picker so each client row shows how many are ready to run).
+  async savedCountsByWorker(workerId: string): Promise<Record<string, number>> {
+    const rows = await all(
+      `select p.id as profile_id, coalesce(count(j.id), 0)::int as saved_count
+         from worker_clients wc
+         join profiles p on p.id = wc.profile_id
+         left join jobs j on j.profile_id = p.id and j.status = 'saved'
+        where wc.worker_user_id = $1 and p.deleted_at is null
+        group by p.id`,
+      [workerId]
+    );
+    const m: Record<string, number> = {};
+    for (const r of rows) m[r.profile_id as string] = (r.saved_count as number) ?? 0;
+    return m;
   },
   // True if this profile is in the worker's assigned client set.
   async workerHasClient(workerId: string, profileId: string): Promise<boolean> {
@@ -800,7 +820,7 @@ export const db = {
     let sql =
       `select id, profile_id, title, company, board, url,
                    compensation_min, compensation_max, compensation_currency, location,
-                   status, notes, scrape_run_id, verified_remote, easy_apply,
+                   status, notes, scrape_run_id, reason_string, run_id, verified_remote, easy_apply,
                    created_at, updated_at, last_viewed_at, submitted_at,
                    (tailored_resume is not null and tailored_resume <> '') as has_tailored_resume,
                    (proof_of_submission is not null and proof_of_submission <> '') as has_proof_of_submission,

@@ -41,6 +41,15 @@ function demoBlocked(pathname: string): boolean {
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  // [digest-debug] Correlation logging: a Next.js-internal unhandledRejection
+  // ("Cannot read properties of null (reading 'digest')") fires inside the
+  // app-page runtime on certain broken/scanning requests. Log auth + mutating
+  // requests edge-side so the stack in the pm2 error log can be matched to the
+  // exact URL that triggered it. (Single-admin tool: acceptable volume.)
+  if (pathname.startsWith('/api/auth') || ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    console.log(`[digest-debug] ${req.method} ${pathname}`);
+  }
+
   const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
   let token = null;
   if (secret) {

@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth';
 import { isUuid } from '@/lib/validate';
 import { runJobSpy, dedupeAndMap, scrapeProgress, latestRunByWorker } from '@/lib/scrape';
 import { filterJobsByResume, filterByAllowedRoles } from '@/lib/aiJobMatch';
+import { riverJobs } from '@/lib/jobRiver';
 import type { Job, ProfilePreset, ScrapeResultJob } from '@/lib/types';
 import { assertNotBusy } from '@/lib/autoRefill';
 
@@ -202,10 +203,21 @@ export async function POST(req: Request) {
           (p) => { scrapeProgress[run.id] = p; } // live overwrite as steps complete
         );
 
+        // Job River: extra $0 keyless source merged into the same pipeline
+        // (role-fit + resume gate + dedupe + insert + auto-tailor). One dead
+        // source never kills the pass.
+        let riverRaw: ScrapeResultJob[] = [];
+        try {
+          riverRaw = await riverJobs(termsForScrape, { perTermLimit: 30, maxTotal: 120 });
+        } catch (e) {
+          console.warn('[worker-refill] job river skipped:', e instanceof Error ? e.message : e);
+        }
+        const combinedRaw: ScrapeResultJob[] = [...allRaw, ...riverRaw];
+
         // AI role-fit gate: only keep jobs that genuinely match the client's
         // resume (level + role family + skills), so off-target roles (Director/
         // PM/Sales/Compliance/adjacent) never enter the queue.
-        let matched = allRaw;
+        let matched = combinedRaw;
         // Board denylist (profile.blocked_boards) — hard filter first.
         if (profile.blocked_boards?.length) {
           matched = matched.filter((j) => !profile.blocked_boards.includes(String(j.site || '').toLowerCase()));

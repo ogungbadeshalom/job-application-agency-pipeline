@@ -93,19 +93,83 @@ const resume: StructuredResume = {
   ],
 };
 
+// Credosis Frontend-Engineer-Intern variant: same facts, frontend-weighted.
+function credosisVariant(): StructuredResume {
+  return {
+    contact: { ...resume.contact, title: 'Front-End Engineer | React / Next.js / TypeScript' },
+    summary:
+      'Front-end engineer building production React and Next.js interfaces — responsive, accessible, and pixel-perfect. ' +
+      'Shipped multi-tenant SaaS platforms end-to-end (Next.js, TypeScript, PostgreSQL/Drizzle on Hetzner) including ' +
+      'worker/client dashboard UIs, Tailwind styling, and REST API integration. Comfortable collaborating with backend ' +
+      'engineers and designers, and owning features from component to deploy.',
+    experience: [
+      {
+        role: 'Founder — Reverse Recruiting & VA Agency (Self-Employed)',
+        company: '',
+        dates: 'Jul 2024 – Present',
+        location: '',
+        bullets: [
+          'Built and operate Hermes, an autonomous agentic application pipeline, including React/Next.js dashboards for workers and clients (job lists, status tracking, filters, responsive layouts).',
+          'Submitted 15,000+ job applications on behalf of clients, combining automation with manual quality review.',
+          'Delivered freelance reverse recruiting, ATS resume optimization, and virtual assistant services on Upwork, including onboarding new freelancers to the platform.',
+        ],
+      },
+      {
+        role: 'Software Engineer Intern',
+        company: 'IHS Towers',
+        dates: 'Feb 2025 – Jun 2025',
+        location: 'Lagos, Nigeria',
+        bullets: [
+          'Built a responsive, pixel-perfect React/Next.js frontend for an internal travel-request application — role-based access control, REST API integration, and form validation.',
+          'Covered the full request lifecycle across employee, manager, and admin roles: submission, multi-stage approval, and status tracking.',
+          'Engineered the PostgreSQL/Drizzle ORM backend — normalized schema, migrations, and transactional handling that kept request state consistent under concurrent approvals.',
+          'Integrated automated email notifications so approvers are alerted instantly, cutting manual follow-up during the approval cycle.',
+          'Wrote clean, maintainable, typed TypeScript across the stack, following Git-based code review and branching workflows.',
+          'Collaborated with backend developers and staff users through sprint planning, standups, and code reviews to translate requirements into shipped features.',
+        ],
+      },
+      {
+        role: 'Frontend Engineer Intern',
+        company: '390',
+        dates: 'Jan 2025',
+        location: 'Lagos, Nigeria',
+        bullets: [
+          'Studied the company codebase and internal documentation to understand existing architecture, conventions, and component patterns before shipping changes.',
+          'Worked directly on the company website UI, implementing responsive, pixel-perfect React components from designs.',
+          'Styled interfaces with Tailwind CSS, shipping mobile-first layouts that held up across breakpoints and devices.',
+          'Consumed RESTful APIs and wired client-side state management to power data-driven views and dynamic user flows.',
+          'Improved frontend accessibility and performance — semantic HTML, keyboard-friendly interactions, and leaner component rendering.',
+          'Collaborated with senior engineers via Git/GitHub — feature branches, pull requests, and iterative feedback on UI changes.',
+        ],
+      },
+    ],
+    education: resume.education,
+    certifications: [],
+    skills: [],
+    technicalSkills: [
+      { category: 'Core Front-End', items: 'HTML5, CSS3 (flexbox/grid, responsive design), modern JavaScript (ES6+), React, Next.js, TypeScript' },
+      { category: 'Styling & Tools', items: 'Tailwind CSS, utility-first CSS, Git & GitHub workflows (feature branches, PRs, code review)' },
+      { category: 'State & Data', items: 'REST API consumption, React state management, server-side data fetching (Next.js), PostgreSQL, Drizzle ORM' },
+      { category: 'Also', items: 'Node.js, Express, Redis/BullMQ, Docker, Coolify, Hetzner, Godot 4, C#/Lua/GDScript, Spring Boot, Google Cloud Platform' },
+    ],
+  };
+}
+
 async function main() {
   const preset = (process.argv[2] as ResumePreset) || 'classic';
-  const data = structuredToResumeData(resume);
+  const variant = process.argv[3] || 'Main';
+  const source = variant === 'Credosis' ? credosisVariant() : resume;
+  const data = structuredToResumeData(source);
   // Full contact line incl. GitHub/LinkedIn — the app's converter only joins email/phone/location.
   data.contact = [
-    resume.contact.email,
-    resume.contact.phone,
-    resume.contact.location,
-    resume.contact.github,
-    resume.contact.linkedin,
+    source.contact.email,
+    source.contact.phone,
+    source.contact.location,
+    source.contact.github,
+    source.contact.linkedin,
   ].filter(Boolean).join(' | ');
   const buf = await renderResumePdf(data, preset);
-  const out = `/root/Shalom_Main_Resume_${preset}.pdf`;
+  const out = `/root/Shalom_${variant}_Resume_${preset}.pdf`;
   writeFileSync(out, buf);
   console.log('wrote', out, buf.length, 'bytes');
 }

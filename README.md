@@ -40,13 +40,19 @@ Admin clicks **Refill Jobs** → jobs land in each client's queue → a worker o
 
 Worker↔client assignment is managed in-app (admin); one worker can serve one or several clients, and one client can have multiple roles from the same company (the old one-role-per-company rule was removed). Role checks are app-level (`lib/auth.ts` `requireRole`) — no DB RLS.
 
+**Archiving (soft-delete)** — setting `profiles.deleted_at` hides a client from worker/admin lists and the active pipeline while **keeping all data**; the account's login (on the `users` table) is unaffected. Unarchive/restore is a one-liner: `update profiles set deleted_at=null where id=…`.
+
+**Demo showcase** — `scripts/seed_demo.ts` seeds read-only, caged demo accounts (password `12345678`) so a prospective client can poke around without changing anything: `demo.client@demo.pitchr` (client view), `demo.worker@demo.pitchr` (worker view), `demo.admin@demo.pitchr` (admin view). The demo client ships 8 sample jobs, 4 AI-tailored.
+
 ---
 
 ## Features
 
 - **Job scraping** via JobSpy across the enabled boards (Greenhouse, BuiltIn, Jobicy, RemoteOK, WorkingNomads, Ashby, SmartRecruiters…). Dead/blocked boards (LinkedIn anonymous, Indeed, Lever, ZipRecruiter from a datacenter IP) are pruned from the UI options. **Remote-only client queues** use the logged-in **Agent-Reach LinkedIn** path (`npm run refill:remote`) which fetches full descriptions, marks `verified_remote`, and excludes Easy Apply.
-- **AI resume tailoring** — the LLM returns structured JSON; rendered into a clean A4 **PDF** per job via react-pdf (`@react-pdf/renderer`). Downloadable as a proper `.pdf`, named `Company - Role.pdf`.
+- **Job River** — a $0, keyless live-scrape source merged into the refill pipeline as a fallback so one dead/free board never kills a pass. Runs through the same role-fit + resume + dedupe + auto-tailor gate as JobSpy results (`lib/jobRiver.ts`, wired into `app/api/worker-refill/route.ts`).
+- **AI resume tailoring** — the LLM returns structured JSON; rendered into a clean A4 **PDF** per job via react-pdf (`@react-pdf/renderer`). Downloadable as a proper `.pdf`, named `Company - Role.pdf`. Newest default design is the engraved **`kevin`** preset (monochrome Helvetica, uppercase ruled section headers, and per-role **description + Key Contributions + Technologies** lines) in `lib/resume-pdf.tsx` / `lib/resume-presets.ts`.
 - **ATS scoring** — each job gets an `ats_score` + `ats_feedback` (migration 020).
+- **Job statuses** — `saved, tailored, applied, confirmed, interview, skipped, failed` (migration `038_job_status_outcomes`; badges in `components/StatusBadge.tsx`).
 - **Policy-aware search** — by title, company, board, or location; status + client filters.
 - **Role-specific UIs** — dense tables on desktop, compact cards on mobile.
 - **"Continue where I left off"** — DB-backed last-viewed cursor per worker.

@@ -128,6 +128,11 @@ export async function GET(req: Request) {
   const pid = url.searchParams.get('profile_id');
   const searchParam = url.searchParams.get('search');
   if (searchParam) filter.search = searchParam;
+  const limitParam = url.searchParams.get('limit');
+  if (limitParam) {
+    const n = parseInt(limitParam, 10);
+    if (!Number.isNaN(n) && n > 0) filter.limit = n; // Drain-N cap: fetch exactly N
+  }
 
   if (session.user.role === 'admin') {
     // Demo admins are caged to demo profiles — real client data never leaves.

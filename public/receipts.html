@@ -49,6 +49,77 @@
   </div>
 </div>
 
+<!-- LIVE PLATFORM PANEL (funnel + client cards + ticker, no demo) -->
+<style>
+  .pfunnel{display:flex; gap:16px; margin-top:20px; flex-wrap:wrap;}
+  .pfunnel .pfs{flex:1; min-width:200px; background:#fff; border:1px solid var(--line); border-radius:var(--radius-lg); padding:20px 24px; text-align:center; box-shadow:var(--shadow-sm);}
+  .pfunnel .pfs b{display:block; font-family:'Fraunces','Source Serif 4',Georgia,serif; font-size:32px; font-weight:700; color:#0f6b42;}
+  .pfunnel .pfs span{display:block; font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:#4d525c; margin-top:2px;}
+  .pticker{background:#fff; border:1px solid var(--line); border-radius:var(--radius-lg); margin-top:20px; overflow:hidden; box-shadow:var(--shadow-sm);}
+  .pticker .phead{display:flex; justify-content:space-between; align-items:center; padding:12px 20px; border-bottom:1px solid #eef0ec; font-weight:700; font-size:14px;}
+  .plive{font:700 10px/1 Helvetica,Arial,sans-serif; color:#d64545; border:1px solid #f0c4c4; background:#fdecec; padding:4px 9px; border-radius:999px; letter-spacing:.04em; display:inline-flex; align-items:center; gap:6px;}
+  .plive::before{content:''; width:7px; height:7px; border-radius:50%; background:#d64545;}
+  .prow{display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 20px; border-bottom:1px solid #eef0ec; font-family:Helvetica,Arial,sans-serif;}
+  .prow:last-child{border-bottom:none;}
+  .prow .tc{font-size:13.5px; font-weight:600; color:#35393f;}
+  .prow .td{font-size:12px; color:#84898f; white-space:nowrap;}
+  .prow .tr{font-size:12px; font-weight:700; color:#0f6b42; margin-left:auto; white-space:nowrap;}
+  .pgrid-r{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:20px;}
+  .pgrid-r .pc{background:#fff; border:1px solid var(--line); border-radius:var(--radius-lg); padding:20px; box-shadow:var(--shadow-sm);}
+  .pgrid-r .pc h3{margin:0 0 12px; font-size:18px;}
+  .pgrid-r .pc .row{display:flex; justify-content:space-between; font:13px Helvetica,Arial,sans-serif; color:#4d525c; padding:7px 0; border-bottom:1px solid #eef0ec;}
+  .pgrid-r .pc .row:last-child{border-bottom:none;}
+  .pgrid-r .pc .row b{font-weight:700; color:#101318;}
+  .pgrid-r .pc .row b.g{color:#0f6b42;}
+  @media(max-width:760px){ .pgrid-r{grid-template-columns:1fr;} }
+</style>
+<section class="section">
+  <div class="wrap">
+    <span class="eyebrow">The platform, live</span>
+    <h2 style="font-size:clamp(28px,3.4vw,42px); max-width:620px; margin:10px 0 6px;">Where every application sits.</h2>
+    <p style="font-size:15px; color:#4d525c; max-width:640px; margin-bottom:6px;">Real totals from the Pitchr platform: saved jobs, tailored resumes, and everything genuinely submitted with proof. Refreshes live.</p>
+
+    <!-- A: funnel -->
+    <div class="pfunnel" id="pp-funnel"><div class="pfs"><b>–</b><span>Loading</span></div><div class="pfs"><b>–</b><span>Loading</span></div><div class="pfs"><b>–</b><span>Loading</span></div></div>
+
+    <!-- B: client cards -->
+    <div class="pgrid-r" id="pp-clients"></div>
+
+    <!-- C: ticker -->
+    <div class="pticker">
+      <div class="phead"><span>Latest applications sent</span><span class="plive">Live</span></div>
+      <div id="pp-ticker"></div>
+    </div>
+  </div>
+</section>
+
+<script>
+(function(){
+  var esc = function(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]; }); };
+  fetch('/api/public/receipts').then(function(r){ return r.json(); }).then(function(d){
+    var c = document.getElementById('pp-funnel'); if (c && d.funnel) {
+      c.innerHTML = ['saved','tailored','applied'].map(function(k){
+        var n = d.funnel[k]||0;
+        return '<div class="pfs"><b>'+n.toLocaleString()+'</b><span>'+k[0].toUpperCase()+k.slice(1)+'</span></div>';
+      }).join('');
+    }
+    var cl = document.getElementById('pp-clients'); if (cl && d.clients && d.clients.length) {
+      cl.innerHTML = d.clients.map(function(x){
+        return '<div class="pc"><h3>'+esc(x.name)+'</h3>'+
+          '<div class="row"><span>Jobs ingested</span><b>'+esc(x.ingested)+'</b></div>'+
+          '<div class="row"><span>Tailored</span><b>'+esc(x.tailored)+'</b></div>'+
+          '<div class="row"><span>Applied</span><b class="g">'+esc(x.applied)+'</b></div></div>';
+      }).join('');
+    }
+    var tk = document.getElementById('pp-ticker'); if (tk && d.recent && d.recent.length) {
+      tk.innerHTML = d.recent.map(function(x){
+        return '<div class="prow"><span class="tc">'+esc(x.role)+'</span><span class="td">'+esc(x.company)+'</span><span class="tr">'+esc(x.status)+'</span></div>';
+      }).join('');
+    }
+  }).catch(function(){ var c=document.getElementById('pp-funnel'); if(c) c.innerHTML='<div class="pfs" style="flex:1"><b>–</b><span>Live data unavailable</span></div>'; });
+})();
+</script>
+
 <!-- CLIENT LOGS -->
 <div class="section">
   <div class="wrap">

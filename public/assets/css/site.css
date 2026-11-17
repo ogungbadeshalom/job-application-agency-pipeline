@@ -76,8 +76,9 @@ a { color:inherit; text-decoration:none; }
 .grid.three { grid-template-columns:repeat(3,1fr); }
 .grid.two { grid-template-columns:repeat(2,1fr); }
 .grid.four { grid-template-columns:repeat(4,1fr); }
-@media(max-width:960px){ .grid.three,.grid.four{grid-template-columns:repeat(2,1fr);} }
-@media(max-width:560px){ .grid.three,.grid.two,.grid.four{grid-template-columns:1fr;} }
+  .grid.five { grid-template-columns:repeat(5,1fr); }
+  @media(max-width:960px){ .grid.three,.grid.four,.grid.five{grid-template-columns:repeat(2,1fr);} }
+  @media(max-width:560px){ .grid.three,.grid.two,.grid.four,.grid.five{grid-template-columns:1fr;} }
 .card .ic { font-size:24px; margin-bottom:12px; }
 .card h3 { font-size:20px; margin-bottom:8px; }
 .card p { font-size:14px; color:var(--grey); }

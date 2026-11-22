@@ -1,6 +1,6 @@
 # Pitchr
 
-![Pitchr Banner](https://media.tenor.com/jEZ7kcWVLun.gif)
+![Pitchr Banner](/jjk-banner.gif)
 
 **Multi-tenant AI job-application agency** — scrape job boards, auto-tailor a client's resume per role, submit the application, and track everything across admins, workers, and clients. *(Formerly "Job Bidder"; rebranded to Pitchr.)*
 

@@ -1,5 +1,7 @@
 # Pitchr
 
+![Pitchr Banner](https://media.tenor.com/jEZ7kcWVLun.gif)
+
 **Multi-tenant AI job-application agency** — scrape job boards, auto-tailor a client's resume per role, submit the application, and track everything across admins, workers, and clients. *(Formerly "Job Bidder"; rebranded to Pitchr.)*
 
 Admin clicks **Refill Jobs** → jobs land in each client's queue → a worker opens a job and the **AI tailors the client's resume to that exact JD** → marks it applied (with proof) → the client sees a read-only view with week-by-week history and per-week resume downloads.

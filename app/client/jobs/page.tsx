@@ -9,7 +9,16 @@ export default async function ClientJobsPage() {
   if (!user || !user.profile_id) redirect('/login');
 
   const [jobs, profile, resumeWeeks] = await Promise.all([
-    db.listJobs({ profile_id: user.profile_id, status: ['applied', 'tailored'], liveTailoring: true }),
+    // 'tailored' = a resume exists but was never submitted. Keep it in the list
+    // so the client can see work in progress, but it must NOT count as an
+    // application. Simpler statuses the pipeline can advance a job INTO
+    // (confirmed/interview) have to be included here or a successful
+    // application would vanish from the client's view once it progressed.
+    db.listJobs({
+      profile_id: user.profile_id,
+      status: ['applied', 'tailored', 'confirmed', 'interview'],
+      liveTailoring: true,
+    }),
     db.getProfile(user.profile_id),
     db.listResumeWeeks(user.profile_id),
   ]);

@@ -29,6 +29,18 @@ export default function ClientJobsClient({
   // download button (the /api/pdf endpoint is also gated server-side).
   const canDownload = (profiles[0]?.allow_resume_download ?? true) !== false;
 
+  // The headline number is what this client will actually care about: roles we
+  // SUBMITTED. A job is only counted once it has a submission timestamp (or a
+  // status that implies one), so 'tailored' work-in-progress no longer inflates
+  // the total — that made 50 real applications read as "63 jobs landed".
+  const SUBMITTED_STATUSES = new Set(['applied', 'confirmed', 'interview']);
+  const appliedCount = jobs.filter(
+    (j) => Boolean(j.submitted_at) || SUBMITTED_STATUSES.has(j.status)
+  ).length;
+  const inProgressCount = jobs.filter(
+    (j) => j.status === 'tailored' && !j.submitted_at
+  ).length;
+
   // Human-readable week label, e.g. "Sep 21 – Sep 27"
   function weekLabel(iso: string): string {
     try {
@@ -160,10 +172,15 @@ export default function ClientJobsClient({
       </div>
 
       <div data-onboard="client-count" className="panel p-4 mb-4 flex items-center gap-4">
-        <div className="text-4xl font-bold text-brand-green">{jobs.length}</div>
+        <div className="text-4xl font-bold text-brand-green">{appliedCount}</div>
         <div>
-          <div className="font-semibold text-navy-100">jobs for you</div>
-          <div className="text-sm text-navy-400">Landed {jobs.length > 0 ? 'so far' : 'yet — we are working on it'}.</div>
+          <div className="font-semibold text-navy-100">jobs applied to</div>
+          <div className="text-sm text-navy-400">
+            {appliedCount > 0 ? 'Submitted on your behalf.' : 'Nothing submitted yet — we are working on it.'}
+            {inProgressCount > 0 && (
+              <span className="text-navy-500"> {inProgressCount} more tailored, awaiting submission.</span>
+            )}
+          </div>
         </div>
       </div>
 

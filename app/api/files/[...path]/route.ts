@@ -61,8 +61,12 @@ export async function GET(_req: Request, { params }: { params: { path: string[] 
     }
   }
 
-  const meta = await statStorage(rel);
-  if (!meta) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  // NOTE: the existence check must come AFTER the tailored re-render below.
+  // Tailored PDFs are regenerated from the job's stored `tailored_resume` text,
+  // so a missing file on disk is recoverable — but this guard used to run first
+  // and returned 404 before the re-render was ever attempted. That silently
+  // broke downloads for every job whose PDF had been evicted or was written
+  // before the current storage layout (5080 rows on this box, 0 on disk).
 
   // Design-sync (Oct 26): tailored PDFs used to be frozen at tailor time, so a
   // design-preset change in Resume Lab never reached already-generated resumes
@@ -104,6 +108,12 @@ export async function GET(_req: Request, { params }: { params: { path: string[] 
       console.warn('[files] tailored re-render failed, serving stored PDF:', (e as Error).message);
     }
   }
+
+  // Anything not recovered by the re-render above must exist on disk. Checking
+  // here (after the regeneration attempt, before reading) keeps the 404 for
+  // genuinely missing files while letting recoverable tailored PDFs through.
+  const meta = await statStorage(rel);
+  if (!meta) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const data = await readStorage(rel);
   const contentType = rel.toLowerCase().endsWith('.pdf')

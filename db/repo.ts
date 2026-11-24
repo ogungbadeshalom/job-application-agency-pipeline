@@ -166,6 +166,11 @@ function mapJob(r: Record<string, unknown>): Job {
     easy_apply: Boolean(r.easy_apply),
     tailor_status: (r.tailor_status as string | null) ?? null,
     tailor_error: (r.tailor_error as string | null) ?? null,
+    redo_requested_at: r.redo_requested_at ? (r.redo_requested_at as Date).toISOString() : null,
+    redo_reason: (r.redo_reason as string | null) ?? null,
+    redo_note: (r.redo_note as string | null) ?? null,
+    redo_resolved_at: r.redo_resolved_at ? (r.redo_resolved_at as Date).toISOString() : null,
+    redo_resolved_by: (r.redo_resolved_by as string | null) ?? null,
     reason_string: (r.reason_string as string | null) ?? null,
     run_id: (r.run_id as string | null) ?? null,
     created_at: (r.created_at as Date).toISOString(),
@@ -788,15 +793,25 @@ export const db = {
       submitted_at: (r.submitted_at as Date | null)?.toISOString() ?? null,
     }));
   },
+  // Open redo requests for a set of client profiles — what the assigned worker
+  // must rework. Ordered oldest-first so the longest-waiting client gets served
+  // first.
+  async listOpenRedoJobs(profileIds: string[]): Promise<Job[]> {
+    if (!profileIds.length) return [];
+    const rows = await all(
+      `select * from jobs
+        where profile_id = ANY($1)
+          and redo_requested_at is not null
+          and redo_resolved_at is null
+        order by redo_requested_at asc`,
+      [profileIds]
+    );
+    return rows.map(mapJob);
+  },
+
   // Slim list variant used by every table/list view (dashboard, worker queue,
-  // worker history, client jobs/history). The full `listJobs` ships the heavy
-  // text columns (description up to 2MB+, tailored_resume, proof_of_submission)
-  // for EVERY job — on a 2000+ row queue that serializes into a multi-MB RSC
-  // payload and makes the app feel unresponsive. `listJobsSlim` selects only the
-  // display columns plus presence BOOLEANS, substituting a truthy sentinel for
-  // the heavy text so the UI's progress dots (which only check `!!field`) and all
-  // columns still work — while the payload drops by ~94%. The heavy fields are
-  // fetched on demand only when a worker opens a single job's detail page.
+  // worker history, client jobs/history). See the note on listOpenRedoJobs
+  // above for why the heavy columns are trimmed.
   async listJobsSlim(filter: ListJobsFilter = {}): Promise<Job[]> {
     const where: string[] = [];
     const params: unknown[] = [];
@@ -910,6 +925,11 @@ export const db = {
       last_viewed_at: 'last_viewed_at',
       tailor_status: 'tailor_status',
       tailor_error: 'tailor_error',
+      redo_requested_at: 'redo_requested_at',
+      redo_reason: 'redo_reason',
+      redo_note: 'redo_note',
+      redo_resolved_at: 'redo_resolved_at',
+      redo_resolved_by: 'redo_resolved_by',
     };
     const sets: string[] = [];
     const params: unknown[] = [];

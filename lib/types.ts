@@ -82,6 +82,13 @@ export interface Job {
   easy_apply: boolean;      // LinkedIn "Easy Apply" (excluded from refills)
   tailor_status?: string | null; // live tailoring stage (null = idle): generating | ats-scoring | improving | finalizing | done
   tailor_error?: string | null;  // failure reason from the last tailor run (null = no error)
+  // Client-initiated "redo this application" flag. Independent of status so a
+  // flagged job still records that it was applied to.
+  redo_requested_at?: string | null;
+  redo_reason?: string | null;
+  redo_note?: string | null;
+  redo_resolved_at?: string | null;
+  redo_resolved_by?: string | null;
   reason_string?: string | null; // Hermes: human-readable outcome reason (duplicate/dead-post/OTP-unconfirmed/...)
   run_id?: string | null;        // Hermes: per-drain attribution id linking a job to the batch run that drove it
   created_at: string;
@@ -240,6 +247,27 @@ export const STATUS_ORDER: Record<JobStatus, number> = {
 
 // Client view shows applied jobs (not skipped/saved/tailored).
 export const CLIENT_VISIBLE_STATUSES: JobStatus[] = ['applied'];
+
+// Why a client can ask for an application to be redone. Kept as a closed list
+// so the worker sees a consistent category instead of free text.
+export const REDO_REASONS = [
+  'wrong_resume',
+  'poor_quality',
+  'wrong_role',
+  'not_remote',
+  'wrong_location',
+  'other',
+] as const;
+export type RedoReason = (typeof REDO_REASONS)[number];
+
+export const REDO_REASON_LABELS: Record<RedoReason, string> = {
+  wrong_resume: 'Used the wrong resume',
+  poor_quality: 'Resume quality was poor',
+  wrong_role: 'Wrong role or seniority',
+  not_remote: 'Not actually remote',
+  wrong_location: 'Wrong location or eligibility',
+  other: 'Something else',
+};
 
 // Complaint categories a worker can file about the software.
 export const COMPLAINT_CATEGORIES = [

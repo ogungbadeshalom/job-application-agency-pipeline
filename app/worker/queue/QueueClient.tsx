@@ -35,6 +35,7 @@ export default function QueueClient({
   weeklyEarnings,
   earningsByClient,
   clientRoles,
+  redoJobs = [],
 }: {
   user: User;
   nav: { href: string; label: string; badge?: number }[];
@@ -61,6 +62,9 @@ export default function QueueClient({
     exampleTitles: string[];
     skipNote: string;
   }>;
+  /** Applications a client flagged for redo. Shown via the ?redo=1 filter so the
+   *  worker can see exactly what needs reworking, with the client's reason. */
+  redoJobs?: Job[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -157,14 +161,21 @@ export default function QueueClient({
     : jobsState.filter((j) => j.profile_id === clientId);
 
   // Internal queue tabs: which subset of the client-filtered jobs show.
-  const [queueTab, setQueueTab] = useState<'working' | 'applied' | 'skipped'>('working');
+  const [queueTab, setQueueTab] = useState<'working' | 'applied' | 'skipped' | 'redo'>('working');
+  // Redo = applications a client flagged and the worker has not reworked yet.
+  // These stay in their own view instead of mixing into Working, because they
+  // are already-applied jobs that need revisiting, not new work.
+  const redoFiltered =
+    clientId === 'all' ? redoJobs : redoJobs.filter((j) => j.profile_id === clientId);
   // working = unworked (saved/tailored); applied = applied only; skipped = skipped only.
   const tabJobs =
-    queueTab === 'applied'
-      ? filteredJobs.filter((j) => j.status === 'applied')
-      : queueTab === 'skipped'
-        ? filteredJobs.filter((j) => j.status === 'skipped')
-        : filteredJobs.filter((j) => j.status !== 'applied' && j.status !== 'skipped');
+    queueTab === 'redo'
+      ? redoFiltered
+      : queueTab === 'applied'
+        ? filteredJobs.filter((j) => j.status === 'applied')
+        : queueTab === 'skipped'
+          ? filteredJobs.filter((j) => j.status === 'skipped')
+          : filteredJobs.filter((j) => j.status !== 'applied' && j.status !== 'skipped');
 
   // Role guide for the currently selected client. On the 'all' aggregate, show
   // the guide when the worker has exactly ONE client (defaults to 'all' but the
@@ -661,14 +672,17 @@ export default function QueueClient({
               { id: 'working' as const, label: 'Working' },
               { id: 'applied' as const, label: 'Applied' },
               { id: 'skipped' as const, label: 'Skipped' },
+              { id: 'redo' as const, label: 'Redo' },
             ]
           ).map((t) => {
             const count =
-              t.id === 'applied'
-                ? filteredJobs.filter((j) => j.status === 'applied').length
-                : t.id === 'skipped'
-                  ? filteredJobs.filter((j) => j.status === 'skipped').length
-                  : filteredJobs.filter((j) => j.status !== 'applied' && j.status !== 'skipped').length;
+              t.id === 'redo'
+                ? redoFiltered.length
+                : t.id === 'applied'
+                  ? filteredJobs.filter((j) => j.status === 'applied').length
+                  : t.id === 'skipped'
+                    ? filteredJobs.filter((j) => j.status === 'skipped').length
+                    : filteredJobs.filter((j) => j.status !== 'applied' && j.status !== 'skipped').length;
             const active = queueTab === t.id;
             return (
               <button

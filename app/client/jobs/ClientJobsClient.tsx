@@ -6,6 +6,7 @@ import JobTable from '@/components/JobTable';
 import Modal from '@/components/Modal';
 import ZoomableImage from '@/components/ZoomableImage';
 import StatusBadge from '@/components/StatusBadge';
+import RedoRequestPanel from '@/components/RedoRequestPanel';
 import { Download, External } from '@/components/Icon';
 import type { Job, Profile, User } from '@/lib/types';
 
@@ -270,6 +271,13 @@ export default function ClientJobsClient({
                 View posting <External size={13} />
               </a>
             </div>
+
+            <RedoRequestPanel
+              job={selected}
+              onFlagged={(updated) =>
+                setSelected((prev) => (prev && prev.id === updated.id ? { ...prev, ...updated } : prev))
+              }
+            />
 
             {selected.tailor_status && (
               <div className="rounded-md border border-brand-blue/40 bg-brand-blue/10 px-4 py-3">

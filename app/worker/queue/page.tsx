@@ -74,8 +74,14 @@ export default async function WorkerQueuePage({
   // know what to apply for and don't skip valid titles recklessly.
   const clientRoles = roleGuidesForProfiles(profiles);
 
+  // Applications a client asked to have redone. These are work items for THIS
+  // worker, so they surface as a nav badge and as a filter in the queue rather
+  // than being buried in the history list.
+  const redoJobs = await db.listOpenRedoJobs(profileIds);
+
   const nav = [
     { href: '/worker/queue', label: 'Queue', badge: jobs.filter((j) => j.status === 'saved').length },
+    { href: '/worker/queue?redo=1', label: 'Redo', badge: redoJobs.length },
     { href: '/worker/history', label: 'History' },
     { href: '/worker/report', label: 'Report a problem' },
   ];
@@ -85,6 +91,7 @@ export default async function WorkerQueuePage({
       user={user}
       nav={nav}
       jobs={jobs}
+      redoJobs={redoJobs}
       profiles={allProfiles}
       clientProfiles={profiles}
       initialClientId={initialClientId}

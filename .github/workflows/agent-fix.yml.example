@@ -1,0 +1,153 @@
+# Autonomous issue-fixer — DESIGN DRAFT, NOT ACTIVE
+#
+# This file is deliberately named `.example` so GitHub never runs it. To activate,
+# rename to `.github/workflows/agent-fix.yml` ONLY after reading the constraints
+# below — a careless enable here can hand root on your VPS to strangers.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# WHY THIS CANNOT RUN ON GITHUB-HOSTED RUNNERS
+#
+# The agent runs on `command-code` via the local shim at http://127.0.0.1:8799.
+# A GitHub-hosted runner is a fresh VM: it cannot reach that address, and it has
+# no `~/.commandcode/auth.json`. The alternative — exporting COMMAND_CODE_API_KEY
+# as a repo secret — needs API access, which the Go plan does not include
+# (`upgrade_required`). So this must run on a SELF-HOSTED runner on your VPS.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# SECURITY — READ BEFORE ENABLING
+#
+# The repo is PUBLIC and the runner would sit on the box that runs Pitchr with
+# root access. On a public repo, anyone can open a PR. If the runner executes
+# untrusted PR code, they get your server.
+#
+# Non-negotiable mitigations, all applied below:
+#   1. Trigger on ISSUES ONLY — never `pull_request`. Fork PRs must never reach
+#      this runner.
+#   2. Require a label that only maintainers can apply (`agent-fix`).
+#   3. Require the issue author to be the repo owner.
+#   4. The agent may create a branch + PR, and must NEVER push to main or merge.
+#   5. Deny writes to secrets/infra paths (.env*, db/migrations, deploy scripts,
+#      .github/**) — a prompt-injected issue body must not be able to touch them.
+#   6. Cap turns and wall-clock so a runaway agent cannot burn the box.
+#
+# Even with all of that: an agent reads the issue body as instructions. Treat
+# every issue as potentially adversarial. Human review of the PR is the last and
+# most important gate — never let this arm auto-merge.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Agent Fix (self-hosted, draft)
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write        # push the fix branch
+  pull-requests: write   # open the PR
+  issues: write          # comment the result
+
+concurrency:
+  group: agent-fix-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  fix:
+    # All four gates must hold before a single command runs.
+    if: >-
+      github.event.label.name == 'agent-fix' &&
+      github.event.issue.user.login == github.repository_owner &&
+      !github.event.issue.pull_request
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare branch
+        run: |
+          git config user.name  "agent-fix-bot"
+          git config user.email "agent-fix-bot@users.noreply.github.com"
+          git checkout -b "agent-fix/issue-${{ github.event.issue.number }}"
+
+      - name: Ask the agent to propose a fix
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          # Cap the agent. Raise deliberately, never "just to get it done".
+          AI_TIMEOUT_MS: '600000'
+        run: |
+          set -o pipefail
+          cat > /tmp/agent-prompt.txt <<'PROMPT'
+          You are fixing a bug in this repository. Work only in the current
+          working tree and commit nothing — the workflow handles git.
+
+          HARD RULES (violating any of these fails the job):
+          - Do NOT modify: .env*, db/migrations/**, deploy.sh, auto_deploy.sh,
+            .github/**, or anything under node_modules.
+          - Do NOT run git commands that change history.
+          - Do NOT install new dependencies unless strictly required.
+          - Keep the change minimal and scoped to the reported issue.
+
+          When finished, the working tree should contain only the fix.
+          PROMPT
+
+          {
+            cat /tmp/agent-prompt.txt
+            echo
+            echo "ISSUE TITLE: ${ISSUE_TITLE}"
+            echo "ISSUE BODY:"
+            printf '%s\n' "${ISSUE_BODY}"
+          } | command-code -p --skip-onboarding --no-auto-update --yolo \
+              --permission-mode accept-edits \
+            | tail -40
+
+      - name: Guard denied paths
+        run: |
+          # Fail closed: if the agent touched infra/secrets, abort the PR.
+          CHANGED="$(git status --porcelain | awk '{print $2}')"
+          echo "Changed files:"; echo "$CHANGED"
+          DENIED='^(\.env|db/migrations/|deploy\.sh|auto_deploy\.sh|\.github/)'
+          if echo "$CHANGED" | grep -Eq "$DENIED"; then
+            echo "::error::Agent modified a denied path. Refusing to open a PR."
+            exit 1
+          fi
+          if [ -z "$CHANGED" ]; then
+            echo "::error::Agent produced no changes."
+            exit 1
+          fi
+
+      - name: Verify before proposing
+        run: |
+          # A PR that fails CI is noise. Cheap local gate first.
+          npm ci --no-audit --no-fund
+          npx tsc --noEmit
+
+      - name: Commit and open PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git add -A
+          git commit -m "agent-fix: address #${{ github.event.issue.number }}" \
+                     -m "Proposed by the autonomous fixer. Human review required."
+          git push -u origin "agent-fix/issue-${{ github.event.issue.number }}"
+
+          gh pr create \
+            --title "Fix: ${{ github.event.issue.title }}" \
+            --body "Closes #${{ github.event.issue.number }}
+
+          Generated by the agent-fix workflow. **Review this diff before merging** —
+          the agent read the issue body as instructions." \
+            --base main \
+            --head "agent-fix/issue-${{ github.event.issue.number }}"
+
+      - name: Report on the issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue comment "${{ github.event.issue.number }}" \
+            --body "Agent run finished: ${{ job.status }}. See the linked PR (if any)."

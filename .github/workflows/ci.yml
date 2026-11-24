@@ -1,0 +1,76 @@
+name: CI
+
+# Gate every change BEFORE it can reach production. The deploy webhook
+# (app/api/deploy-webhook -> /root/auto_deploy.sh) ships any push to main, so
+# this workflow is the only thing standing between a bad commit and a live site.
+#
+# Checks mirror what actually breaks this app:
+#   - tsc:    type errors (Next.js build would fail anyway, but earlier/cheaper)
+#   - build:  the real gate — catches server/client boundary errors, bad imports,
+#             and missing env-at-build problems that typecheck alone misses
+#   - migrate: the SQL applies cleanly against a real Postgres
+#
+# Deliberately NOT run here: `npm run lint`. The repo's ESLint config currently
+# reports pre-existing violations, so gating on it would block every PR until
+# the backlog is cleared. Add it once `npm run lint` is clean on main.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  # Cancel superseded runs on the same ref so pushes don't queue up builds.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: jobbids
+          POSTGRES_PASSWORD: jobbids
+          POSTGRES_DB: job_bidder
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jobbids -d job_bidder"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Build/test-only values. Never real credentials — CI must not hold
+      # production secrets, and these are safe in a public repo's logs.
+      DATABASE_URL: postgres://jobbids:jobbids@localhost:5432/job_bidder
+      AUTH_SECRET: ci-only-not-a-real-secret-0000000000
+      AUTH_TRUST_HOST: 'true'
+      ADMIN_EMAIL: ci@example.com
+      ADMIN_PASSWORD: ci-only-password
+      STORAGE_DIR: ./data/uploads
+      NEXT_TELEMETRY_DISABLED: '1'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Apply database migrations
+        run: npm run db:migrate
+
+      - name: Build
+        run: npm run build

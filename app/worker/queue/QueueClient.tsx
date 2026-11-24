@@ -167,7 +167,10 @@ export default function QueueClient({
   // are already-applied jobs that need revisiting, not new work.
   const redoFiltered =
     clientId === 'all' ? redoJobs : redoJobs.filter((j) => j.profile_id === clientId);
-  // working = unworked (saved/tailored); applied = applied only; skipped = skipped only.
+  // working = unworked rows only. This must be a POSITIVE list, not "everything
+  // that isn't applied/skipped": statuses like confirmed, interview and failed
+  // were being bucketed into Working, so a finished interview or a failed
+  // submission would show up as a job still waiting to be worked.
   const tabJobs =
     queueTab === 'redo'
       ? redoFiltered
@@ -175,7 +178,7 @@ export default function QueueClient({
         ? filteredJobs.filter((j) => j.status === 'applied')
         : queueTab === 'skipped'
           ? filteredJobs.filter((j) => j.status === 'skipped')
-          : filteredJobs.filter((j) => j.status !== 'applied' && j.status !== 'skipped');
+          : filteredJobs.filter((j) => j.status === 'saved' || j.status === 'tailored');
 
   // Role guide for the currently selected client. On the 'all' aggregate, show
   // the guide when the worker has exactly ONE client (defaults to 'all' but the
@@ -682,7 +685,7 @@ export default function QueueClient({
                   ? filteredJobs.filter((j) => j.status === 'applied').length
                   : t.id === 'skipped'
                     ? filteredJobs.filter((j) => j.status === 'skipped').length
-                    : filteredJobs.filter((j) => j.status !== 'applied' && j.status !== 'skipped').length;
+                    : filteredJobs.filter((j) => j.status === 'saved' || j.status === 'tailored').length;
             const active = queueTab === t.id;
             return (
               <button

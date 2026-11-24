@@ -35,7 +35,8 @@ export async function POST(req: Request) {
         const data = resumeTextToData(text);
         if (data && (data.experience.length || data.summary.length)) {
           const c = (profile.resume_data as any)?.contact || {};
-          const realContact = [profile.email, c.phone, c.location].filter(Boolean).join(' · ');
+          // Resume's own email wins over the login email (see tailor route).
+          const realContact = [c.email || profile.email, c.phone, c.location].filter(Boolean).join(' · ');
           if (realContact) data.contact = realContact;
           const preset = ((profile.resume_design as string) || 'classic') as any;
           const buf = await renderResumePdf(data, preset);

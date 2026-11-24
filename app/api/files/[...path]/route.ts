@@ -78,8 +78,13 @@ export async function GET(_req: Request, { params }: { params: { path: string[] 
         const data = resumeTextToData(full.tailored_resume);
         if (data && (data.experience.length || data.summary.length)) {
           // Contact line from the profile's REAL data — old stored texts may
-          // carry a LinkedIn URL; the email always wins on download.
-          const realContact = [prof?.email, prof?.resume_data?.contact?.phone, prof?.resume_data?.contact?.location]
+          // carry a LinkedIn URL; the resume's own email wins over the login
+          // email (which may be a personal account).
+          const realContact = [
+            prof?.resume_data?.contact?.email || prof?.email,
+            prof?.resume_data?.contact?.phone,
+            prof?.resume_data?.contact?.location,
+          ]
             .filter(Boolean)
             .join(' · ');
           if (realContact) data.contact = realContact;

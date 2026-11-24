@@ -14,6 +14,8 @@ import type { AppConfig } from './types';
 export interface CallAIOptions {
   maxTokens?: number;
   temperature?: number;
+  stream?: boolean;
+  onChunk?: (chunk: string) => void;
 }
 
 // Per-process cache so we don't hit Postgres on every callAI.
@@ -57,31 +59,62 @@ function envValue(field: keyof AppConfig): string | null {
 
 export async function aiProvider(): Promise<string> {
   const c = await loadConfig();
-  return c?.provider || envValue('ai_provider') || 'anthropic';
+  return c?.provider || envValue('ai_provider') || 'omniroute';
 }
 
 export async function aiModel(): Promise<string> {
   const c = await loadConfig();
-  return c?.model || envValue('ai_model') || 'claude-sonnet-5';
+  return c?.model || envValue('ai_model') || 'auto/best-coding';
 }
 
 export async function hasAnyKey(): Promise<boolean> {
   const c = await loadConfig();
   if (c?.apiKey && c.apiKey.length > 10) return true;
-  // env fallback: anthropic / openrouter / custom
-  const provider = c?.provider || envValue('ai_provider') || 'anthropic';
+  const provider = c?.provider || envValue('ai_provider') || 'omniroute';
+  if (provider === 'omniroute') return Boolean(process.env.OMNIROUTE_API_KEY);
   if (provider === 'anthropic') return Boolean(process.env.ANTHROPIC_API_KEY);
   if (provider === 'openrouter') return Boolean(process.env.OPENROUTER_API_KEY);
   return Boolean(process.env.AI_BASE_URL);
 }
 
 function stubEnabled(hasKey: boolean): boolean {
-  // AI_STUB=false → live (call the model if a key is configured)
-  // AI_STUB=true  → always stub (explicit escape hatch for dev)
-  // unset         → stub only if no real key is configured
   if (process.env.AI_STUB === 'true') return true;
   if (process.env.AI_STUB === 'false') return false;
   return !hasKey;
+}
+
+// Simple in-memory response cache for repeated identical requests
+const responseCache = new Map<string, { data: string; ts: number }>();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+function cacheKey(system: string, user: string, opts: CallAIOptions): string {
+  return `${system}|${user}|${JSON.stringify(opts)}`;
+}
+
+function getCached(key: string): string | null {
+  const entry = responseCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > CACHE_TTL_MS) {
+    responseCache.delete(key);
+    return null;
+  }
+  return entry.data;
+}
+
+function setCache(key: string, data: string): void {
+  responseCache.set(key, { data, ts: Date.now() });
+  // Prevent unbounded growth
+  if (responseCache.size > 1000) {
+    let oldestKey = '';
+    let oldestTs = Infinity;
+    responseCache.forEach((v, k) => {
+      if (v.ts < oldestTs) {
+        oldestTs = v.ts;
+        oldestKey = k;
+      }
+    });
+    if (oldestKey) responseCache.delete(oldestKey);
+  }
 }
 
 export async function callAI(
@@ -89,23 +122,41 @@ export async function callAI(
   user: string,
   opts: CallAIOptions = {}
 ): Promise<string> {
-  const { maxTokens = 1500, temperature = 0.4 } = opts;
+  const { maxTokens = 1500, temperature = 0.4, stream, onChunk } = opts;
   const cfg = await loadConfig();
-  const provider = cfg?.provider || envValue('ai_provider') || 'anthropic';
-  const model = cfg?.model || envValue('ai_model') || 'claude-sonnet-5';
-  const apiKey = cfg?.apiKey || process.env.ANTHROPIC_API_KEY || '';
+  const provider = cfg?.provider || envValue('ai_provider') || 'omniroute';
+  const model = cfg?.model || envValue('ai_model') || 'auto/best-coding';
+  const apiKey = cfg?.apiKey || process.env.OMNIROUTE_API_KEY || process.env.ANTHROPIC_API_KEY || '';
 
   const keyPresent = await hasAnyKey();
   if (stubEnabled(keyPresent)) {
     return stubResponse(system, user);
   }
 
+  // Check cache first (non-streaming only)
+  if (!stream) {
+    const cached = getCached(cacheKey(system, user, opts));
+    if (cached) return cached;
+  }
+
   try {
-    if (provider === 'anthropic') {
-      return await callAnthropic(system, user, model, maxTokens, temperature, apiKey);
-    }
-    if (provider === 'openrouter') {
-      return await callOpenAICompat({
+    let result: string;
+    if (provider === 'omniroute') {
+      result = await callOpenAICompat({
+        baseURL: 'https://pub.tailc86969.ts.net/v1',
+        apiKey,
+        model,
+        system,
+        user,
+        maxTokens,
+        temperature,
+        stream,
+        onChunk,
+      });
+    } else if (provider === 'anthropic') {
+      result = await callAnthropic(system, user, model, maxTokens, temperature, apiKey);
+    } else if (provider === 'openrouter') {
+      result = await callOpenAICompat({
         baseURL: 'https://openrouter.ai/api/v1',
         apiKey: cfg?.apiKey || process.env.OPENROUTER_API_KEY || '',
         model,
@@ -113,11 +164,11 @@ export async function callAI(
         user,
         maxTokens,
         temperature,
+        stream,
+        onChunk,
       });
-    }
-    if (provider === 'deepseek') {
-      // DeepSeek is OpenAI-compatible at https://api.deepseek.com/v1
-      return await callOpenAICompat({
+    } else if (provider === 'deepseek') {
+      result = await callOpenAICompat({
         baseURL: cfg?.baseUrl || 'https://api.deepseek.com/v1',
         apiKey: cfg?.apiKey || process.env.AI_API_KEY || '',
         model,
@@ -125,10 +176,11 @@ export async function callAI(
         user,
         maxTokens,
         temperature,
+        stream,
+        onChunk,
       });
-    }
-    if (provider === 'custom') {
-      return await callOpenAICompat({
+    } else if (provider === 'custom') {
+      result = await callOpenAICompat({
         baseURL: cfg?.baseUrl || envValue('ai_base_url') || process.env.AI_BASE_URL || '',
         apiKey: cfg?.apiKey || process.env.AI_API_KEY || 'ollama',
         model,
@@ -136,9 +188,18 @@ export async function callAI(
         user,
         maxTokens,
         temperature,
+        stream,
+        onChunk,
       });
+    } else {
+      throw new Error(`Unknown AI_PROVIDER: ${provider}`);
     }
-    throw new Error(`Unknown AI_PROVIDER: ${provider}`);
+
+    // Cache successful non-streaming responses
+    if (!stream && result) {
+      setCache(cacheKey(system, user, opts), result);
+    }
+    return result;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     throw new Error(`AI call failed (${provider}/${model}): ${msg}`);
@@ -175,42 +236,29 @@ interface OpenAICompatArgs {
   user: string;
   maxTokens: number;
   temperature: number;
+  stream?: boolean;
+  onChunk?: (chunk: string) => void;
 }
 
 async function callOpenAICompat(a: OpenAICompatArgs): Promise<string> {
   const client = new OpenAI({ baseURL: a.baseURL, apiKey: a.apiKey });
   let lastErr: unknown;
-  // Retry terminations: free inference endpoints can drop a connection once;
-  // a quick retry usually succeeds.
-  // Hard timeout per attempt: free endpoints (freeinference.org) can hang or
-  // silently drop TCP connections (ECONNRESET). Without a cap the UI spins
-  // forever. 90s/attempt: the provider's p50 is ~4s for a full tailor-sized
-  // completion, but tail latencies occasionally exceed 45s (observed once as a
-  // worker-facing 502 in the nightly health check), so the cap now covers the
-  // tail instead of failing a request the model would have answered.
-  const ATTEMPT_TIMEOUT_MS = 90_000;
+  const ATTEMPT_TIMEOUT_MS = Number(process.env.AI_TIMEOUT_MS) || 30_000;
 
-  // Concurrency-cap detection: freeinference.org throttles 2 in-flight
-  // completions with HTTP 429 "Too many concurrent requests (limit: 2)". That
-  // is a WAIT-FOR-A-SLOT condition, not a permanent failure — but the plain
-  // 3-attempt / short-backoff loop burns all attempts inside ~3s and surfaces
-  // a worker-facing 502 while the provider is merely momentarily saturated.
-  // On seeing this class, escalate to more attempts with longer backoff
-  // (~60s total) so a free slot (provider completions run ~2-4s each) has time
-  // to appear. Pattern found live: 3 consecutive nightly-gate tailor 502s.
   const isConcurrencyCap = (e: any): boolean =>
-    e?.status === 429 && /concurrent|rate.?limit/i.test(String(e?.message ?? ''));
+    e?.status === 429 && /concurrent|rate.?limit|cool.?down/i.test(String(e?.message ?? ''));
   let sawConcurrency = false;
-  let maxAttempts = 3;
+  let maxAttempts = 2; // Fewer attempts for speed
   const backoffMs = (attempt: number, sawCap: boolean): number =>
-    sawCap ? 2500 * (attempt + 1) : 800 * (attempt + 1);
+    sawCap ? 1000 * (attempt + 1) : 300 * (attempt + 1);
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), ATTEMPT_TIMEOUT_MS);
     try {
-      const completion = await client.chat.completions.create(
-        {
+      if (a.stream && a.onChunk) {
+        // Streaming path
+        const stream = await client.chat.completions.create({
           model: a.model,
           temperature: a.temperature,
           max_tokens: a.maxTokens,
@@ -218,14 +266,35 @@ async function callOpenAICompat(a: OpenAICompatArgs): Promise<string> {
             { role: 'system', content: a.system },
             { role: 'user', content: a.user },
           ],
-        },
-        { signal: controller.signal }
-      );
-      const text = completion.choices[0]?.message?.content?.trim() || '';
-      if (text) return text;
-      lastErr = new Error('AI returned an empty response.'); // retry blank responses too
+          stream: true,
+        }, { signal: controller.signal });
+
+        let fullText = '';
+        for await (const chunk of stream) {
+          const delta = chunk.choices[0]?.delta?.content || '';
+          if (delta) {
+            fullText += delta;
+            a.onChunk(delta);
+          }
+        }
+        if (fullText) return fullText;
+        lastErr = new Error('AI returned an empty response.');
+      } else {
+        // Non-streaming path
+        const completion = await client.chat.completions.create({
+          model: a.model,
+          temperature: a.temperature,
+          max_tokens: a.maxTokens,
+          messages: [
+            { role: 'system', content: a.system },
+            { role: 'user', content: a.user },
+          ],
+        }, { signal: controller.signal });
+        const text = completion.choices[0]?.message?.content?.trim() || '';
+        if (text) return text;
+        lastErr = new Error('AI returned an empty response.');
+      }
     } catch (e: any) {
-      // Classify for a clear, worker-facing error instead of "AI call failed".
       if (controller.signal.aborted && e?.code !== 'ECONNRESET') {
         lastErr = new Error(`AI request timed out after ${ATTEMPT_TIMEOUT_MS / 1000}s.`);
       } else {
@@ -233,7 +302,7 @@ async function callOpenAICompat(a: OpenAICompatArgs): Promise<string> {
       }
       if (isConcurrencyCap(e)) {
         sawConcurrency = true;
-        maxAttempts = 7; // escalate remaining slots to the slow wait-for-slot schedule
+        maxAttempts = 4; // Escalate on concurrency cap
       }
     } finally {
       clearTimeout(timer);
@@ -242,21 +311,32 @@ async function callOpenAICompat(a: OpenAICompatArgs): Promise<string> {
       await new Promise((r) => setTimeout(r, backoffMs(attempt, sawConcurrency)));
     }
   }
-  // Cross-model failover: when the primary model exhausts all attempts
-  // (timeouts/5xx/empty), try once on a secondary model on the SAME endpoint
-  // before giving up. Turns a provider-side model stall into a served request.
-  const FALLBACK_MODELS: Record<string, string> = {
+
+  // Quick failover chain for OmniRoute — try each fallback in sequence
+  const FALLBACK_CHAIN: Record<string, string> = {
+    'auto/best-coding': 'auto/best-free',
+    'auto/best-free': 'auto/thrifty',
+    'auto/thrifty': 'groq/openai/gpt-oss-120b',
+    'groq/openai/gpt-oss-120b': 'ddgw/gpt-5.6-luna',
+    'ddgw/gpt-5.6-luna': 'auto/best-coding',
     'deepseek-v4-flash': 'glm-5.3-flash',
     'glm-5.3-flash': 'deepseek-v4-flash',
   };
-  const fallbackModel = FALLBACK_MODELS[a.model];
-  if (fallbackModel) {
+
+  let currentModel = a.model;
+  const visited = new Set<string>();
+
+  while (true) {
+    const fallbackModel = FALLBACK_CHAIN[currentModel];
+    if (!fallbackModel || visited.has(fallbackModel)) break; // no more fallbacks or cycle detected
+    visited.add(fallbackModel);
+
     try {
       const fbController = new AbortController();
       const fbTimer = setTimeout(() => fbController.abort(), ATTEMPT_TIMEOUT_MS);
       try {
-        const completion = await client.chat.completions.create(
-          {
+        if (a.stream && a.onChunk) {
+          const stream = await client.chat.completions.create({
             model: fallbackModel,
             temperature: a.temperature,
             max_tokens: a.maxTokens,
@@ -264,18 +344,48 @@ async function callOpenAICompat(a: OpenAICompatArgs): Promise<string> {
               { role: 'system', content: a.system },
               { role: 'user', content: a.user },
             ],
-          },
-          { signal: fbController.signal }
-        );
-        const text = completion.choices[0]?.message?.content?.trim() || '';
-        if (text) return text;
+            stream: true,
+          }, { signal: fbController.signal });
+
+          let fullText = '';
+          for await (const chunk of stream) {
+            const delta = chunk.choices[0]?.delta?.content || '';
+            if (delta) {
+              fullText += delta;
+              a.onChunk(delta);
+            }
+          }
+          if (fullText) return fullText;
+        } else {
+          const completion = await client.chat.completions.create({
+            model: fallbackModel,
+            temperature: a.temperature,
+            max_tokens: a.maxTokens,
+            messages: [
+              { role: 'system', content: a.system },
+              { role: 'user', content: a.user },
+            ],
+          }, { signal: fbController.signal });
+          const text = completion.choices[0]?.message?.content?.trim() || '';
+          if (text) return text;
+        }
       } finally {
         clearTimeout(fbTimer);
       }
-    } catch {
-      // fall through to the original error
+    } catch (fbErr: any) {
+      // If this fallback also hits concurrency cap, keep going to next fallback
+      if (isConcurrencyCap(fbErr)) {
+        currentModel = fallbackModel;
+        continue; // try next in chain
+      }
+      // Other errors: try next fallback
+      currentModel = fallbackModel;
+      continue;
     }
+    // If we got here without returning, this fallback failed (empty response)
+    currentModel = fallbackModel;
   }
+
   throw lastErr;
 }
 

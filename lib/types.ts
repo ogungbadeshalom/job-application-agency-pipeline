@@ -81,6 +81,7 @@ export interface Job {
   verified_remote: boolean; // pipeline confirmed remote via description + link
   easy_apply: boolean;      // LinkedIn "Easy Apply" (excluded from refills)
   tailor_status?: string | null; // live tailoring stage (null = idle): generating | ats-scoring | improving | finalizing | done
+  tailor_error?: string | null;  // failure reason from the last tailor run (null = no error)
   reason_string?: string | null; // Hermes: human-readable outcome reason (duplicate/dead-post/OTP-unconfirmed/...)
   run_id?: string | null;        // Hermes: per-drain attribution id linking a job to the batch run that drove it
   created_at: string;

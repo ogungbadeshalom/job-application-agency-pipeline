@@ -165,6 +165,7 @@ function mapJob(r: Record<string, unknown>): Job {
     verified_remote: Boolean(r.verified_remote),
     easy_apply: Boolean(r.easy_apply),
     tailor_status: (r.tailor_status as string | null) ?? null,
+    tailor_error: (r.tailor_error as string | null) ?? null,
     reason_string: (r.reason_string as string | null) ?? null,
     run_id: (r.run_id as string | null) ?? null,
     created_at: (r.created_at as Date).toISOString(),
@@ -908,6 +909,7 @@ export const db = {
       notes: 'notes',
       last_viewed_at: 'last_viewed_at',
       tailor_status: 'tailor_status',
+      tailor_error: 'tailor_error',
     };
     const sets: string[] = [];
     const params: unknown[] = [];

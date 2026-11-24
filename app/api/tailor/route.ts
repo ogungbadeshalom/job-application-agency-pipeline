@@ -40,11 +40,88 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
+  // A tailor run makes 2-4 sequential AI calls and routinely takes 60-180s —
+  // longer than Cloudflare's ~100s origin timeout. Doing that inline made the
+  // button fail with a 524 while the work actually completed. So POST only
+  // STARTS the run and returns immediately; the UI polls GET /api/tailor.
+  //
+  // Guard against a second run while one is in flight. A run older than
+  // STALE_MS is treated as dead (the process died mid-tailor, or pm2 restarted)
+  // so the job can never be wedged in "generating" forever.
+  const STALE_MS = 15 * 60 * 1000;
+  if (job.tailor_status) {
+    const age = Date.now() - new Date(job.updated_at).getTime();
+    if (age < STALE_MS) {
+      return NextResponse.json(
+        { started: false, tailor_status: job.tailor_status },
+        { status: 202 }
+      );
+    }
+  }
+
+  await db.updateJob(jobId, { tailor_status: 'generating', tailor_error: null });
+  // Fire-and-forget: the Node server is long-lived (next start under pm2), so
+  // the promise keeps running after the response is flushed.
+  void runTailor(jobId).catch(async (e) => {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('[tailor] run failed:', msg);
+    await db.updateJob(jobId, { tailor_status: null, tailor_error: msg }).catch(() => {});
+  });
+
+  return NextResponse.json({ started: true, tailor_status: 'generating' }, { status: 202 });
+}
+
+// GET /api/tailor?jobId=… — poll a run's live state (stage, error, result).
+export async function GET(req: Request) {
+  const session = await getSession();
+  if (!session || !['admin', 'worker'].includes(session.user.role)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const jobId = new URL(req.url).searchParams.get('jobId');
+  if (!isUuid(jobId)) {
+    return NextResponse.json({ error: 'jobId must be a valid uuid' }, { status: 400 });
+  }
+  const job = await db.getJob(jobId);
+  if (!job) return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+
+  if (session.user.role === 'worker') {
+    if (!(await db.workerHasClient(session.user.id, job.profile_id))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+  }
+
+  // A stale in-flight run is dead — report it as such instead of hanging the UI.
+  let status = job.tailor_status ?? null;
+  let error = job.tailor_error ?? null;
+  if (status) {
+    const age = Date.now() - new Date(job.updated_at).getTime();
+    if (age > 15 * 60 * 1000) {
+      status = null;
+      error = 'Tailoring timed out. Please try again.';
+    }
+  }
+
+  return NextResponse.json({
+    tailor_status: status,
+    tailor_error: error,
+    done: !status,
+    tailored_resume: job.tailored_resume,
+    tailored_resume_pdf_url: job.tailored_resume_pdf_url,
+    ats_score: job.ats_score ?? null,
+  });
+}
+
+// The actual tailor work. Runs detached from the HTTP request.
+async function runTailor(jobId: string): Promise<void> {
+  const job = await db.getJob(jobId);
+  if (!job) throw new Error('Job not found');
+  const profile = await db.getProfile(job.profile_id);
+  if (!profile?.base_resume_text) throw new Error('No base resume uploaded for this client.');
+
   // Live-tailor: surface the current stage to the client so they can watch the
   // resume being written against the JD in real time. Cleared when the run ends.
   const stage = (s: string | null) =>
     db.updateJob(jobId, { tailor_status: s }).catch(() => {});
-  await stage('generating');
   // Build the prompt. The BASE RESUME is the critical input — it must not be
   // truncated or the model will drop/invent employers. So the JD is clipped if
   // needed, but the resume is always sent whole. (The AI call has retries, so a
@@ -122,10 +199,11 @@ export async function POST(req: Request) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     await stage(null);
-    return NextResponse.json({ error: `AI call failed: ${msg}` }, { status: 502 });
+    throw new Error(`AI call failed: ${msg}`);
   }
   if (!raw || !raw.trim()) {
-    return NextResponse.json({ error: 'AI returned an empty resume.' }, { status: 502 });
+    await stage(null);
+    throw new Error('AI returned an empty resume.');
   }
 
   // Parse the model output. If the JSON is malformed (classically: the model
@@ -143,7 +221,7 @@ export async function POST(req: Request) {
     } catch (e2) {
       const msg2 = e2 instanceof Error ? e2.message : String(e2);
       await stage(null);
-      return NextResponse.json({ error: `AI returned invalid JSON: ${msg2 || msg}` }, { status: 502 });
+      throw new Error(`AI returned invalid JSON: ${msg2 || msg}`);
     }
   }
 
@@ -223,10 +301,17 @@ export async function POST(req: Request) {
     console.warn('[tailor] variation enforcement skipped:', (e as Error).message);
   }
 
-  // Kevin spec (Oct 26): contact line is built from the profile's REAL contact
-  // data (email · phone · location) — never the AI-echoed LinkedIn URL.
+  // Contact line is built from the client's REAL contact data — never the
+  // AI-echoed LinkedIn URL. The RESUME's own email wins over the login email:
+  // profiles.email is the account the client signs in with (which may be a
+  // personal Gmail), while resume_data.contact.email is the address that must
+  // appear on the generated resume.
   {
-    const realContact = [profile.email, profile.resume_data?.contact?.phone, profile.resume_data?.contact?.location]
+    const realContact = [
+      profile.resume_data?.contact?.email || profile.email,
+      profile.resume_data?.contact?.phone,
+      profile.resume_data?.contact?.location,
+    ]
       .filter(Boolean)
       .join(' · ');
     if (realContact) data.contact = realContact;
@@ -244,7 +329,7 @@ export async function POST(req: Request) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     await stage(null);
-    return NextResponse.json({ error: `PDF render failed: ${msg}` }, { status: 500 });
+    throw new Error(`PDF render failed: ${msg}`);
   }
 
   const resumeText = buildResumeText(data);
@@ -258,12 +343,11 @@ export async function POST(req: Request) {
     tailored_resume: resumeText,
     tailored_resume_pdf_url: pdfUrl,
     tailor_status: null,
+    tailor_error: null,
     ...(atsScoreFinal != null ? { ats_score: atsScoreFinal } : {}),
     ...(atsFeedback != null ? { ats_feedback: JSON.stringify(atsFeedback) as unknown as AtsScore } : {}),
     ...statusPatch,
   });
-
-  return NextResponse.json({ tailored_resume: resumeText, tailored_resume_pdf_url: pdfUrl });
 }
 
 // --- helpers ---------------------------------------------------------------

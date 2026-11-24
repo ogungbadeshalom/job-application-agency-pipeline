@@ -47,3 +47,17 @@ Thumbs.db
 # throwaway probe/debug scripts (name starts with underscore) — session debris
 /scripts/_*
 .next.bak/
+
+# session scratch — one-off runners and probe scripts (root-level)
+/_*.py
+/_*.mjs
+/_tmp_*.mjs
+/kd*_tmp.mjs
+/kq*_tmp.mjs
+/kt*_tmp.mjs
+/update_deepseek.mjs
+/update_ai_config.mjs
+/verify_ai_config.mjs
+/test_ai.mjs
+/tmp/linkedin_guest_out.json
+/scripts/switch_ai_provider.mjs

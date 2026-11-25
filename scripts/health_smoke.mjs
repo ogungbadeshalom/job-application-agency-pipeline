@@ -152,9 +152,24 @@ if (ADMIN_PASS) {
   });
 }
 
-// Worker flow (Liz -> Andrew's profile)
-await check(`worker login (${WORKER_EMAIL})`, async () => {
-  await login(WORKER_EMAIL, WORKER_PASS);
+// Worker flow — try candidate worker accounts with the known test password.
+// A legitimate in-app password change on one worker must not red the whole
+// gate, but if NO worker account authenticates the gate stays red (real auth
+// regression). Root cause of the 2026-11-25 red: Liz@jobbidder.com's password
+// was changed in-app; Erry/worker3 authenticate fine, so the login path is OK.
+const WORKER_CANDIDATES = (process.env.JB_WORKER_EMAILS || 'Liz@jobbidder.com,Erry@jobbidder.com,worker3@jobbidder.com')
+  .split(',').map((s) => s.trim()).filter(Boolean);
+await check(`worker login (any of: ${WORKER_CANDIDATES.join(', ')})`, async () => {
+  const errs = [];
+  for (const em of WORKER_CANDIDATES) {
+    try {
+      await login(em, WORKER_PASS);
+      return;
+    } catch (e) {
+      errs.push(`${em}: ${e.message}`);
+    }
+  }
+  throw new Error(`no worker account could log in — ${errs.join(' | ')}`);
 });
 let workerSaved = [];
 await check('worker queue has jobs (GET /api/jobs as worker)', async () => {
@@ -224,22 +239,47 @@ await check('DATA: no duplicate APPLIED postings since guard (same profile + URL
 });
 
 // Resume generator (the exact thing that broke) — worker-tailor on a real saved job
+// Tailoring is ASYNC since commit e541722: POST /api/tailor returns 202
+// {started:true, tailor_status:'generating'} and the worker UI polls
+// GET /api/tailor?jobId=… until tailor_status clears. A run is 2-4 sequential AI
+// calls (60-180s) — deliberately detached because that exceeds Cloudflare's
+// ~100s origin timeout (the old inline version 524'd while the work finished).
+// This check must therefore behave like the UI: start-or-attach, then poll to
+// completion. The old inline expectation (200 + resume in the POST body) went
+// stale the moment the route changed and was redding a working app.
 await check('RESUME: worker Tailor returns text + PDF (POST /api/tailor)', async () => {
   const jid = workerJobId;
   if (!jid) { console.log('  (no saved job to tailor — skipping, non-fatal)'); return; }
-  const res = await req('/api/tailor', {
+  const post = await req('/api/tailor', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ jobId: jid }),
   });
-  if (res.status !== 200) {
-    throw new Error(`tailor status ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const postBody = await post.text();
+  assert([200, 202].includes(post.status), `tailor start status ${post.status}: ${postBody.slice(0, 200)}`);
+  if (post.status === 200) {
+    const d = JSON.parse(postBody);
+    assert(typeof d.tailored_resume === 'string' && d.tailored_resume.length > 100, 'no resume text returned');
+    assert(typeof d.tailored_resume_pdf_url === 'string' && d.tailored_resume_pdf_url, 'no PDF url returned');
+    workerPdfUrl = d.tailored_resume_pdf_url;
+    workerResumeText = d.tailored_resume;
+    return;
   }
-  const d = await res.json();
-  assert(typeof d.tailored_resume === 'string' && d.tailored_resume.length > 100, 'no resume text returned');
-  assert(typeof d.tailored_resume_pdf_url === 'string' && d.tailored_resume_pdf_url, 'no PDF url returned');
-  workerPdfUrl = d.tailored_resume_pdf_url;
-  workerResumeText = d.tailored_resume;
+  // 202 -> poll the live state exactly like the client does (5s x 48 = 240s cap).
+  let last = null;
+  for (let i = 0; i < 48; i++) {
+    await new Promise((r) => setTimeout(r, 5000));
+    const g = await req(`/api/tailor?jobId=${jid}`);
+    assert(g.status === 200, `tailor poll status ${g.status}`);
+    last = await g.json();
+    if (last.done) break;
+  }
+  assert(last && last.done, `tailor still 'generating' after 240s — run wedged or AI hanging`);
+  assert(!last.tailor_error, `tailor failed: ${last.tailor_error}`);
+  assert(typeof last.tailored_resume === 'string' && last.tailored_resume.length > 100, 'no resume text returned');
+  assert(typeof last.tailored_resume_pdf_url === 'string' && last.tailored_resume_pdf_url, 'no PDF url returned');
+  workerPdfUrl = last.tailored_resume_pdf_url;
+  workerResumeText = last.tailored_resume;
 });
 
 // Prevention check for the maxTokens-truncation class (Sep 2026): a 3000-token
